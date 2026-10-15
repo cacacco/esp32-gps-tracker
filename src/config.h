@@ -89,6 +89,21 @@
 #define WIFI_RETRY_MS          120000     // ogni quanto riprovarla dal portale
 
 // ===========================================================================
+// 6c) Display TFT 4" ST7796 (480x320, SPI) - facoltativo
+//
+//     Collegamenti: VCC->3V3, GND->GND, CS->D15, RESET->D4, DC/RS->D2,
+//     SDI(MOSI)->D23, SCK->D18, LED->3V3, SDO(MISO)->D19.
+//     Il touch non serve: i pin T_* si possono lasciare scollegati.
+//
+//     ATTENZIONE: con il display, GPIO2 e GPIO4 sono del pannello. Metti
+//     PIN_LED a 32 e PIN_GPS_PPS a -1, altrimenti la compilazione si ferma.
+// ===========================================================================
+#define ENABLE_DISPLAY             0
+#define DISPLAY_ROTATION           1   // 0-3: gira l'immagine di 90 gradi
+#define DISPLAY_REFRESH_MS       250   // ogni quanto aggiornare i numeri
+#define TIME_UTC_OFFSET_MIN      120   // orologio: 60 in inverno, 120 in estate
+
+// ===========================================================================
 // 7) Varie
 // ===========================================================================
 #define SERIAL_BAUD           115200

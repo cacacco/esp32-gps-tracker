@@ -27,6 +27,7 @@
 #include "config.h"
 #include "track_store.h"
 #include "wifi_portal.h"
+#include "display_ui.h"
 #include "web_ui.h"
 
 #if ENABLE_SINRICPRO
@@ -657,6 +658,10 @@ void setup() {
   configureGps();
 #endif
 
+#if ENABLE_DISPLAY
+  displayBegin();
+#endif
+
   trackBegin();
   loadSettings();
   Serial.printf("[GEOFENCE] centro %.6f, %.6f raggio %.0f m\r\n", fence.lat, fence.lon, fence.radius);
@@ -680,6 +685,36 @@ void loop() {
   readGps();
   updateLed();
   server.handleClient();
+
+#if ENABLE_DISPLAY
+  static uint32_t lastDraw = 0;
+  if (millis() - lastDraw >= DISPLAY_REFRESH_MS) {
+    lastDraw = millis();
+
+    // netName vive oltre la chiamata: DisplayData tiene un puntatore, non una copia.
+    static String netName;
+    netName = wifiPortalOn ? wifiApName : WiFi.SSID();
+
+    DisplayData d;
+    d.fixValid     = fix.valid;
+    d.gpsAlive     = gps.charsProcessed() > 20 && gps.passedChecksum() > 0;
+    d.speedKmh     = (float)fix.speedKmh;
+    d.cardinal     = TinyGPSPlus::cardinal(fix.course);
+    d.satellites   = gps.satellites.isValid() ? gps.satellites.value() : 0;
+    d.hdop         = gps.hdop.isValid() ? (float)gps.hdop.hdop() : 0.0f;
+    d.altitude     = (float)fix.altitude;
+    d.distanceHome = (float)fix.distanceHome;
+    d.outside      = (fenceState == FENCE_OUTSIDE);
+    d.tripKm       = (float)(trip.tripDistanceM / 1000.0);
+    d.maxKmh       = trip.maxSpeedKmh;
+    d.movingS      = trip.movingTimeS;
+    d.epoch        = fix.epoch ? fix.epoch : nowEpoch();
+    d.sentences    = gps.passedChecksum();
+    d.netName      = netName.c_str();
+    d.portal       = wifiPortalOn;
+    displayUpdate(d);
+  }
+#endif
   wifiLoop();
   saveOdometer(false);
 

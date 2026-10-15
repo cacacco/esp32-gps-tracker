@@ -29,6 +29,7 @@ Tutto gira sull'ESP32: nessun server esterno, nessuna SD, nessun file da caricar
 | Modulo GPS u-blox NEO-7M (GY-NEO7M) | con antenna attiva avvitata sull'SMA |
 | 4-5 jumper femmina/femmina | |
 | Cavo USB dati | molti cavi da ricarica non hanno i fili dati |
+| *(facoltativo)* TFT 4" ST7796 480x320 SPI | computer di bordo, vedi sotto |
 
 ---
 
@@ -155,6 +156,53 @@ gia' collegato, per cambiare rete o dimenticarla.
 
 Mentre il portale e' attivo il tracker **continua a registrare la traccia**, e ogni due minuti
 riprova la rete salvata: quando rientri in casa si ricollega da solo e chiude l'access point.
+
+---
+
+## 5c. Computer di bordo su display (facoltativo)
+
+Con un TFT **4" ST7796 480x320 SPI** il tracker diventa anche un computer di bordo:
+velocita' grande al centro, direzione, distanza dalla base, chilometri del viaggio,
+velocita' massima, tempo in movimento, quota e orologio sincronizzato dal GPS. Finche' il
+fix non arriva mostra satelliti e frasi NMEA, cosi' si capisce a che punto e'.
+
+| Pin del display | ESP32 |
+|---|---|
+| `VCC` | `3V3` (vedi nota) |
+| `GND` | `GND` |
+| `CS` | `D15` |
+| `RESET` | `D4` |
+| `DC/RS` | `D2` |
+| `SDI (MOSI)` | `D23` |
+| `SCK` | `D18` |
+| `LED` | `3V3` |
+| `SDO (MISO)` | `D19` |
+| `T_CLK` `T_CS` `T_DIN` `T_DO` `T_IRQ` | **non collegati**: il touch non serve |
+
+Poi in `config.h`:
+
+```c
+#define ENABLE_DISPLAY  1
+#define PIN_LED        32   // GPIO2 ora e' il DC del display
+#define PIN_GPS_PPS    -1   // GPIO4 ora e' il RESET del display
+```
+
+Se dimentichi gli ultimi due la compilazione si ferma con un messaggio che dice cosa
+cambiare: meglio un errore subito che un display che non parte e mezza giornata persa.
+
+**Alimentazione**: parti sempre da `3V3`. Queste basette sono progettate per 3,3 V; i 5 V
+li regge solo chi ha il regolatore a bordo (un SOT-23 a 5 piedini vicino al `VCC`, di solito
+`AMS1117`) e senza di quello il pannello si brucia. Il pin `LED` va a `3V3` e non a un GPIO:
+la retroilluminazione di un 4" assorbe piu' di quanto un pin possa erogare.
+
+**Nell'Arduino IDE** copia [`tools/TFT_eSPI_User_Setup_ST7796.h`](tools/TFT_eSPI_User_Setup_ST7796.h)
+dentro la cartella della libreria TFT_eSPI, sovrascrivendo `User_Setup.h` (va rifatto dopo
+ogni aggiornamento della libreria). Con PlatformIO non serve: la configurazione e' gia' nei
+`build_flags` di `platformio.ini`.
+
+**Caricamento del firmware**: GPIO2 e GPIO15 sono anche pin di strapping dell'ESP32. Di norma
+non danno fastidio, ma se dopo aver collegato il display il caricamento non parte piu'
+(`Failed to connect to ESP32`), stacca i fili `DC` e `CS`, carica, e ricollegali.
 
 ---
 
@@ -291,7 +339,10 @@ projects/esp32-gps-tracker/
 │   ├── main.cpp                 lettura GPS, geofence, statistiche, web server, SinricPro
 │   ├── track_store.h            traccia e odometro su memoria interna (LittleFS)
 │   ├── wifi_portal.h            connessione WiFi e portale di configurazione
+│   ├── display_ui.h             computer di bordo sul TFT 4" (facoltativo)
 │   └── web_ui.h                 dashboard HTML/CSS/JS servita dall'ESP32
-├── tools/make_arduino_sketch.sh genera lo sketch per l'Arduino IDE
+├── tools/
+│   ├── make_arduino_sketch.sh   genera lo sketch per l'Arduino IDE
+│   └── TFT_eSPI_User_Setup_ST7796.h  configurazione del display per l'Arduino IDE
 └── docs/wiring.svg              schema dei collegamenti
 ```
