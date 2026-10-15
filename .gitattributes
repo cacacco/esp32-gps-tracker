@@ -1,0 +1,4 @@
+# Gli script per Windows devono avere i fine riga CRLF, altrimenti cmd.exe
+# interpreta male le ultime righe dei .bat.
+*.bat text eol=crlf
+*.ps1 text eol=crlf

@@ -63,14 +63,34 @@ Tre errori che costano un pomeriggio:
 
 ## 3. Compilazione e caricamento
 
-### PlatformIO (consigliato)
+### Windows, con un doppio clic
+
+In `tools/windows/` c'e' uno script che fa tutto: se PlatformIO manca lo installa, poi
+compila, carica e apre il log seriale.
+
+1. Doppio clic su **`tools\windows\carica-firmware.bat`**
+2. Premi Invio sul menu (la prima voce e' quella giusta)
+
+Il menu offre anche solo-log, solo-compilazione e ricompilazione pulita. Da riga di comando
+si possono passare le stesse opzioni:
+
+```powershell
+.\tools\windows\carica-firmware.bat -SoloMonitor
+.\tools\windows\carica-firmware.bat -Porta COM7
+```
+
+L'unico prerequisito e' **Python 3** (da [python.org](https://www.python.org/downloads/),
+spuntando *Add python.exe to PATH*): se non c'e', lo script lo dice e si ferma senza fare
+danni. La prima compilazione scarica toolchain e librerie, anche diverse centinaia di MB.
+
+### PlatformIO a mano
 
 ```bash
 cd projects/esp32-gps-tracker
 pio run -t upload -t monitor
 ```
 
-`platformio.ini` scarica da solo TinyGPS++, ArduinoJson, WebSockets e SinricPro.
+`platformio.ini` scarica da solo TinyGPS++, ArduinoJson, WebSockets, SinricPro e TFT_eSPI.
 
 > ArduinoJson e' bloccato alla **versione 6**: l'SDK SinricPro 2.x non compila con la 7.
 
@@ -342,6 +362,7 @@ projects/esp32-gps-tracker/
 │   ├── display_ui.h             computer di bordo sul TFT 4" (facoltativo)
 │   └── web_ui.h                 dashboard HTML/CSS/JS servita dall'ESP32
 ├── tools/
+│   ├── windows/carica-firmware.bat   compila, carica e apre il log su Windows
 │   ├── make_arduino_sketch.sh   genera lo sketch per l'Arduino IDE
 │   └── TFT_eSPI_User_Setup_ST7796.h  configurazione del display per l'Arduino IDE
 └── docs/wiring.svg              schema dei collegamenti
