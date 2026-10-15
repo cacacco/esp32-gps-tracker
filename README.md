@@ -34,12 +34,19 @@ Tutto gira sull'ESP32: nessun server esterno, nessuna SD, nessun file da caricar
 |---|---|---|
 | `VCC` | `VIN` (5 V dalla USB) | il modulo ha il suo regolatore; va bene anche `3V3` |
 | `GND` | `GND` | massa comune, obbligatoria |
-| `TX`  | `D16` / GPIO16 (RX2) | le frasi NMEA arrivano all'ESP32 |
-| `RX`  | `D17` / GPIO17 (TX2) | comandi verso il GPS (serve solo con `GPS_CONFIGURE_UBX`) |
+| `TXD` | `D16` / GPIO16 (RX2) | le frasi NMEA arrivano all'ESP32 |
+| `RXD` | `D17` / GPIO17 (TX2) | **facoltativo**: comandi verso il GPS, serve solo con `GPS_CONFIGURE_UBX` |
 | `PPS` | `D4` / GPIO4 | facoltativo: 1 impulso al secondo quando c'e' il fix |
 
-**TX e RX vanno incrociati**: e' l'errore numero uno. Le linee dati del NEO-7M sono
-gia' a 3,3 V, quindi non serve nessun adattatore di livello.
+Per ricevere la posizione **bastano tre fili**: `VCC`, `GND` e `TXD`.
+
+Tre errori che costano un pomeriggio:
+
+* **TX e RX vanno incrociati**: il `TXD` del modulo va sul pin di ricezione dell'ESP32 (`D16`).
+* **Non usare i pin dell'ESP32 marcati `RX0`/`TX0`** (GPIO3 / GPIO1): sono la seriale della
+  USB, il firmware legge su UART2. Hanno sigle simili a quelle del GPS, e' una trappola.
+* **L'ordine dei pin cambia da modulo a modulo.** Sul HW-542 della foto, da sinistra:
+  `PPS RXD TXD GND VCC`. Leggi sempre le sigle stampate sulla basetta, mai la posizione.
 
 > L'antenna deve vedere il cielo. Dentro casa, lontano da una finestra, il fix non arriva
 > quasi mai: il primo aggancio "a freddo" richiede 30-60 secondi all'aperto, anche qualche
