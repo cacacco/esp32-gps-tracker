@@ -90,6 +90,8 @@ Il resto ha valori di default sensati. Le voci che probabilmente vorrai toccare:
 | `MIN_SATELLITES` / `MAX_HDOP` | 4 / 5.0 | soglie di qualita': sotto queste la posizione viene scartata |
 | `TRACK_MIN_DISTANCE_M` | 10 m | quanto ti devi spostare prima di registrare un nuovo punto |
 | `ENABLE_SINRICPRO` | 0 | mettilo a 1 per le notifiche push (vedi sotto) |
+| `GPS_AUTO_BAUD` | 1 | all'avvio cerca il baud giusto se il modulo non risponde a 9600 |
+| `GPS_RAW_ECHO` | 0 | mettilo a 1 per vedere sul monitor i byte grezzi del GPS |
 | `GPS_PASSTHROUGH` | 0 | mettilo a 1 per collegare il GPS a u-center sul PC attraverso l'ESP32 |
 
 ---
@@ -103,7 +105,8 @@ Apri il monitor seriale a **115200 baud**:
 [GEOFENCE] centro 45.464200, 9.190000 raggio 150 m
 [WiFi] connessione a casa-wifi... ok
 [WiFi] dashboard su http://192.168.1.42/ (o http://gps-tracker.local/)
-[GPS] in attesa del fix - satelliti in vista: 3, frasi NMEA: 0, errori: 0
+[GPS] modulo riconosciuto a 9600 baud
+[GPS] modulo OK (altre frasi valide) - in attesa del fix, satelliti in vista: 3
 [GPS] orologio di sistema sincronizzato
 [GPS] 45.463800, 9.189100 | 0.4 km/h | 122 m slm | sat 8 | HDOP 1.2 | dentro area (34 m)
 ```
@@ -190,7 +193,7 @@ serve a non farsi bloccare dal server. I cambi di stato del contatto hanno un li
 
 | Sintomo | Causa probabile |
 |---|---|
-| `[GPS] nessun dato` e LED a lampeggio veloce | TX/RX non incrociati, GND mancante, oppure modulo a un baud diverso da 9600 |
+| `[GPS] nessun byte in arrivo` e LED a lampeggio veloce | TX/RX non incrociati, GND mancante, modulo non alimentato |
 | frasi NMEA che arrivano ma `errori` (checksum) che salgono | baud rate sbagliato o cavetti troppo lunghi/ballerini |
 | satelliti in vista ma fix che non arriva | antenna al chiuso; portalo all'aperto e lascialo fermo qualche minuto |
 | il fix arriva ma la dashboard dice "ricerca satelliti" | qualita' sotto le soglie: abbassa `MIN_SATELLITES` o alza `MAX_HDOP` |
@@ -198,9 +201,26 @@ serve a non farsi bloccare dal server. I cambi di stato del contatto hanno un li
 | `gps-tracker.local` non si apre | mDNS assente (tipico su Android): usa l'indirizzo IP stampato sulla seriale |
 | riavvii casuali con WiFi collegato | alimentazione: il picco TX del WiFi arriva a ~300 mA |
 
+### Il GPS non da' segni di vita
+
+Il riepilogo sul monitor seriale distingue tre situazioni diverse, leggilo prima di
+mettere mano ai fili:
+
+| Riga sul monitor | Cosa vuol dire |
+|---|---|
+| `nessun byte in arrivo` | il filo dati non arriva: TX del modulo su `D16`, GND in comune, modulo alimentato |
+| `byte ricevuti ma nessuna frase NMEA valida` | il modulo parla a un baud diverso, o i contatti ballano |
+| `modulo OK ... in attesa del fix` | collegamenti a posto: serve solo cielo libero e pazienza |
+
+All'avvio il firmware prova da solo i baud piu' comuni (`GPS_AUTO_BAUD`) e scrive quale
+ha funzionato. Per vedere i byte grezzi cosi' come arrivano metti `GPS_RAW_ECHO` a `1`:
+se compare testo tipo `$GPGGA,...` il collegamento e' buono, se compaiono caratteri a
+caso e' il baud rate sbagliato, se non compare niente e' un problema di cablaggio.
+
 Per guardare il modulo da vicino con **u-center** (il tool u-blox per Windows): metti
-`GPS_PASSTHROUGH` a `1`, ricarica il firmware e apri la porta USB dell'ESP32 a 9600 baud.
-L'ESP32 diventa un semplice ponte seriale verso il GPS.
+`GPS_PASSTHROUGH` a `1`, ricarica il firmware e apri la porta USB dell'ESP32 a
+**115200** baud (`SERIAL_BAUD`, non il baud del GPS). L'ESP32 diventa un semplice ponte
+seriale verso il modulo.
 
 ---
 

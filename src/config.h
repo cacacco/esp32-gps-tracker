@@ -76,6 +76,15 @@
 #define SERIAL_BAUD           115200
 #define STATUS_PRINT_MS         5000   // riepilogo su monitor seriale
 
+// Eco sul monitor dei byte grezzi che arrivano dal GPS: si vede subito se il
+// modulo parla (testo NMEA leggibile) o se il baud rate e' sbagliato
+// (caratteri a caso). Da tenere a 0 nell'uso normale.
+#define GPS_RAW_ECHO               0
+
+// Se al baud configurato non arriva nessuna frase valida, all'avvio prova gli
+// altri baud comuni: parecchi moduli clone escono di fabbrica diversi da 9600.
+#define GPS_AUTO_BAUD              1
+
 // Modalita' ponte seriale: USB <-> GPS, per usare u-center sul PC.
 // Con 1 il tracker non fa altro: serve solo a configurare il modulo.
 #define GPS_PASSTHROUGH            0

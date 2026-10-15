@@ -151,6 +151,38 @@ static void configureGps() {
 #endif
 
 // ---------------------------------------------------------------------------
+// Riconoscimento del baud rate del modulo
+// ---------------------------------------------------------------------------
+#if GPS_AUTO_BAUD
+static uint32_t detectGpsBaud() {
+  static const uint32_t rates[] = { GPS_BAUD, 9600, 38400, 57600, 115200, 19200, 4800 };
+
+  for (uint8_t i = 0; i < sizeof(rates) / sizeof(rates[0]); i++) {
+    if (i && rates[i] == (uint32_t)GPS_BAUD) continue;   // gia' provato per primo
+
+    gpsSerial.begin(rates[i], SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
+    const uint32_t before = gps.passedChecksum();
+    const uint32_t start  = millis();
+
+    while (millis() - start < 1200) {
+      while (gpsSerial.available()) gps.encode(gpsSerial.read());
+      if (gps.passedChecksum() > before + 1) {           // due frasi valide: e' lui
+        Serial.printf("[GPS] modulo riconosciuto a %lu baud\r\n", (unsigned long)rates[i]);
+        return rates[i];
+      }
+      delay(5);
+    }
+  }
+
+  Serial.printf("[GPS] nessuna frase valida a nessun baud: resto a %d. "
+                "Controlla che il TX del modulo sia sul pin D%d e il GND in comune.\r\n",
+                GPS_BAUD, PIN_GPS_RX);
+  gpsSerial.begin(GPS_BAUD, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
+  return GPS_BAUD;
+}
+#endif
+
+// ---------------------------------------------------------------------------
 // SinricPro
 // ---------------------------------------------------------------------------
 #if ENABLE_SINRICPRO
@@ -197,9 +229,11 @@ static void saveGeofence() {
 
 static void loadGeofence() {
   prefs.begin("gpstracker", false);
-  fence.lat    = prefs.getDouble("lat", GEOFENCE_LAT);
-  fence.lon    = prefs.getDouble("lon", GEOFENCE_LON);
-  fence.radius = prefs.getDouble("radius", GEOFENCE_RADIUS_M);
+  // isKey() prima di getDouble(): senza, il primo avvio riempie il log di
+  // errori NVS "NOT_FOUND" che non sono errori, e' solo memoria ancora vuota.
+  if (prefs.isKey("lat"))    fence.lat    = prefs.getDouble("lat", GEOFENCE_LAT);
+  if (prefs.isKey("lon"))    fence.lon    = prefs.getDouble("lon", GEOFENCE_LON);
+  if (prefs.isKey("radius")) fence.radius = prefs.getDouble("radius", GEOFENCE_RADIUS_M);
 }
 
 static void updateGeofence() {
@@ -266,7 +300,13 @@ static bool fixIsUsable() {
 }
 
 static void readGps() {
-  while (gpsSerial.available()) gps.encode(gpsSerial.read());
+  while (gpsSerial.available()) {
+    const char c = (char)gpsSerial.read();
+    gps.encode(c);
+#if GPS_RAW_ECHO
+    Serial.write(c);
+#endif
+  }
 
   if (gps.location.isUpdated() && fixIsUsable()) {
     fix.valid       = true;
@@ -354,7 +394,7 @@ static void handleStatus() {
 
   JsonObject diag = doc.createNestedObject("diag");
   diag["chars"]     = gps.charsProcessed();
-  diag["sentences"] = gps.sentencesWithFix();
+  diag["sentences"] = gps.passedChecksum();
   diag["errors"]    = gps.failedChecksum();
   diag["points"]    = trackCount;
   diag["uptime"]    = millis() / 1000;
@@ -485,14 +525,34 @@ static void connectWiFi(uint32_t timeoutMs) {
 // Riepilogo su monitor seriale
 // ---------------------------------------------------------------------------
 static void printStatus() {
-  if (!gps.charsProcessed()) {
-    Serial.println(F("[GPS] nessun dato: controlla TX/RX incrociati, GND comune e baud rate"));
+  static uint32_t lastChars = 0;
+  const uint32_t chars  = gps.charsProcessed();
+  const uint32_t frasi  = gps.passedChecksum();
+  const uint32_t errori = gps.failedChecksum();
+
+  // Caso 1: non arriva proprio niente -> problema di cablaggio.
+  if (chars == lastChars) {
+    Serial.printf("[GPS] nessun byte in arrivo (%lu in totale): il TX del modulo va sul pin D%d, "
+                  "serve il GND in comune e il modulo deve essere alimentato\r\n",
+                  (unsigned long)chars, PIN_GPS_RX);
     return;
   }
+  lastChars = chars;
+
+  // Caso 2: arrivano byte ma nessuna frase valida -> baud rate sbagliato.
+  if (!frasi) {
+    Serial.printf("[GPS] %lu byte ricevuti ma nessuna frase NMEA valida (%lu checksum errati): "
+                  "baud rate sbagliato? Prova GPS_RAW_ECHO per vedere cosa arriva\r\n",
+                  (unsigned long)chars, (unsigned long)errori);
+    return;
+  }
+
+  // Caso 3: il modulo parla, manca solo l'aggancio dei satelliti.
   if (!fix.valid) {
-    Serial.printf("[GPS] in attesa del fix - satelliti in vista: %lu, frasi NMEA: %lu, errori: %lu\r\n",
-                  (unsigned long)(gps.satellites.isValid() ? gps.satellites.value() : 0),
-                  (unsigned long)gps.sentencesWithFix(), (unsigned long)gps.failedChecksum());
+    Serial.printf("[GPS] modulo OK (%lu frasi valide, %lu errori) - in attesa del fix, "
+                  "satelliti in vista: %lu\r\n",
+                  (unsigned long)frasi, (unsigned long)errori,
+                  (unsigned long)(gps.satellites.isValid() ? gps.satellites.value() : 0));
     return;
   }
   Serial.printf("[GPS] %.6f, %.6f | %.1f km/h | %.0f m slm | sat %lu | HDOP %.1f | %s (%.0f m)\r\n",
@@ -526,6 +586,10 @@ void setup() {
 #if GPS_PASSTHROUGH
   Serial.println(F("[MODO] ponte seriale USB <-> GPS attivo (u-center). Disattivalo in config.h."));
   return;
+#endif
+
+#if GPS_AUTO_BAUD
+  detectGpsBaud();
 #endif
 
 #if GPS_CONFIGURE_UBX
