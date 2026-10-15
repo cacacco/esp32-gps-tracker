@@ -64,11 +64,29 @@
 #define GEOFENCE_CONFIRM_SAMPLES         4   // letture consecutive per confermare
 
 // ===========================================================================
-// 6) Registrazione della traccia (in RAM, si azzera al riavvio)
+// 6) Registrazione della traccia (su memoria interna: sopravvive allo
+//    spegnimento, quindi in auto non perdi il viaggio quando togli il contatto)
 // ===========================================================================
-#define TRACK_MAX_POINTS           400   // ~400 punti = circa 6 KB di RAM
 #define TRACK_MIN_DISTANCE_M      10.0   // nuovo punto dopo almeno 10 m
 #define TRACK_MIN_INTERVAL_MS     5000   // ...e non piu' di uno ogni 5 s
+#define TRACK_FILE_MAX_POINTS    12000   // ~190 KB: oltre, il file ruota e il
+                                         // precedente resta come /track.old.bin
+#define TRACK_VIEW_POINTS          600   // quanti punti disegnare sulla mappa
+
+// Statistiche del viaggio
+#define STATS_MOVING_MIN_KMH       3.0   // sotto questa velocita' sei fermo
+#define STATS_SAVE_MS           120000   // ogni quanto salvare l'odometro totale
+
+// ===========================================================================
+// 6b) Portale WiFi
+//     Se la rete salvata non risponde, il tracker apre un suo access point:
+//     ti colleghi col telefono e scegli la rete da una pagina web. Le
+//     credenziali qui sopra servono solo come primo tentativo.
+// ===========================================================================
+#define AP_SSID_PREFIX     "GPS-Tracker"  // diventa "GPS-Tracker-a3f1"
+#define AP_PASSWORD        "gpstracker"   // min 8 caratteri, "" per rete aperta
+#define WIFI_CONNECT_MS         20000     // quanto aspettare la rete all'avvio
+#define WIFI_RETRY_MS          120000     // ogni quanto riprovarla dal portale
 
 // ===========================================================================
 // 7) Varie

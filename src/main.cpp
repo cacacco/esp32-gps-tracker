@@ -6,7 +6,10 @@
  * Cosa fa:
  *   - legge e decodifica le frasi NMEA del NEO-7M (TinyGPS++);
  *   - pubblica una dashboard web con mappa live, velocita', satelliti, HDOP;
- *   - registra la traccia percorsa e la esporta in formato GPX;
+ *   - registra la traccia su memoria interna (sopravvive allo spegnimento) e
+ *     la esporta in formato GPX, un segmento per accensione;
+ *   - tiene le statistiche del viaggio e l'odometro totale;
+ *   - si configura il WiFi dal telefono, senza ricompilare (portale captive);
  *   - sorveglia un'area circolare (geofence) e, quando il tracker esce o
  *     rientra, invia l'evento a SinricPro (contact sensor + notifica push).
  *
@@ -15,7 +18,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WebServer.h>
-#include <ESPmDNS.h>
 #include <Preferences.h>
 #include <ArduinoJson.h>
 #include <TinyGPS++.h>
@@ -23,6 +25,8 @@
 #include <sys/time.h>
 
 #include "config.h"
+#include "track_store.h"
+#include "wifi_portal.h"
 #include "web_ui.h"
 
 #if ENABLE_SINRICPRO
@@ -33,10 +37,10 @@
 // ---------------------------------------------------------------------------
 // Stato globale
 // ---------------------------------------------------------------------------
-TinyGPSPlus   gps;
+TinyGPSPlus    gps;
 HardwareSerial gpsSerial(2);          // UART2: GPIO16 (RX) / GPIO17 (TX)
-WebServer     server(80);
-Preferences   prefs;
+WebServer      server(80);
+Preferences    prefs;
 
 struct Fix {
   bool     valid        = false;      // posizione utilizzabile (qualita' sufficiente)
@@ -61,23 +65,13 @@ struct Geofence {
 Geofence fence;
 
 enum FenceState { FENCE_UNKNOWN, FENCE_INSIDE, FENCE_OUTSIDE };
-FenceState fenceState    = FENCE_UNKNOWN;
-FenceState pendingState  = FENCE_UNKNOWN;
-uint8_t    pendingCount  = 0;
+FenceState fenceState   = FENCE_UNKNOWN;
+FenceState pendingState = FENCE_UNKNOWN;
+uint8_t    pendingCount = 0;
 
-struct TrackPoint {
-  float    lat;
-  float    lon;
-  float    speedKmh;
-  uint32_t epoch;
-};
-TrackPoint track[TRACK_MAX_POINTS];
-uint16_t   trackCount = 0;            // punti validi in memoria
-uint16_t   trackHead  = 0;            // prossima posizione di scrittura
-uint32_t   lastTrackMs = 0;
-double     lastTrackLat = 0, lastTrackLon = 0;
-
-bool timeSynced = false;
+uint32_t lastTrackMs  = 0;
+double   lastTrackLat = 0, lastTrackLon = 0;
+bool     timeSynced   = false;
 
 #if PIN_GPS_PPS >= 0
 volatile uint32_t ppsPulses = 0;
@@ -87,6 +81,18 @@ void IRAM_ATTR onPpsPulse() { ppsPulses++; }
 // ---------------------------------------------------------------------------
 // Utilita'
 // ---------------------------------------------------------------------------
+
+// Svuota la seriale del GPS: chiamata anche durante le attese del WiFi, cosi'
+// il buffer di ricezione non trabocca mentre siamo fermi ad aspettare.
+static void pumpGps() {
+  while (gpsSerial.available()) {
+    const char c = (char)gpsSerial.read();
+    gps.encode(c);
+#if GPS_RAW_ECHO
+    Serial.write(c);
+#endif
+  }
+}
 
 // Converte data/ora NMEA in timestamp UTC. 0 se il GPS non ha ancora l'ora.
 static uint32_t gpsEpoch() {
@@ -102,10 +108,8 @@ static uint32_t gpsEpoch() {
   return epoch > 0 ? (uint32_t)epoch : 0;
 }
 
-// Timestamp corrente: orologio di sistema se gia' sincronizzato col GPS.
 static uint32_t nowEpoch() {
-  if (!timeSynced) return 0;
-  return (uint32_t)time(nullptr);
+  return timeSynced ? (uint32_t)time(nullptr) : 0;
 }
 
 static void isoTimestamp(uint32_t epoch, char *out, size_t len) {
@@ -114,12 +118,6 @@ static void isoTimestamp(uint32_t epoch, char *out, size_t len) {
   struct tm tm_utc;
   gmtime_r(&t, &tm_utc);
   strftime(out, len, "%Y-%m-%dT%H:%M:%SZ", &tm_utc);
-}
-
-// Punto i-esimo della traccia, 0 = il piu' vecchio.
-static const TrackPoint &trackAt(uint16_t i) {
-  uint16_t first = (trackCount == TRACK_MAX_POINTS) ? trackHead : 0;
-  return track[(first + i) % TRACK_MAX_POINTS];
 }
 
 // ---------------------------------------------------------------------------
@@ -227,13 +225,14 @@ static void saveGeofence() {
   prefs.putDouble("radius", fence.radius);
 }
 
-static void loadGeofence() {
+static void loadSettings() {
   prefs.begin("gpstracker", false);
   // isKey() prima di getDouble(): senza, il primo avvio riempie il log di
   // errori NVS "NOT_FOUND" che non sono errori, e' solo memoria ancora vuota.
   if (prefs.isKey("lat"))    fence.lat    = prefs.getDouble("lat", GEOFENCE_LAT);
   if (prefs.isKey("lon"))    fence.lon    = prefs.getDouble("lon", GEOFENCE_LON);
   if (prefs.isKey("radius")) fence.radius = prefs.getDouble("radius", GEOFENCE_RADIUS_M);
+  if (prefs.isKey("odo"))    trip.totalDistanceM = prefs.getDouble("odo", 0);
 }
 
 static void updateGeofence() {
@@ -266,27 +265,63 @@ static void updateGeofence() {
 }
 
 // ---------------------------------------------------------------------------
-// Traccia
+// Traccia e statistiche
 // ---------------------------------------------------------------------------
 static void maybeAddTrackPoint() {
-  if (!fix.valid) return;
-
   const uint32_t now = millis();
-  if (trackCount && now - lastTrackMs < TRACK_MIN_INTERVAL_MS) return;
+  if (lastTrackMs && now - lastTrackMs < TRACK_MIN_INTERVAL_MS) return;
 
-  if (trackCount) {
+  if (lastTrackMs) {
     const double moved = TinyGPSPlus::distanceBetween(fix.lat, fix.lon, lastTrackLat, lastTrackLon);
     if (moved < TRACK_MIN_DISTANCE_M) return;
   }
 
-  const uint32_t ts = fix.epoch ? fix.epoch : nowEpoch();
-  track[trackHead] = { (float)fix.lat, (float)fix.lon, (float)fix.speedKmh, ts };
-  trackHead = (trackHead + 1) % TRACK_MAX_POINTS;
-  if (trackCount < TRACK_MAX_POINTS) trackCount++;
+  TrackPoint p;
+  p.lat      = (float)fix.lat;
+  p.lon      = (float)fix.lon;
+  p.speedKmh = (float)fix.speedKmh;
+  p.epoch    = fix.epoch ? fix.epoch : nowEpoch();
+  trackAppend(p);
 
   lastTrackMs  = now;
   lastTrackLat = fix.lat;
   lastTrackLon = fix.lon;
+}
+
+static void updateStats() {
+  static bool     haveRef   = false;
+  static double   refLat    = 0, refLon = 0;
+  static uint32_t refMs     = 0;
+  static uint32_t movingMs  = 0;
+
+  const uint32_t now = millis();
+  if (!haveRef) { haveRef = true; refLat = fix.lat; refLon = fix.lon; refMs = now; return; }
+
+  const double   moved = TinyGPSPlus::distanceBetween(fix.lat, fix.lon, refLat, refLon);
+  const uint32_t dt    = now - refMs;
+  refLat = fix.lat; refLon = fix.lon; refMs = now;
+
+  // Il filtro sulla velocita' evita che il ballonzolamento del GPS da fermo
+  // gonfi i chilometri: sotto i 3 km/h non si accumula niente.
+  if (fix.speedKmh >= STATS_MOVING_MIN_KMH && dt < 10000) {
+    trip.tripDistanceM  += moved;
+    trip.totalDistanceM += moved;
+    movingMs            += dt;
+    trip.movingTimeS     = movingMs / 1000;
+  }
+  if (fix.speedKmh > trip.maxSpeedKmh) trip.maxSpeedKmh = (float)fix.speedKmh;
+}
+
+static void saveOdometer(bool force) {
+  static uint32_t lastSave  = 0;
+  static double   lastValue = -1;
+
+  if (!force && millis() - lastSave < STATS_SAVE_MS) return;
+  lastSave = millis();
+  if (!force && fabs(trip.totalDistanceM - lastValue) < 50) return;   // nulla di nuovo
+
+  lastValue = trip.totalDistanceM;
+  prefs.putDouble("odo", trip.totalDistanceM);
 }
 
 // ---------------------------------------------------------------------------
@@ -300,13 +335,7 @@ static bool fixIsUsable() {
 }
 
 static void readGps() {
-  while (gpsSerial.available()) {
-    const char c = (char)gpsSerial.read();
-    gps.encode(c);
-#if GPS_RAW_ECHO
-    Serial.write(c);
-#endif
-  }
+  pumpGps();
 
   if (gps.location.isUpdated() && fixIsUsable()) {
     fix.valid       = true;
@@ -330,6 +359,7 @@ static void readGps() {
       Serial.println(F("[GPS] orologio di sistema sincronizzato"));
     }
 
+    updateStats();
     maybeAddTrackPoint();
     updateGeofence();
   }
@@ -369,7 +399,7 @@ static void handleRoot() {
 }
 
 static void handleStatus() {
-  StaticJsonDocument<1024> doc;
+  StaticJsonDocument<1536> doc;
 
   doc["fix"]        = fix.valid;
   doc["lat"]        = fix.lat;
@@ -381,9 +411,7 @@ static void handleStatus() {
   doc["sats"]       = gps.satellites.isValid() ? gps.satellites.value() : 0;
   doc["hdop"]       = gps.hdop.isValid() ? gps.hdop.hdop() : 0;
   doc["epoch"]      = fix.epoch;
-  doc["age"]        = fix.valid ? (millis() - fix.lastValidMs) / 1000 : 0;
   doc["distance"]   = fix.distanceHome;
-  doc["inside"]     = (fenceState == FENCE_INSIDE);
   doc["fenceState"] = fenceState == FENCE_UNKNOWN ? "unknown"
                     : fenceState == FENCE_INSIDE  ? "inside" : "outside";
 
@@ -392,14 +420,24 @@ static void handleStatus() {
   fenceObj["lon"]    = fence.lon;
   fenceObj["radius"] = fence.radius;
 
+  JsonObject tripObj = doc.createNestedObject("trip");
+  tripObj["dist"]   = trip.tripDistanceM;
+  tripObj["total"]  = trip.totalDistanceM;
+  tripObj["max"]    = trip.maxSpeedKmh;
+  tripObj["moving"] = trip.movingTimeS;
+
   JsonObject diag = doc.createNestedObject("diag");
   diag["chars"]     = gps.charsProcessed();
   diag["sentences"] = gps.passedChecksum();
   diag["errors"]    = gps.failedChecksum();
-  diag["points"]    = trackCount;
+  diag["points"]    = trackPoints;
+  diag["backup"]    = trackHasBackup();
+  diag["fsfree"]    = trackReady ? (LittleFS.totalBytes() - LittleFS.usedBytes()) / 1024 : 0;
   diag["uptime"]    = millis() / 1000;
   diag["heap"]      = ESP.getFreeHeap();
   diag["rssi"]      = WiFi.RSSI();
+  diag["portal"]    = wifiPortalOn;
+  diag["ssid"]      = wifiPortalOn ? wifiApName : WiFi.SSID();
 #if PIN_GPS_PPS >= 0
   diag["pps"]       = ppsPulses;
 #endif
@@ -414,41 +452,77 @@ static void handleStatus() {
   server.send(200, "application/json", out);
 }
 
-// Traccia compatta: [[lat, lon, km/h, epoch], ...]
+// --- streaming della traccia -----------------------------------------------
+// I visitatori scrivono direttamente nella risposta HTTP: la traccia puo'
+// essere molto piu' grande della RAM disponibile, quindi non si accumula.
+static bool streamNewSegment  = true;
+static bool streamFirstSeg    = true;
+static bool streamFirstPoint  = true;
+
+// Traccia per la mappa: [[ [lat,lon,km/h,epoch], ... ], ...] un array per viaggio
+static void trackJsonVisitor(const TrackPoint &p, bool isBreak) {
+  if (isBreak) { streamNewSegment = true; return; }
+
+  if (streamNewSegment) {
+    server.sendContent(streamFirstSeg ? "[" : "],[");
+    streamFirstSeg   = false;
+    streamNewSegment = false;
+    streamFirstPoint = true;
+  }
+
+  char buf[80];
+  snprintf(buf, sizeof(buf), "%s[%.6f,%.6f,%.1f,%lu]",
+           streamFirstPoint ? "" : ",", p.lat, p.lon, p.speedKmh, (unsigned long)p.epoch);
+  streamFirstPoint = false;
+  server.sendContent(buf);
+}
+
 static void handleTrack() {
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
   server.send(200, "application/json", "");
+
+  streamNewSegment = true;
+  streamFirstSeg   = true;
   server.sendContent("[");
-  char buf[80];
-  for (uint16_t i = 0; i < trackCount; i++) {
-    const TrackPoint &p = trackAt(i);
-    snprintf(buf, sizeof(buf), "%s[%.6f,%.6f,%.1f,%lu]",
-             i ? "," : "", p.lat, p.lon, p.speedKmh, (unsigned long)p.epoch);
-    server.sendContent(buf);
-  }
+  trackForEach(trackJsonVisitor, TRACK_VIEW_POINTS);
+  if (!streamFirstSeg) server.sendContent("]");
   server.sendContent("]");
   server.sendContent("");
 }
 
-static void handleGpx() {
-  server.sendHeader("Content-Disposition", "attachment; filename=\"track.gpx\"");
+static void gpxVisitor(const TrackPoint &p, bool isBreak) {
+  if (isBreak) {
+    if (!streamFirstSeg) { server.sendContent(F("</trkseg>\n")); streamFirstSeg = true; }
+    return;
+  }
+  if (streamFirstSeg) { server.sendContent(F("<trkseg>\n")); streamFirstSeg = false; }
+
+  char buf[160], iso[32];
+  isoTimestamp(p.epoch, iso, sizeof(iso));
+  if (iso[0]) snprintf(buf, sizeof(buf),
+                       "<trkpt lat=\"%.6f\" lon=\"%.6f\"><time>%s</time></trkpt>\n", p.lat, p.lon, iso);
+  else        snprintf(buf, sizeof(buf),
+                       "<trkpt lat=\"%.6f\" lon=\"%.6f\"/>\n", p.lat, p.lon);
+  server.sendContent(buf);
+}
+
+static void sendGpx(const char *path, const char *filename) {
+  server.sendHeader("Content-Disposition", String("attachment; filename=\"") + filename + "\"");
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
   server.send(200, "application/gpx+xml", "");
   server.sendContent(F("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
                        "<gpx version=\"1.1\" creator=\"ESP32 GPS Tracker\" "
                        "xmlns=\"http://www.topografix.com/GPX/1/1\">\n"
-                       "<trk><name>ESP32 track</name><trkseg>\n"));
-  char buf[160], iso[32];
-  for (uint16_t i = 0; i < trackCount; i++) {
-    const TrackPoint &p = trackAt(i);
-    isoTimestamp(p.epoch, iso, sizeof(iso));
-    if (iso[0]) snprintf(buf, sizeof(buf), "<trkpt lat=\"%.6f\" lon=\"%.6f\"><time>%s</time></trkpt>\n", p.lat, p.lon, iso);
-    else        snprintf(buf, sizeof(buf), "<trkpt lat=\"%.6f\" lon=\"%.6f\"/>\n", p.lat, p.lon);
-    server.sendContent(buf);
-  }
-  server.sendContent(F("</trkseg></trk></gpx>\n"));
+                       "<trk><name>ESP32 track</name>\n"));
+  streamFirstSeg = true;
+  trackForEachFile(path, gpxVisitor, 0);
+  if (!streamFirstSeg) server.sendContent(F("</trkseg>\n"));
+  server.sendContent(F("</trk></gpx>\n"));
   server.sendContent("");
 }
+
+static void handleGpx()    { sendGpx(TRACK_PATH, "track.gpx"); }
+static void handleGpxOld() { sendGpx(TRACK_PATH_OLD, "track-precedente.gpx"); }
 
 static void handleSetFence() {
   if (server.hasArg("here")) {
@@ -475,8 +549,15 @@ static void handleSetFence() {
 }
 
 static void handleClearTrack() {
-  trackCount = 0;
-  trackHead  = 0;
+  trackClear();
+  lastTrackMs = 0;
+  server.send(200, "application/json", "{\"ok\":true}");
+}
+
+static void handleResetTrip() {
+  trip.tripDistanceM = 0;
+  trip.maxSpeedKmh   = 0;
+  trip.movingTimeS   = 0;
   server.send(200, "application/json", "{\"ok\":true}");
 }
 
@@ -485,40 +566,16 @@ static void setupWebServer() {
   server.on("/api/status", HTTP_GET, handleStatus);
   server.on("/api/track", HTTP_GET, handleTrack);
   server.on("/api/track/clear", HTTP_POST, handleClearTrack);
+  server.on("/api/trip/reset", HTTP_POST, handleResetTrip);
   server.on("/api/fence", HTTP_POST, handleSetFence);
   server.on("/track.gpx", HTTP_GET, handleGpx);
-  server.onNotFound([]() { server.send(404, "text/plain", "404"); });
+  server.on("/track-precedente.gpx", HTTP_GET, handleGpxOld);
+  wifiRegisterRoutes(server);
+  server.onNotFound([]() {
+    if (wifiHandleNotFound()) return;   // portale captive attivo
+    server.send(404, "text/plain", "404");
+  });
   server.begin();
-}
-
-// ---------------------------------------------------------------------------
-// WiFi
-// ---------------------------------------------------------------------------
-static void connectWiFi(uint32_t timeoutMs) {
-  if (WiFi.status() == WL_CONNECTED) return;
-
-  Serial.printf("[WiFi] connessione a %s", WIFI_SSID);
-  WiFi.mode(WIFI_STA);
-  WiFi.setHostname(HOSTNAME);
-  WiFi.setSleep(false);
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-
-  const uint32_t start = millis();
-  uint32_t lastDot = 0;
-  while (WiFi.status() != WL_CONNECTED && millis() - start < timeoutMs) {
-    // L'attesa del WiFi non deve far traboccare il buffer seriale del GPS.
-    while (gpsSerial.available()) gps.encode(gpsSerial.read());
-    if (millis() - lastDot >= 250) { lastDot = millis(); Serial.print('.'); }
-    delay(20);
-  }
-
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.printf(" ok\r\n[WiFi] dashboard su http://%s/ (o http://%s.local/)\r\n",
-                  WiFi.localIP().toString().c_str(), HOSTNAME);
-    if (MDNS.begin(HOSTNAME)) MDNS.addService("http", "tcp", 80);
-  } else {
-    Serial.println(F(" fallita: il tracker continua a registrare, riprovo piu' tardi"));
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -555,10 +612,13 @@ static void printStatus() {
                   (unsigned long)(gps.satellites.isValid() ? gps.satellites.value() : 0));
     return;
   }
-  Serial.printf("[GPS] %.6f, %.6f | %.1f km/h | %.0f m slm | sat %lu | HDOP %.1f | %s (%.0f m)\r\n",
+
+  Serial.printf("[GPS] %.6f, %.6f | %.1f km/h | %.0f m slm | sat %lu | HDOP %.1f | %s (%.0f m) | "
+                "viaggio %.2f km\r\n",
                 fix.lat, fix.lon, fix.speedKmh, fix.altitude,
                 (unsigned long)fix.satellites, fix.hdop,
-                fenceState == FENCE_OUTSIDE ? "FUORI area" : "dentro area", fix.distanceHome);
+                fenceState == FENCE_OUTSIDE ? "FUORI area" : "dentro area", fix.distanceHome,
+                trip.tripDistanceM / 1000.0);
 }
 
 // ---------------------------------------------------------------------------
@@ -597,10 +657,12 @@ void setup() {
   configureGps();
 #endif
 
-  loadGeofence();
+  trackBegin();
+  loadSettings();
   Serial.printf("[GEOFENCE] centro %.6f, %.6f raggio %.0f m\r\n", fence.lat, fence.lon, fence.radius);
 
-  connectWiFi(20000);
+  wifiIdleHook = pumpGps;             // il GPS continua a essere letto durante le attese
+  wifiBegin();
   setupWebServer();
 
 #if ENABLE_SINRICPRO
@@ -618,6 +680,8 @@ void loop() {
   readGps();
   updateLed();
   server.handleClient();
+  wifiLoop();
+  saveOdometer(false);
 
 #if ENABLE_SINRICPRO
   if (WiFi.status() == WL_CONNECTED) SinricPro.handle();
@@ -627,11 +691,5 @@ void loop() {
   if (millis() - lastPrint >= STATUS_PRINT_MS) {
     lastPrint = millis();
     printStatus();
-  }
-
-  static uint32_t lastWiFiCheck = 0;
-  if (WiFi.status() != WL_CONNECTED && millis() - lastWiFiCheck >= 30000) {
-    lastWiFiCheck = millis();
-    connectWiFi(8000);
   }
 }

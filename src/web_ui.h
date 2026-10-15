@@ -23,26 +23,30 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--fg);
        font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-  header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
          padding:14px 16px;border-bottom:1px solid var(--line);background:var(--card)}
-  h1{font-size:17px;margin:0;font-weight:600;letter-spacing:.2px}
+  h1{font-size:17px;margin:0;font-weight:600;letter-spacing:.2px;margin-right:auto}
   .pill{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;
-        background:#2a2f3a;color:var(--muted)}
+        background:#2a2f3a;color:var(--muted);text-decoration:none}
   .pill.ok{background:rgba(53,196,106,.15);color:var(--ok)}
   .pill.warn{background:rgba(240,169,59,.15);color:var(--warn)}
   .pill.bad{background:rgba(232,83,79,.15);color:var(--bad)}
+  a.pill{border:1px solid var(--line)}
   main{padding:16px;max-width:900px;margin:0 auto}
-  .grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));margin-bottom:14px}
+  .banner{display:none;background:rgba(240,169,59,.12);border:1px solid rgba(240,169,59,.35);
+          color:var(--warn);border-radius:12px;padding:11px 14px;margin-bottom:14px;font-size:14px}
+  .banner a{color:var(--warn)}
+  .grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));margin-bottom:10px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
   .card .label{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
   .card .value{font-size:22px;font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums}
   .card .unit{font-size:13px;color:var(--muted);font-weight:400;margin-left:3px}
+  .sep{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:16px 0 8px}
   #map{height:min(55vh,420px);border-radius:12px;border:1px solid var(--line);background:#11141a}
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0}
   button,.btn{background:var(--card);color:var(--fg);border:1px solid var(--line);
          border-radius:10px;padding:9px 14px;font-size:14px;cursor:pointer;text-decoration:none}
   button:hover,.btn:hover{border-color:var(--accent);color:var(--accent)}
-  button:disabled{opacity:.45;cursor:not-allowed}
   input[type=number]{width:92px;background:#11141a;color:var(--fg);border:1px solid var(--line);
          border-radius:10px;padding:9px 10px;font-size:14px}
   label{font-size:13px;color:var(--muted)}
@@ -58,9 +62,12 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
   <span class="pill" id="fixPill">connessione...</span>
   <span class="pill" id="fencePill">area: --</span>
   <span class="pill" id="sinricPill" hidden>SinricPro</span>
+  <a class="pill" href="/wifi">WiFi</a>
 </header>
 
 <main>
+  <div class="banner" id="banner"></div>
+
   <div class="grid">
     <div class="card"><div class="label">Velocita'</div><div class="value"><span id="speed">--</span><span class="unit">km/h</span></div></div>
     <div class="card"><div class="label">Satelliti</div><div class="value" id="sats">--</div></div>
@@ -68,6 +75,14 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
     <div class="card"><div class="label">Altitudine</div><div class="value"><span id="alt">--</span><span class="unit">m</span></div></div>
     <div class="card"><div class="label">Dalla base</div><div class="value"><span id="dist">--</span><span class="unit">m</span></div></div>
     <div class="card"><div class="label">Direzione</div><div class="value" id="course">--</div></div>
+  </div>
+
+  <div class="sep">Viaggio in corso</div>
+  <div class="grid">
+    <div class="card"><div class="label">Percorsi</div><div class="value"><span id="tripDist">--</span><span class="unit">km</span></div></div>
+    <div class="card"><div class="label">Velocita' max</div><div class="value"><span id="tripMax">--</span><span class="unit">km/h</span></div></div>
+    <div class="card"><div class="label">In movimento</div><div class="value" id="tripMoving">--</div></div>
+    <div class="card"><div class="label">Odometro</div><div class="value"><span id="tripTotal">--</span><span class="unit">km</span></div></div>
   </div>
 
   <div id="map"></div>
@@ -80,9 +95,14 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
     <label for="radius">Raggio area</label>
     <input type="number" id="radius" min="20" max="50000" step="10" value="150">
     <button id="btnHere">Centra l'area qui</button>
-    <button id="btnClear">Svuota traccia</button>
-    <a class="btn" href="/track.gpx" download>Scarica GPX</a>
     <label><input type="checkbox" id="follow" checked> segui</label>
+  </div>
+
+  <div class="row">
+    <a class="btn" href="/track.gpx" download>Scarica GPX</a>
+    <a class="btn" id="btnOld" href="/track-precedente.gpx" download hidden>GPX precedente</a>
+    <button id="btnTrip">Azzera viaggio</button>
+    <button id="btnClear">Cancella traccia salvata</button>
   </div>
 </main>
 
@@ -107,6 +127,12 @@ function initMap(){
 
 function fmt(v, d=1){ return (v === null || v === undefined || isNaN(v)) ? '--' : Number(v).toFixed(d); }
 
+function fmtTime(s){
+  if (!s) return '--';
+  const h = Math.floor(s/3600), m = Math.floor(s%3600/60);
+  return h ? h + 'h ' + m + 'm' : m ? m + 'm ' + (s%60) + 's' : s + 's';
+}
+
 async function refreshStatus(){
   let s;
   try { s = await (await fetch('/api/status')).json(); }
@@ -128,6 +154,13 @@ async function refreshStatus(){
     sp.className = 'pill ' + (s.diag.sinric === 'online' ? 'ok' : 'warn');
   }
 
+  const banner = $('banner');
+  if (s.diag.portal){
+    banner.style.display = 'block';
+    banner.innerHTML = 'Il tracker non ha trovato la rete salvata e sta facendo da access point (<b>' +
+      s.diag.ssid + '</b>). <a href="/wifi">Scegli una rete</a> per rimetterlo online.';
+  } else banner.style.display = 'none';
+
   $('speed').textContent  = fmt(s.speed);
   $('sats').textContent   = s.sats || 0;
   $('hdop').textContent   = fmt(s.hdop, 1);
@@ -135,14 +168,22 @@ async function refreshStatus(){
   $('dist').textContent   = s.fix ? fmt(s.distance, 0) : '--';
   $('course').textContent = s.fix ? (s.cardinal || '--') : '--';
 
+  $('tripDist').textContent   = fmt(s.trip.dist/1000, 2);
+  $('tripMax').textContent    = fmt(s.trip.max, 1);
+  $('tripMoving').textContent = fmtTime(s.trip.moving);
+  $('tripTotal').textContent  = fmt(s.trip.total/1000, 1);
+
+  $('btnOld').hidden = !s.diag.backup;
+
   $('coords').innerHTML = s.fix
     ? `${s.lat.toFixed(6)}, ${s.lon.toFixed(6)} &nbsp; <a target="_blank" rel="noopener"
        href="https://www.google.com/maps?q=${s.lat},${s.lon}">apri in Google Maps</a>`
     : 'in attesa del fix...';
 
   $('diag').textContent =
-    `caratteri NMEA ${s.diag.chars} | frasi con fix ${s.diag.sentences} | checksum errati ${s.diag.errors} | ` +
-    `punti traccia ${s.diag.points} | RSSI ${s.diag.rssi} dBm | heap ${(s.diag.heap/1024).toFixed(0)} kB | ` +
+    `rete ${s.diag.ssid || '--'} | RSSI ${s.diag.rssi} dBm | caratteri NMEA ${s.diag.chars} | ` +
+    `frasi valide ${s.diag.sentences} | checksum errati ${s.diag.errors} | ` +
+    `punti salvati ${s.diag.points} | memoria libera ${s.diag.fsfree} kB | heap ${(s.diag.heap/1024).toFixed(0)} kB | ` +
     `uptime ${Math.floor(s.diag.uptime/3600)}h ${Math.floor(s.diag.uptime%3600/60)}m`;
 
   if (!map) return;
@@ -162,8 +203,8 @@ async function refreshStatus(){
 async function refreshTrack(){
   if (!map) return;
   try {
-    const pts = await (await fetch('/api/track')).json();
-    line.setLatLngs(pts.map(p => [p[0], p[1]]));
+    const segs = await (await fetch('/api/track')).json();
+    line.setLatLngs(segs.map(seg => seg.map(p => [p[0], p[1]])));
   } catch(e){}
 }
 
@@ -173,9 +214,12 @@ $('btnHere').onclick = async () => {
   if (!res.ok) alert('Serve un fix GPS valido per spostare qui il centro dell\'area.');
   refreshStatus();
 };
+$('btnTrip').onclick = async () => { await fetch('/api/trip/reset', {method:'POST'}); refreshStatus(); };
 $('btnClear').onclick = async () => {
+  if (!confirm('Cancellare la traccia salvata nella memoria del tracker?')) return;
   await fetch('/api/track/clear', {method:'POST'});
   if (line) line.setLatLngs([]);
+  refreshStatus();
 };
 
 initMap();

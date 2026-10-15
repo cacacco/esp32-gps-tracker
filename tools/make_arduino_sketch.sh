@@ -11,9 +11,9 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 out="${1:-$root/arduino/EspGpsTracker}"
 
 mkdir -p "$out"
-cp "$root/src/config.h"  "$out/config.h"
-cp "$root/src/web_ui.h"  "$out/web_ui.h"
+cp "$root"/src/*.h       "$out/"
 cp "$root/src/main.cpp"  "$out/$(basename "$out").ino"
 
 echo "Sketch pronto in: $out"
-echo "Apri $(basename "$out").ino con l'Arduino IDE, scheda \"ESP32 Dev Module\"."
+echo "Apri $(basename "$out").ino con l'Arduino IDE, scheda \"ESP32 Dev Module\","
+echo "Partition Scheme: \"No OTA (2MB APP/2MB SPIFFS)\"."

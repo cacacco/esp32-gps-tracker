@@ -6,7 +6,13 @@ e **modulo GPS u-blox NEO-7M** con antenna esterna.
 L'ESP32 legge la posizione dal NEO-7M e:
 
 * pubblica una **dashboard web** (mappa live, velocita', satelliti, HDOP, quota, distanza dalla base);
-* **registra la traccia** percorsa e la esporta in **GPX**, pronto per Google Earth, Strava o QGIS;
+* **registra la traccia nella memoria interna**: sopravvive allo spegnimento, quindi in auto non
+  perdi il viaggio quando togli il contatto. Si esporta in **GPX**, un segmento per accensione,
+  pronto per Google Earth, Strava o QGIS;
+* tiene le **statistiche del viaggio** (distanza, velocita' massima, tempo in movimento) e un
+  **odometro totale** che non si azzera;
+* si fa configurare il **WiFi dal telefono**: se non trova la rete salvata apre un proprio
+  access point con una pagina per sceglierne una, senza ricompilare niente;
 * sorveglia un'**area circolare (geofence)**: quando il tracker esce o rientra invia l'evento a
   **SinricPro** come contact sensor + notifica push sul telefono (passo facoltativo);
 * segnala lo stato con il **LED blu** della scheda, cosi' si capisce cosa sta succedendo anche senza PC.
@@ -81,14 +87,17 @@ Poi: scheda **ESP32 Dev Module**, e dal Library Manager installa *TinyGPSPlus* (
 
 ## 4. Configurazione
 
-Si lavora solo su [`src/config.h`](src/config.h). Il minimo indispensabile:
+Si lavora solo su [`src/config.h`](src/config.h), e con la versione attuale **non e'
+obbligatorio toccare niente**: se le credenziali WiFi restano quelle di esempio, al primo avvio
+il tracker apre il proprio access point e la rete la scegli dal telefono (vedi sotto). Se invece
+preferisci averla gia' pronta:
 
 ```c
 #define WIFI_SSID  "LA-TUA-RETE-WIFI"
 #define WIFI_PASS  "LA-TUA-PASSWORD"
 ```
 
-Il resto ha valori di default sensati. Le voci che probabilmente vorrai toccare:
+Le voci che probabilmente vorrai toccare:
 
 | Voce | Default | A cosa serve |
 |---|---|---|
@@ -96,6 +105,8 @@ Il resto ha valori di default sensati. Le voci che probabilmente vorrai toccare:
 | `GEOFENCE_RADIUS_M` | 150 m | raggio dell'area |
 | `MIN_SATELLITES` / `MAX_HDOP` | 4 / 5.0 | soglie di qualita': sotto queste la posizione viene scartata |
 | `TRACK_MIN_DISTANCE_M` | 10 m | quanto ti devi spostare prima di registrare un nuovo punto |
+| `TRACK_FILE_MAX_POINTS` | 12000 | capienza del file traccia (~20-30 ore di guida) |
+| `AP_SSID_PREFIX` / `AP_PASSWORD` | GPS-Tracker / gpstracker | nome e password dell'access point del portale |
 | `ENABLE_SINRICPRO` | 0 | mettilo a 1 per le notifiche push (vedi sotto) |
 | `GPS_AUTO_BAUD` | 1 | all'avvio cerca il baud giusto se il modulo non risponde a 9600 |
 | `GPS_RAW_ECHO` | 0 | mettilo a 1 per vedere sul monitor i byte grezzi del GPS |
@@ -129,15 +140,35 @@ Il LED blu racconta la stessa storia senza bisogno del PC:
 
 ---
 
+## 5b. Configurare il WiFi dal telefono
+
+Se la rete salvata non risponde (prima accensione, casa nuova, password cambiata), il tracker
+apre un access point chiamato **`GPS-Tracker-xxxx`**, password `gpstracker`.
+
+1. Col telefono collegati a quella rete.
+2. Di solito compare da sola la notifica di accesso; altrimenti apri `http://192.168.4.1/`.
+3. Tocca la tua rete nell'elenco, scrivi la password, **Salva e riavvia**.
+
+Le credenziali finiscono nella memoria non volatile: ai riavvii successivi si collega da solo.
+La stessa pagina e' sempre raggiungibile su `http://gps-tracker.local/wifi`, anche a tracker
+gia' collegato, per cambiare rete o dimenticarla.
+
+Mentre il portale e' attivo il tracker **continua a registrare la traccia**, e ogni due minuti
+riprova la rete salvata: quando rientri in casa si ricollega da solo e chiude l'access point.
+
+---
+
 ## 6. Dashboard
 
 `http://gps-tracker.local/` (o l'indirizzo IP stampato sulla seriale).
 
 * mappa OpenStreetMap con posizione, traccia e cerchio del geofence;
 * riquadri con velocita', satelliti, HDOP, quota, distanza dalla base, direzione;
+* riquadri del viaggio in corso: chilometri percorsi, velocita' massima, tempo in movimento e
+  odometro totale;
 * pulsante **Centra l'area qui**: sposta il geofence sulla posizione attuale e lo salva
   nella memoria non volatile (resiste ai riavvii);
-* **Scarica GPX** e **Svuota traccia**;
+* **Scarica GPX**, **Azzera viaggio** e **Cancella traccia salvata**;
 * in fondo i contatori diagnostici (frasi NMEA, checksum errati, heap libero, RSSI).
 
 Leaflet e le tile della mappa arrivano da internet: se il telefono che apre la pagina e'
@@ -149,10 +180,13 @@ offline la mappa resta vuota, ma numeri, stato e link a Google Maps continuano a
 |---|---|---|
 | `GET` | `/api/status` | JSON con fix, posizione, qualita', geofence e diagnostica |
 | `GET` | `/api/track` | traccia compatta `[[lat, lon, km/h, epoch], ...]` |
-| `GET` | `/track.gpx` | traccia in formato GPX 1.1 |
+| `GET` | `/track.gpx` | traccia in formato GPX 1.1, un `<trkseg>` per accensione |
+| `GET` | `/track-precedente.gpx` | il file ruotato, quando esiste |
+| `GET` | `/wifi` | pagina di configurazione della rete |
 | `POST` | `/api/fence?here=1&radius=200` | centra l'area sulla posizione attuale |
 | `POST` | `/api/fence?lat=45.1&lon=9.2&radius=500` | imposta l'area a mano |
-| `POST` | `/api/track/clear` | svuota la traccia |
+| `POST` | `/api/track/clear` | cancella la traccia salvata |
+| `POST` | `/api/trip/reset` | azzera le statistiche del viaggio (non l'odometro) |
 
 ```bash
 curl http://gps-tracker.local/api/status | jq
@@ -233,10 +267,11 @@ seriale verso il modulo.
 
 ## 10. Limiti noti e possibili estensioni
 
-La traccia vive in RAM (`TRACK_MAX_POINTS`, 400 punti) e si perde al riavvio: e' una scelta,
-tiene il progetto senza filesystem. Se ti serve di piu':
+La traccia sta su LittleFS, nella partizione da 2 MB: circa 12000 punti, poi il file ruota e il
+precedente resta scaricabile come `/track-precedente.gpx`. Ogni punto costa 16 byte e se ne
+registra uno ogni 10 m, quindi sono ore e ore di viaggio. Se ti serve di piu':
 
-* **traccia persistente** - scrivere i punti su LittleFS o su microSD;
+* **archivio piu' capiente** - una microSD al posto della memoria interna;
 * **tracker da auto** - alimentazione da 12 V con un buck converter e deep sleep tra una
   posizione e l'altra per i consumi;
 * **fuori dal WiFi** - sostituire il web server con MQTT su rete dati (ESP32 + modulo SIM),
@@ -253,7 +288,9 @@ projects/esp32-gps-tracker/
 ├── platformio.ini               configurazione build e librerie
 ├── src/
 │   ├── config.h                 tutte le impostazioni (l'unico file da modificare)
-│   ├── main.cpp                 lettura GPS, geofence, traccia, web server, SinricPro
+│   ├── main.cpp                 lettura GPS, geofence, statistiche, web server, SinricPro
+│   ├── track_store.h            traccia e odometro su memoria interna (LittleFS)
+│   ├── wifi_portal.h            connessione WiFi e portale di configurazione
 │   └── web_ui.h                 dashboard HTML/CSS/JS servita dall'ESP32
 ├── tools/make_arduino_sketch.sh genera lo sketch per l'Arduino IDE
 └── docs/wiring.svg              schema dei collegamenti
