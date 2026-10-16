@@ -371,6 +371,7 @@ static void readGps() {
     maybeAddTrackPoint();
     updateGeofence();
     navUpdate(fix.lat, fix.lon, fix.course, fix.speedKmh >= STATS_MOVING_MIN_KMH);
+    stopsUpdate(fix.lat, fix.lon);
   }
 
   // Fix scaduto: la posizione resta visibile ma marcata come non valida.
@@ -445,6 +446,10 @@ static void handleStatus() {
   navObj["off"]       = nav.offRoute;
   navObj["offDist"]   = nav.offDistM;
   navObj["done"]      = nav.finished;
+  navObj["stop"]      = stopNextName();
+  navObj["stopDist"]  = stopDistM;
+  navObj["stopIdx"]   = stopNext;
+  navObj["stops"]     = stopsCount;
 
   JsonObject diag = doc.createNestedObject("diag");
   diag["chars"]     = gps.charsProcessed();
@@ -573,8 +578,73 @@ static void handleRouteGet() {
   server.sendContent("");
 }
 
+// --- tappe ------------------------------------------------------------------
+static void jsonEscape(const char *in, char *out, size_t len) {
+  size_t j = 0;
+  for (size_t i = 0; in[i] && j < len - 2; i++) {
+    if (in[i] == '"' || in[i] == '\\') out[j++] = '\\';
+    out[j++] = in[i];
+  }
+  out[j] = 0;
+}
+
+static void handleStopsGet() {
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "application/json", "");
+
+  char buf[160], nome[STOP_NAME_LEN * 2];
+  snprintf(buf, sizeof(buf), "{\"next\":%u,\"done\":%s,\"dist\":%.0f,\"list\":[",
+           stopNext, stopsDone ? "true" : "false", stopDistM);
+  server.sendContent(buf);
+
+  for (uint8_t i = 0; i < stopsCount; i++) {
+    jsonEscape(stops[i].name, nome, sizeof(nome));
+    snprintf(buf, sizeof(buf), "%s{\"lat\":%.6f,\"lon\":%.6f,\"name\":\"%s\"}",
+             i ? "," : "", stops[i].lat, stops[i].lon, nome);
+    server.sendContent(buf);
+  }
+
+  server.sendContent("]}");
+  server.sendContent("");
+}
+
+// Riceve l'elenco completo: la dashboard lo modifica e lo rimanda tutto, cosi'
+// non servono mezza dozzina di endpoint per aggiungere, togliere e spostare.
+static void handleStopsPost() {
+  const String body = server.arg("plain");
+  if (!body.length()) { server.send(400, "application/json", "{\"error\":\"corpo vuoto\"}"); return; }
+
+  DynamicJsonDocument doc(6144);
+  if (deserializeJson(doc, body)) {
+    server.send(400, "application/json", "{\"error\":\"JSON non valido\"}");
+    return;
+  }
+
+  JsonArray arr = doc.as<JsonArray>();
+  stopsCount = 0;
+  stopNext   = 0;
+  stopsDone  = false;
+  for (JsonObject o : arr) {
+    if (!stopsAdd(o["lat"] | 0.0, o["lon"] | 0.0, o["name"] | "")) break;
+  }
+  stopsSave();
+  if (fix.valid) stopsUpdate(fix.lat, fix.lon);
+
+  Serial.printf("[TAPPE] salvate %u tappe\r\n", stopsCount);
+  char out[48];
+  snprintf(out, sizeof(out), "{\"ok\":true,\"stops\":%u}", stopsCount);
+  server.send(200, "application/json", out);
+}
+
+static void handleStopsClear() {
+  stopsClear();
+  stopsSave();
+  server.send(200, "application/json", "{\"ok\":true}");
+}
+
 static void handleRouteClear() {
   routeClear();
+  stopsClear();
   server.send(200, "application/json", "{\"ok\":true}");
 }
 
@@ -625,6 +695,9 @@ static void setupWebServer() {
   server.on("/api/route", HTTP_GET, handleRouteGet);
   server.on("/api/route", HTTP_POST, handleRouteDone, handleRouteUpload);
   server.on("/api/route/clear", HTTP_POST, handleRouteClear);
+  server.on("/api/stops", HTTP_GET, handleStopsGet);
+  server.on("/api/stops", HTTP_POST, handleStopsPost);
+  server.on("/api/stops/clear", HTTP_POST, handleStopsClear);
   server.on("/track.gpx", HTTP_GET, handleGpx);
   server.on("/track-precedente.gpx", HTTP_GET, handleGpxOld);
   wifiRegisterRoutes(server);
@@ -720,6 +793,7 @@ void setup() {
 
   trackBegin();
   routeLoad();
+  stopsLoad();
   loadSettings();
   Serial.printf("[GEOFENCE] centro %.6f, %.6f raggio %.0f m\r\n", fence.lat, fence.lon, fence.radius);
 
@@ -777,6 +851,9 @@ void loop() {
     d.navRemainM   = (float)nav.remainingM;
     d.navTarget    = nav.target;
     d.navTotal     = nav.total;
+    d.navStopName  = stopNextName();
+    d.navStopM     = (float)stopDistM;
+    d.navStops     = stopsCount;
     displayUpdate(d);
   }
 #endif

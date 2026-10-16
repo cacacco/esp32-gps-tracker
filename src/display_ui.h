@@ -52,6 +52,9 @@ struct DisplayData {
   float       navRemainM;
   uint16_t    navTarget;
   uint16_t    navTotal;
+  const char *navStopName;   // nome della prossima tappa
+  float       navStopM;      // quanto manca
+  uint8_t     navStops;
 };
 
 static TFT_eSPI tft;
@@ -285,13 +288,14 @@ static void drawNavChrome() {
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
   tft.drawString("RESTANO", 385, 70, 2);
-  tft.drawString("PUNTO", 385, 155, 2);
+  tft.drawString("PROSSIMA TAPPA", 385, 152, 2);
   tft.drawString("VELOCITA'", 385, 240, 2);
 }
 
 static void drawNav(const DisplayData &d, bool force) {
-  static int32_t pAngle = -9999, pNext = -1, pRemain = -1, pSpeed = -1, pIdx = -1;
+  static int32_t pAngle = -9999, pNext = -1, pRemain = -1, pSpeed = -1, pStopM = -1;
   static int8_t  pState = -1;
+  static char    pStop[24] = "";
   char buf[24];
 
   drawTopBar(d, force);
@@ -335,10 +339,22 @@ static void drawNav(const DisplayData &d, bool force) {
     tft.setTextSize(1);
   }
 
-  if (force || (int32_t)d.navTarget != pIdx) {
-    pIdx = (int32_t)d.navTarget;
-    snprintf(buf, sizeof(buf), "%u/%u", d.navTarget + 1, d.navTotal);
-    displayField(buf, 385, 190, 4, 180, COL_LABEL);
+  // Nome della tappa, accorciato se non ci sta nella colonna.
+  const char *tappa = d.navStopName ? d.navStopName : "--";
+  if (force || strcmp(tappa, pStop) != 0) {
+    snprintf(pStop, sizeof(pStop), "%s", tappa);
+    char corto[21];
+    snprintf(corto, sizeof(corto), "%s", d.navStops ? tappa : "nessuna");
+    displayField(corto, 385, 178, 2, 190, d.navStops ? COL_FG : COL_LABEL);
+  }
+
+  const int32_t tappaM = (int32_t)d.navStopM;
+  if (force || tappaM != pStopM) {
+    pStopM = tappaM;
+    if (!d.navStops)       snprintf(buf, sizeof(buf), "--");
+    else if (tappaM < 1000) snprintf(buf, sizeof(buf), "%ld m", (long)tappaM);
+    else                    snprintf(buf, sizeof(buf), "%.1f km", d.navStopM / 1000.0f);
+    displayField(buf, 385, 206, 4, 180, COL_LABEL);
   }
 
   const int32_t speed = (int32_t)(d.speedKmh + 0.5f);

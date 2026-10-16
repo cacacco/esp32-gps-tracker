@@ -102,6 +102,11 @@
 #define ROUTE_FINISH_M            30   // arrivo sull'ultimo punto
 #define ROUTE_LOOKAHEAD           40   // quanti punti guardare avanti per ritrovarsi
 
+// Tappe con nome: lette dai <wpt> del GPX, oppure aggiunte dalla dashboard.
+#define STOPS_MAX                 40
+#define STOP_NAME_LEN             24   // caratteri del nome, terminatore incluso
+#define STOP_ARRIVAL_M           100   // entro questo raggio la tappa e' raggiunta
+
 // ===========================================================================
 // 6c) Display TFT 4" ST7796 (480x320, SPI) - facoltativo
 //

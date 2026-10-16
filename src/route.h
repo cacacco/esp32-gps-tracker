@@ -17,6 +17,7 @@
 #include <TinyGPS++.h>
 
 #include "config.h"
+#include "stops.h"
 
 struct RoutePoint {
   float lat;
@@ -112,6 +113,14 @@ static bool     gpxInTag   = false;
 static double   gpxLastLat = 0, gpxLastLon = 0;
 static bool     gpxHasLast = false;
 
+// stato della tappa in lettura: nel GPX il nome e' un figlio di <wpt>, quindi
+// va tenuto da parte finche' non arriva la chiusura dell'elemento
+static bool     gpxInWpt   = false;
+static bool     gpxInName  = false;
+static double   gpxWptLat  = 0, gpxWptLon = 0;
+static char     gpxName[STOP_NAME_LEN];
+static uint8_t  gpxNameLen = 0;
+
 static double gpxAttr(const char *p) {
   p += 4;                                        // salta "lat=" o "lon="
   while (*p == '"' || *p == '\'' || *p == ' ') p++;
@@ -135,15 +144,55 @@ static void routeAddPoint(double lat, double lon) {
   gpxHasLast = true;
 }
 
+static bool gpxTagIs(const char *tag, const char *nome, size_t len) {
+  return strncmp(tag, nome, len) == 0 && (tag[len] == ' ' || tag[len] == '\0' || tag[len] == '/');
+}
+
 static void routeParseTag(const char *tag) {
-  if (strncmp(tag, "trkpt", 5) != 0 &&
-      strncmp(tag, "rtept", 5) != 0 &&
-      strncmp(tag, "wpt", 3)   != 0) return;
+  // chiusure: </name> chiude il nome, </wpt> salva la tappa
+  if (tag[0] == '/') {
+    if (strcmp(tag + 1, "name") == 0) {
+      gpxInName = false;
+      gpxName[gpxNameLen] = 0;
+    } else if (gpxInWpt && (strcmp(tag + 1, "wpt") == 0 || strcmp(tag + 1, "rtept") == 0)) {
+      stopsAdd(gpxWptLat, gpxWptLon, gpxName);
+      gpxInWpt = false;
+    }
+    return;
+  }
+
+  // <name> conta solo dentro una tappa: quelli di <trk> e <metadata> no
+  if (strcmp(tag, "name") == 0) {
+    if (gpxInWpt) { gpxInName = true; gpxNameLen = 0; gpxName[0] = 0; }
+    return;
+  }
+
+  const bool isTrkpt = gpxTagIs(tag, "trkpt", 5);
+  const bool isRtept = gpxTagIs(tag, "rtept", 5);
+  const bool isWpt   = gpxTagIs(tag, "wpt", 3);
+  if (!isTrkpt && !isRtept && !isWpt) return;
 
   const char *latp = strstr(tag, "lat=");
   const char *lonp = strstr(tag, "lon=");
   if (!latp || !lonp) return;
-  routeAddPoint(gpxAttr(latp), gpxAttr(lonp));
+  const double lat = gpxAttr(latp);
+  const double lon = gpxAttr(lonp);
+
+  if (isTrkpt || isRtept) routeAddPoint(lat, lon);   // la linea da seguire
+
+  if (isWpt || isRtept) {                            // e anche una tappa
+    const size_t n = strlen(tag);
+    if (n && tag[n - 1] == '/') {                    // <wpt ... /> senza nome
+      stopsAdd(lat, lon, "");
+      gpxInWpt = false;
+    } else {
+      gpxInWpt   = true;
+      gpxWptLat  = lat;
+      gpxWptLon  = lon;
+      gpxName[0] = 0;
+      gpxNameLen = 0;
+    }
+  }
 }
 
 static void routeBeginParse() {
@@ -151,14 +200,23 @@ static void routeBeginParse() {
   gpxTagLen  = 0;
   gpxInTag   = false;
   gpxHasLast = false;
+  gpxInWpt   = false;
+  gpxInName  = false;
+  gpxNameLen = 0;
   nav.active = false;
+  stopsClear();            // un GPX nuovo porta le sue tappe
 }
 
 static void routeFeed(const uint8_t *data, size_t len) {
   for (size_t i = 0; i < len; i++) {
     const char c = (char)data[i];
     if (c == '<') { gpxInTag = true; gpxTagLen = 0; continue; }
-    if (!gpxInTag) continue;
+    if (!gpxInTag) {
+      // testo tra due tag: serve solo quando siamo dentro il <name> di una tappa
+      if (gpxInName && gpxNameLen < STOP_NAME_LEN - 1 && c != '\r' && c != '\n')
+        gpxName[gpxNameLen++] = c;
+      continue;
+    }
     if (c == '>') {
       gpxInTag = false;
       gpxTag[gpxTagLen] = 0;
@@ -173,8 +231,9 @@ static void routeEndParse() {
   routeComputeCum();
   navReset();
   routeSave();
-  Serial.printf("[ROTTA] caricati %u punti, %.1f km\r\n",
-                routeCount, routeCount ? routeCum[0] / 1000.0 : 0.0);
+  stopsSave();
+  Serial.printf("[ROTTA] caricati %u punti, %.1f km, %u tappe\r\n",
+                routeCount, routeCount ? routeCum[0] / 1000.0 : 0.0, stopsCount);
 }
 
 // ---------------------------------------------------------------------------

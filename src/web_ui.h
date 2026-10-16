@@ -52,6 +52,17 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
   label{font-size:13px;color:var(--muted)}
   .coords{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px}
   .coords a{color:var(--accent);text-decoration:none}
+  .stops{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px 12px}
+  .stop{display:flex;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+  .stop:last-child{border-bottom:0}
+  .stop .num{color:var(--muted);font-size:12px;min-width:2ch;text-align:right}
+  .stop input{flex:1;min-width:0;background:#11141a;color:var(--fg);border:1px solid var(--line);
+              border-radius:8px;padding:8px 10px;font-size:15px}
+  .stop.next input{border-color:var(--accent)}
+  .stop .dist{color:var(--muted);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .mini{padding:7px 10px;font-size:14px;line-height:1}
+  .empty{color:var(--muted);font-size:14px;padding:12px 0}
+  .btn.on{border-color:var(--accent);color:var(--accent)}
   footer{color:var(--muted);font-size:12px;border-top:1px solid var(--line);
          padding:12px 16px;text-align:center;line-height:1.7}
 </style>
@@ -114,6 +125,14 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
     <input type="file" id="gpx" accept=".gpx,.xml" hidden>
     <button id="btnRoute" hidden>Cancella percorso</button>
   </div>
+
+  <div class="sep">Tappe</div>
+  <div class="stops" id="stopsBox"><div class="empty">nessuna tappa</div></div>
+  <div class="row">
+    <button id="btnStopHere">Aggiungi dove sono</button>
+    <button id="btnStopMap" class="btn">Aggiungi toccando la mappa</button>
+    <button id="btnStopsSave" hidden>Salva le modifiche</button>
+  </div>
 </main>
 
 <footer id="diag">--</footer>
@@ -123,6 +142,8 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
 const $ = id => document.getElementById(id);
 let map = null, marker = null, circle = null, line = null, firstFit = true;
 let routeLine = null, targetMark = null, routePts = [];
+let stopLayer = null, stopsArr = [], stopsNext = 0, stopsDirty = false, addOnMap = false;
+let lastFix = null;
 
 function initMap(){
   if (typeof L === 'undefined') { $('map').innerHTML =
@@ -136,7 +157,23 @@ function initMap(){
   line   = L.polyline([], {color:'#4aa3ff', weight:3, opacity:.75}).addTo(map);
   routeLine  = L.polyline([], {color:'#f0a93b', weight:4, opacity:.8, dashArray:'1 8', lineCap:'round'}).addTo(map);
   targetMark = L.circleMarker([0,0], {radius:6, color:'#f0a93b', fillColor:'#f0a93b', fillOpacity:1});
+  stopLayer  = L.layerGroup().addTo(map);
+  map.on('click', e => {
+    if (!addOnMap) return;
+    stopsArr.push({lat:e.latlng.lat, lon:e.latlng.lng, name:'Tappa ' + (stopsArr.length + 1)});
+    stopsDirty = true;
+    renderStops();
+  });
 }
+
+// distanza in metri tra due punti, per mostrare quanto manca a ogni tappa
+function metri(a, b){
+  const R = 6371000, r = Math.PI/180;
+  const dLat = (b[0]-a[0])*r, dLon = (b[1]-a[1])*r;
+  const x = Math.sin(dLat/2)**2 + Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));
+}
+function distTxt(m){ return m < 1000 ? Math.round(m) + ' m' : (m/1000).toFixed(1) + ' km'; }
 
 function fmt(v, d=1){ return (v === null || v === undefined || isNaN(v)) ? '--' : Number(v).toFixed(d); }
 
@@ -193,8 +230,8 @@ async function refreshStatus(){
   if (n.active){
     const testa = n.done ? '<b style="color:#35c46a">Arrivato</b>'
       : n.off ? `<b style="color:#e8534f">Fuori percorso</b> di ${fmt(n.offDist,0)} m` : 'In rotta';
-    $('nav').innerHTML = `${testa} &nbsp;·&nbsp; prossimo punto ${n.target+1}/${n.points} ` +
-      `a ${fmt(n.toNext,0)} m &nbsp;·&nbsp; restano ${fmt(n.remaining/1000,1)} km`;
+    const tappa = n.stops ? ` &nbsp;·&nbsp; prossima tappa <b>${n.stop}</b> a ${fmt(n.stopDist,0)} m` : '';
+    $('nav').innerHTML = `${testa} &nbsp;·&nbsp; restano ${fmt(n.remaining/1000,1)} km` + tappa;
     if (map && routePts[n.target]) targetMark.setLatLng(routePts[n.target]).addTo(map);
   } else {
     $('nav').textContent = '';
@@ -215,6 +252,8 @@ async function refreshStatus(){
   if (!map) return;
   circle.setLatLng([s.fence.lat, s.fence.lon]).setRadius(s.fence.radius);
   if (!document.activeElement || document.activeElement.id !== 'radius') $('radius').value = Math.round(s.fence.radius);
+  if (s.fix) lastFix = [s.lat, s.lon];
+
   if (s.fix){
     marker.setLatLng([s.lat, s.lon]);
     marker.setStyle({color: s.fenceState === 'outside' ? '#e8534f' : '#4aa3ff',
@@ -224,6 +263,67 @@ async function refreshStatus(){
   } else if (firstFit){
     map.setView([s.fence.lat, s.fence.lon], 15); firstFit = false;
   }
+}
+
+function renderStops(){
+  const box = $('stopsBox');
+  $('btnStopsSave').hidden = !stopsDirty;
+
+  if (!stopsArr.length){
+    box.innerHTML = '<div class="empty">Nessuna tappa. Caricane un GPX che ne contenga, oppure aggiungile qui.</div>';
+  } else {
+    box.innerHTML = '';
+    stopsArr.forEach((t, i) => {
+      const riga = document.createElement('div');
+      riga.className = 'stop' + (i === stopsNext ? ' next' : '');
+      const d = lastFix ? distTxt(metri(lastFix, [t.lat, t.lon])) : '';
+      riga.innerHTML = `<span class="num">${i+1}</span>`;
+      const campo = document.createElement('input');
+      campo.value = t.name;
+      campo.maxLength = 23;
+      campo.oninput = () => { t.name = campo.value; stopsDirty = true; $('btnStopsSave').hidden = false; };
+      riga.appendChild(campo);
+      const dist = document.createElement('span');
+      dist.className = 'dist'; dist.textContent = d;
+      riga.appendChild(dist);
+      [['\u2191',-1],['\u2193',1]].forEach(([lab, dir]) => {
+        const b = document.createElement('button');
+        b.className = 'mini'; b.textContent = lab;
+        b.onclick = () => {
+          const j = i + dir;
+          if (j < 0 || j >= stopsArr.length) return;
+          [stopsArr[i], stopsArr[j]] = [stopsArr[j], stopsArr[i]];
+          stopsDirty = true; renderStops();
+        };
+        riga.appendChild(b);
+      });
+      const del = document.createElement('button');
+      del.className = 'mini'; del.textContent = '\u2715';
+      del.onclick = () => { stopsArr.splice(i, 1); stopsDirty = true; renderStops(); };
+      riga.appendChild(del);
+      box.appendChild(riga);
+    });
+  }
+
+  if (!map || !stopLayer) return;
+  stopLayer.clearLayers();
+  stopsArr.forEach((t, i) => {
+    L.circleMarker([t.lat, t.lon], {
+      radius: 7, weight: 2,
+      color: i === stopsNext ? '#f0a93b' : '#8b94a7',
+      fillColor: '#171a21', fillOpacity: 1
+    }).bindTooltip(`${i+1}. ${t.name}`, {direction:'top'}).addTo(stopLayer);
+  });
+}
+
+async function refreshStops(){
+  if (stopsDirty) return;                 // non sovrascrivo quello che stai scrivendo
+  try {
+    const d = await (await fetch('/api/stops')).json();
+    stopsArr  = d.list || [];
+    stopsNext = d.next || 0;
+    renderStops();
+  } catch(e){}
 }
 
 async function refreshRoute(){
@@ -261,7 +361,8 @@ $('gpx').onchange = async (e) => {
                    : 'Nessun punto trovato: il file e\' un GPX valido?');
   } catch(err){ alert('Caricamento non riuscito'); }
   e.target.value = '';
-  refreshRoute(); refreshStatus();
+  stopsDirty = false;
+  refreshRoute(); refreshStops(); refreshStatus();
 };
 $('btnRoute').onclick = async () => {
   if (!confirm('Cancellare il percorso caricato?')) return;
@@ -269,6 +370,30 @@ $('btnRoute').onclick = async () => {
   if (routeLine) routeLine.setLatLngs([]);
   routePts = [];
   refreshRoute(); refreshStatus();
+};
+$('btnStopHere').onclick = () => {
+  if (!lastFix) { alert('Serve un fix GPS valido.'); return; }
+  stopsArr.push({lat:lastFix[0], lon:lastFix[1], name:'Tappa ' + (stopsArr.length + 1)});
+  stopsDirty = true;
+  renderStops();
+};
+$('btnStopMap').onclick = () => {
+  addOnMap = !addOnMap;
+  $('btnStopMap').classList.toggle('on', addOnMap);
+  $('btnStopMap').textContent = addOnMap ? 'Tocca la mappa (annulla)' : 'Aggiungi toccando la mappa';
+};
+$('btnStopsSave').onclick = async () => {
+  const r = await fetch('/api/stops', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(stopsArr)
+  });
+  if (!r.ok) { alert('Salvataggio non riuscito.'); return; }
+  stopsDirty = false;
+  addOnMap = false;
+  $('btnStopMap').classList.remove('on');
+  $('btnStopMap').textContent = 'Aggiungi toccando la mappa';
+  refreshStops();
 };
 $('btnTrip').onclick = async () => { await fetch('/api/trip/reset', {method:'POST'}); refreshStatus(); };
 $('btnClear').onclick = async () => {
@@ -279,9 +404,10 @@ $('btnClear').onclick = async () => {
 };
 
 initMap();
-refreshStatus(); refreshTrack(); refreshRoute();
+refreshStatus(); refreshTrack(); refreshRoute(); refreshStops();
 setInterval(refreshStatus, 2000);
 setInterval(refreshTrack, 10000);
+setInterval(refreshStops, 10000);
 </script>
 </body>
 </html>

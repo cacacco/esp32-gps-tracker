@@ -13,6 +13,8 @@ L'ESP32 legge la posizione dal NEO-7M e:
   **odometro totale** che non si azzera;
 * fa da **navigatore a freccia**: carichi un percorso in GPX e il display mostra la direzione
   del prossimo punto, quanto manca e l'avviso di fuori rotta, continuando a registrare la traccia;
+* tiene l'elenco delle **tappe con nome**, lette dal GPX o aggiunte dal telefono toccando la
+  mappa: sul display leggi "Ponte sul Foglia", non "punto 47 di 340";
 * si fa configurare il **WiFi dal telefono**: se non trova la rete salvata apre un proprio
   access point con una pagina per sceglierne una, senza ricompilare niente;
 * sorveglia un'**area circolare (geofence)**: quando il tracker esce o rientra invia l'evento a
@@ -138,6 +140,7 @@ Le voci che probabilmente vorrai toccare:
 | `AP_SSID_PREFIX` / `AP_PASSWORD` | GPS-Tracker / gpstracker | nome e password dell'access point del portale |
 | `ROUTE_OFF_ROUTE_M` | 60 m | quanto puoi allontanarti dal percorso prima dell'avviso |
 | `ROUTE_MIN_SPACING_M` | 15 m | quanto vengono diradati i punti del GPX caricato |
+| `STOP_ARRIVAL_M` | 100 m | entro quale distanza una tappa si considera raggiunta |
 | `ENABLE_SINRICPRO` | 0 | mettilo a 1 per le notifiche push (vedi sotto) |
 | `GPS_AUTO_BAUD` | 1 | all'avvio cerca il baud giusto se il modulo non risponde a 9600 |
 | `GPS_RAW_ECHO` | 0 | mettilo a 1 per vedere sul monitor i byte grezzi del GPS |
@@ -260,6 +263,27 @@ dal tracciato, verde con **ARRIVATO** quando raggiungi l'ultimo punto.
 Sulla dashboard il percorso appare come una linea tratteggiata arancione, con un pallino sul
 punto che stai raggiungendo.
 
+### Le tappe
+
+Sotto la mappa c'e' l'elenco delle **tappe**: posizioni con un nome, che il display mostra
+mentre guidi. Arrivano dai `<wpt>` e `<rtept>` del GPX, se il file ne contiene; molti GPX
+pero' hanno solo la traccia, e allora te le crei tu.
+
+Dalla dashboard, anche dal telefono:
+
+* **Aggiungi dove sono** salva la posizione attuale come tappa;
+* **Aggiungi toccando la mappa** mette una tappa dove tocchi, utile per segnare un incrocio
+  o un distributore prima di partire;
+* il nome si scrive direttamente nella riga, le frecce spostano l'ordine, la X cancella;
+* **Salva le modifiche** scrive tutto nella memoria interna.
+
+Una tappa si considera raggiunta entro 100 metri (`STOP_ARRIVAL_M`) e si passa alla
+successiva. Il massimo e' 40 tappe, con nomi fino a 23 caratteri: il display non ne mostra
+di piu'.
+
+L'elenco sulla dashboard non si aggiorna da solo mentre stai scrivendo, per non
+cancellarti sotto le dita quello che stai battendo.
+
 Cosa **non** fa, perche' sia chiaro prima di salire in macchina:
 
 * niente ricalcolo: se sbagli strada ti avvisa, ma la via per rientrare la scegli tu;
@@ -298,7 +322,10 @@ offline la mappa resta vuota, ma numeri, stato e link a Google Maps continuano a
 | `GET` | `/track-precedente.gpx` | il file ruotato, quando esiste |
 | `GET` | `/api/route` | il percorso caricato, `[[lat, lon], ...]` |
 | `POST` | `/api/route` | carica un GPX (multipart) e lo sostituisce al precedente |
-| `POST` | `/api/route/clear` | cancella il percorso |
+| `POST` | `/api/route/clear` | cancella il percorso e le sue tappe |
+| `GET` | `/api/stops` | elenco delle tappe e quale e' la prossima |
+| `POST` | `/api/stops` | sostituisce l'elenco (corpo JSON) |
+| `POST` | `/api/stops/clear` | cancella le tappe |
 | `GET` | `/wifi` | pagina di configurazione della rete |
 | `POST` | `/api/fence?here=1&radius=200` | centra l'area sulla posizione attuale |
 | `POST` | `/api/fence?lat=45.1&lon=9.2&radius=500` | imposta l'area a mano |
@@ -408,6 +435,7 @@ projects/esp32-gps-tracker/
 │   ├── main.cpp                 lettura GPS, geofence, statistiche, web server, SinricPro
 │   ├── track_store.h            traccia e odometro su memoria interna (LittleFS)
 │   ├── route.h                  percorso GPX e navigazione a freccia
+│   ├── stops.h                  tappe con nome, dal GPX o aggiunte a mano
 │   ├── wifi_portal.h            connessione WiFi e portale di configurazione
 │   ├── display_ui.h             computer di bordo sul TFT 4" (facoltativo)
 │   └── web_ui.h                 dashboard HTML/CSS/JS servita dall'ESP32
