@@ -18,7 +18,8 @@ param(
     [switch]$SoloMonitor,
     [switch]$SoloCompila,
     [switch]$SenzaMonitor,
-    [switch]$Pulisci
+    [switch]$Pulisci,
+    [switch]$Auto
 )
 
 $ErrorActionPreference = 'Stop'
@@ -92,7 +93,7 @@ if (-not (Test-Path $ini)) {
 }
 
 # --- menu, se lanciato senza opzioni (tipico del doppio clic) --------------
-if (-not ($SoloMonitor -or $SoloCompila -or $SenzaMonitor -or $Pulisci -or $Porta)) {
+if (-not ($Auto -or $SoloMonitor -or $SoloCompila -or $SenzaMonitor -or $Pulisci -or $Porta)) {
     Scrivi ""
     Scrivi "Cosa vuoi fare?"
     Scrivi "  [1] Compila, carica e apri il log seriale   (predefinito)"
