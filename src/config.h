@@ -123,6 +123,15 @@
 #define TIME_UTC_OFFSET_MIN      120   // orologio: 60 in inverno, 120 in estate
 
 // ===========================================================================
+// 6d) Aggiornamento via WiFi (OTA)
+//     Permette di caricare il firmware senza cavo, con la scheda accesa sulla
+//     rete. Il primo caricamento va comunque fatto via USB: e' quello che
+//     mette a bordo la capacita' di aggiornarsi.
+// ===========================================================================
+#define ENABLE_OTA                 1
+#define OTA_PASSWORD      "gpstracker"   // "" per nessuna password
+
+// ===========================================================================
 // 7) Varie
 // ===========================================================================
 #define SERIAL_BAUD           115200

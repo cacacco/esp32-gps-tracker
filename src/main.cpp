@@ -31,6 +31,10 @@
 #include "display_ui.h"
 #include "web_ui.h"
 
+#if ENABLE_OTA
+  #include <ArduinoOTA.h>
+#endif
+
 #if ENABLE_SINRICPRO
   #include <SinricPro.h>
   #include <SinricProContactsensor.h>
@@ -215,6 +219,31 @@ static void reportFence(bool open, bool notify) {
            open ? "Tracker USCITO da" : "Tracker rientrato in",
            fix.distanceHome, fix.lat, fix.lon);
   contact.sendPushNotification(msg);   // max 1 notifica al minuto (limite SDK)
+}
+#endif
+
+// ---------------------------------------------------------------------------
+// Aggiornamento via WiFi
+// ---------------------------------------------------------------------------
+#if ENABLE_OTA
+static void setupOta() {
+  ArduinoOTA.setHostname(HOSTNAME);
+  if (strlen(OTA_PASSWORD)) ArduinoOTA.setPassword(OTA_PASSWORD);
+
+  ArduinoOTA.onStart([]() {
+    Serial.println(F("[OTA] aggiornamento in corso: non togliere la corrente"));
+    digitalWrite(PIN_LED, HIGH);      // LED fisso: la scheda e' occupata
+  });
+  ArduinoOTA.onProgress([](unsigned int fatto, unsigned int totale) {
+    static uint8_t ultimo = 255;
+    const uint8_t pct = totale ? (uint8_t)((uint32_t)fatto * 100 / totale) : 0;
+    if (pct % 10 == 0 && pct != ultimo) { ultimo = pct; Serial.printf("[OTA] %u%%\r\n", pct); }
+  });
+  ArduinoOTA.onEnd([]() { Serial.println(F("[OTA] completato, riavvio")); });
+  ArduinoOTA.onError([](ota_error_t e) { Serial.printf("[OTA] errore %u\r\n", (unsigned)e); });
+
+  ArduinoOTA.begin();
+  Serial.printf("[OTA] pronto: pio run -e ota -t upload (host %s.local)\r\n", HOSTNAME);
 }
 #endif
 
@@ -477,6 +506,26 @@ static void handleStatus() {
   server.send(200, "application/json", out);
 }
 
+// Mandare la risposta un pezzetto alla volta e' lento: ogni sendContent e' una
+// scrittura TCP a se', e con mille punti il browser va in timeout prima della
+// fine. Accumulo in un buffer e spedisco quando e' pieno.
+static char   outBuf[1024];
+static size_t outLen = 0;
+
+static void outFlush() {
+  if (!outLen) return;
+  server.sendContent(outBuf, outLen);
+  outLen = 0;
+}
+
+static void outWrite(const char *txt) {
+  const size_t n = strlen(txt);
+  if (outLen + n >= sizeof(outBuf)) outFlush();
+  if (n >= sizeof(outBuf)) { server.sendContent(txt, n); return; }
+  memcpy(outBuf + outLen, txt, n);
+  outLen += n;
+}
+
 // --- streaming della traccia -----------------------------------------------
 // I visitatori scrivono direttamente nella risposta HTTP: la traccia puo'
 // essere molto piu' grande della RAM disponibile, quindi non si accumula.
@@ -489,7 +538,7 @@ static void trackJsonVisitor(const TrackPoint &p, bool isBreak) {
   if (isBreak) { streamNewSegment = true; return; }
 
   if (streamNewSegment) {
-    server.sendContent(streamFirstSeg ? "[" : "],[");
+    outWrite(streamFirstSeg ? "[" : "],[");
     streamFirstSeg   = false;
     streamNewSegment = false;
     streamFirstPoint = true;
@@ -499,7 +548,7 @@ static void trackJsonVisitor(const TrackPoint &p, bool isBreak) {
   snprintf(buf, sizeof(buf), "%s[%.6f,%.6f,%.1f,%lu]",
            streamFirstPoint ? "" : ",", p.lat, p.lon, p.speedKmh, (unsigned long)p.epoch);
   streamFirstPoint = false;
-  server.sendContent(buf);
+  outWrite(buf);
 }
 
 static void handleTrack() {
@@ -508,19 +557,20 @@ static void handleTrack() {
 
   streamNewSegment = true;
   streamFirstSeg   = true;
-  server.sendContent("[");
+  outWrite("[");
   trackForEach(trackJsonVisitor, TRACK_VIEW_POINTS);
-  if (!streamFirstSeg) server.sendContent("]");
-  server.sendContent("]");
+  if (!streamFirstSeg) outWrite("]");
+  outWrite("]");
+  outFlush();
   server.sendContent("");
 }
 
 static void gpxVisitor(const TrackPoint &p, bool isBreak) {
   if (isBreak) {
-    if (!streamFirstSeg) { server.sendContent(F("</trkseg>\n")); streamFirstSeg = true; }
+    if (!streamFirstSeg) { outWrite("</trkseg>\n"); streamFirstSeg = true; }
     return;
   }
-  if (streamFirstSeg) { server.sendContent(F("<trkseg>\n")); streamFirstSeg = false; }
+  if (streamFirstSeg) { outWrite("<trkseg>\n"); streamFirstSeg = false; }
 
   char buf[160], iso[32];
   isoTimestamp(p.epoch, iso, sizeof(iso));
@@ -528,21 +578,22 @@ static void gpxVisitor(const TrackPoint &p, bool isBreak) {
                        "<trkpt lat=\"%.6f\" lon=\"%.6f\"><time>%s</time></trkpt>\n", p.lat, p.lon, iso);
   else        snprintf(buf, sizeof(buf),
                        "<trkpt lat=\"%.6f\" lon=\"%.6f\"/>\n", p.lat, p.lon);
-  server.sendContent(buf);
+  outWrite(buf);
 }
 
 static void sendGpx(const char *path, const char *filename) {
   server.sendHeader("Content-Disposition", String("attachment; filename=\"") + filename + "\"");
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
   server.send(200, "application/gpx+xml", "");
-  server.sendContent(F("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-                       "<gpx version=\"1.1\" creator=\"ESP32 GPS Tracker\" "
-                       "xmlns=\"http://www.topografix.com/GPX/1/1\">\n"
-                       "<trk><name>ESP32 track</name>\n"));
+  outWrite("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+           "<gpx version=\"1.1\" creator=\"ESP32 GPS Tracker\" "
+           "xmlns=\"http://www.topografix.com/GPX/1/1\">\n"
+           "<trk><name>ESP32 track</name>\n");
   streamFirstSeg = true;
   trackForEachFile(path, gpxVisitor, 0);
-  if (!streamFirstSeg) server.sendContent(F("</trkseg>\n"));
-  server.sendContent(F("</trk></gpx>\n"));
+  if (!streamFirstSeg) outWrite("</trkseg>\n");
+  outWrite("</trk></gpx>\n");
+  outFlush();
   server.sendContent("");
 }
 
@@ -568,13 +619,14 @@ static void handleRouteDone() {
 static void handleRouteGet() {
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
   server.send(200, "application/json", "");
-  server.sendContent("[");
+  outWrite("[");
   char buf[48];
   for (uint16_t i = 0; i < routeCount; i++) {
     snprintf(buf, sizeof(buf), "%s[%.6f,%.6f]", i ? "," : "", routePts[i].lat, routePts[i].lon);
-    server.sendContent(buf);
+    outWrite(buf);
   }
-  server.sendContent("]");
+  outWrite("]");
+  outFlush();
   server.sendContent("");
 }
 
@@ -595,16 +647,17 @@ static void handleStopsGet() {
   char buf[160], nome[STOP_NAME_LEN * 2];
   snprintf(buf, sizeof(buf), "{\"next\":%u,\"done\":%s,\"dist\":%.0f,\"list\":[",
            stopNext, stopsDone ? "true" : "false", stopDistM);
-  server.sendContent(buf);
+  outWrite(buf);
 
   for (uint8_t i = 0; i < stopsCount; i++) {
     jsonEscape(stops[i].name, nome, sizeof(nome));
     snprintf(buf, sizeof(buf), "%s{\"lat\":%.6f,\"lon\":%.6f,\"name\":\"%s\"}",
              i ? "," : "", stops[i].lat, stops[i].lon, nome);
-    server.sendContent(buf);
+    outWrite(buf);
   }
 
-  server.sendContent("]}");
+  outWrite("]}");
+  outFlush();
   server.sendContent("");
 }
 
@@ -801,6 +854,10 @@ void setup() {
   wifiBegin();
   setupWebServer();
 
+#if ENABLE_OTA
+  setupOta();
+#endif
+
 #if ENABLE_SINRICPRO
   setupSinricPro();
 #endif
@@ -859,6 +916,10 @@ void loop() {
 #endif
   wifiLoop();
   saveOdometer(false);
+
+#if ENABLE_OTA
+  ArduinoOTA.handle();
+#endif
 
 #if ENABLE_SINRICPRO
   if (WiFi.status() == WL_CONNECTED) SinricPro.handle();

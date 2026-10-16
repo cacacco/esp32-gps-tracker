@@ -11,6 +11,7 @@
 [CmdletBinding()]
 param(
     [string]$Porta,
+    [switch]$WiFi,         # carica via WiFi invece che col cavo
     [switch]$SoloScarica   # aggiorna i file senza caricare il firmware
 )
 
@@ -122,5 +123,6 @@ Scrivi "Compilo e carico sulla scheda..." 'Cyan'
 # e '-Auto' finirebbe dentro -Porta, cioe' nel nome della porta seriale.
 $opzioni = @{ Auto = $true }
 if ($Porta) { $opzioni['Porta'] = $Porta }
+if ($WiFi)  { $opzioni['WiFi']  = $true }
 & "$PSScriptRoot\carica-firmware.ps1" @opzioni
 exit $LASTEXITCODE

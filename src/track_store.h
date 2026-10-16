@@ -39,6 +39,7 @@ static const char TRACK_PATH_OLD[] = "/track.old.bin";
 static TripStats trip = { 0, 0, 0, 0 };
 
 static bool     trackReady    = false;
+static bool     trackBackup   = false;   // esiste il file ruotato?
 static bool     trackPending  = false;   // marcatore di segmento da scrivere
 static uint32_t trackRecords  = 0;       // record nel file, marcatori inclusi
 static uint32_t trackPoints   = 0;       // posizioni vere
@@ -74,6 +75,7 @@ static bool trackBegin() {
   }
   trackReady   = true;
   trackPending = true;                  // il primo punto aprira' un nuovo segmento
+  trackBackup  = LittleFS.exists(TRACK_PATH_OLD);
   trackScan();
   Serial.printf("[FS] traccia: %lu punti gia' salvati (%lu KB liberi)\r\n",
                 (unsigned long)trackPoints,
@@ -96,6 +98,7 @@ static bool trackWrite(const TrackPoint &p) {
 static void trackRotate() {
   LittleFS.remove(TRACK_PATH_OLD);
   LittleFS.rename(TRACK_PATH, TRACK_PATH_OLD);
+  trackBackup  = true;
   trackRecords = 0;
   trackPoints  = 0;
   trackPending = false;
@@ -135,14 +138,17 @@ static void trackForEach(TrackVisitor visit, uint32_t lastN) {
   trackForEachFile(TRACK_PATH, visit, lastN);
 }
 
+// Tenuto in RAM: la dashboard chiede lo stato ogni due secondi, e un
+// LittleFS.exists() su un file che non c'e' stampa un errore nel log ogni volta.
 static bool trackHasBackup() {
-  return trackReady && LittleFS.exists(TRACK_PATH_OLD);
+  return trackBackup;
 }
 
 static void trackClear() {
   if (!trackReady) return;
   LittleFS.remove(TRACK_PATH);
   LittleFS.remove(TRACK_PATH_OLD);
+  trackBackup  = false;
   trackRecords = 0;
   trackPoints  = 0;
   trackPending = true;

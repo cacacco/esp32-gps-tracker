@@ -9,6 +9,7 @@
         .\carica-firmware.ps1 -SoloCompila     compila senza caricare
         .\carica-firmware.ps1 -Pulisci         ricompila tutto da zero
         .\carica-firmware.ps1 -Porta COM7      forza la porta seriale
+        .\carica-firmware.ps1 -WiFi            carica via WiFi, senza cavo
 
     Se PlatformIO non c'e', lo installa (serve Python 3 sul PC).
 #>
@@ -19,6 +20,7 @@ param(
     [switch]$SoloCompila,
     [switch]$SenzaMonitor,
     [switch]$Pulisci,
+    [switch]$WiFi,
     [switch]$Auto
 )
 
@@ -101,18 +103,20 @@ if ($Porta -and $Porta -notmatch '^COM\d+$') {
 }
 
 # --- menu, se lanciato senza opzioni (tipico del doppio clic) --------------
-if (-not ($Auto -or $SoloMonitor -or $SoloCompila -or $SenzaMonitor -or $Pulisci -or $Porta)) {
+if (-not ($Auto -or $SoloMonitor -or $SoloCompila -or $SenzaMonitor -or $Pulisci -or $WiFi -or $Porta)) {
     Scrivi ""
     Scrivi "Cosa vuoi fare?"
     Scrivi "  [1] Compila, carica e apri il log seriale   (predefinito)"
     Scrivi "  [2] Solo log seriale"
     Scrivi "  [3] Solo compilazione"
     Scrivi "  [4] Pulisci e ricompila da zero"
+    Scrivi "  [5] Carica via WiFi, senza cavo"
     $scelta = Read-Host "Scelta [1]"
     switch ($scelta) {
         '2' { $SoloMonitor = $true }
         '3' { $SoloCompila = $true }
         '4' { $Pulisci     = $true }
+        '5' { $WiFi        = $true }
     }
 }
 
@@ -136,6 +140,28 @@ try {
         if ($Porta) { $argomenti += @('-p', $Porta) }
         & $pio @argomenti
         exit $LASTEXITCODE
+    }
+
+    if ($WiFi) {
+        Scrivi ""
+        Scrivi "Compilo e carico via WiFi (nessun cavo, la scheda dev'essere accesa)..." 'Cyan'
+        & $pio run -e ota -t upload
+        $esito = $LASTEXITCODE
+        if ($esito -ne 0) {
+            Scrivi ""
+            Scrivi "Caricamento via WiFi non riuscito. Le cause tipiche:" 'Yellow'
+            Scrivi "  - la scheda e' spenta, o non e' sulla stessa rete del PC"
+            Scrivi "  - il firmware a bordo e' precedente all'OTA: il primo"
+            Scrivi "    caricamento va fatto via USB, poi gli altri vanno via WiFi"
+            Scrivi "  - il nome gps-tracker.local non si risolve: metti l'indirizzo IP"
+            Scrivi "    al posto di upload_port in platformio.ini, sezione [env:ota]"
+            Scrivi "  - password sbagliata: deve combaciare con OTA_PASSWORD di config.h"
+        } else {
+            Scrivi ""
+            Scrivi "Caricato. Il log seriale pero' viaggia sul cavo: per vederlo" 'Green'
+            Scrivi "collega la USB e usa la voce [2] del menu." 'Green'
+        }
+        exit $esito
     }
 
     # La prima compilazione scarica toolchain e librerie: diverse centinaia di MB.
