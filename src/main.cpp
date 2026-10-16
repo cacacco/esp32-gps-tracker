@@ -370,8 +370,8 @@ static void readGps() {
     updateStats();
     maybeAddTrackPoint();
     updateGeofence();
+    stopsUpdate(fix.lat, fix.lon);   // prima le tappe: la navigazione le usa
     navUpdate(fix.lat, fix.lon, fix.course, fix.speedKmh >= STATS_MOVING_MIN_KMH);
-    stopsUpdate(fix.lat, fix.lon);
   }
 
   // Fix scaduto: la posizione resta visibile ma marcata come non valida.

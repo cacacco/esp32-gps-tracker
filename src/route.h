@@ -239,8 +239,43 @@ static void routeEndParse() {
 // ---------------------------------------------------------------------------
 // Navigazione: dove sono sul percorso, dove devo andare, quanto manca
 // ---------------------------------------------------------------------------
+// La direzione della freccia e' relativa a dove sei rivolto, ma il GPS conosce
+// la direzione di marcia solo in movimento: da fermo si punta al nord.
+static void navSetBearing(double bearing, double courseDeg, bool courseValid) {
+  nav.bearingDeg = bearing;
+  double rel = bearing - (courseValid ? courseDeg : 0.0);
+  while (rel < -180) rel += 360;
+  while (rel >= 180) rel -= 360;
+  nav.relativeDeg = rel;
+}
+
+// Senza percorso caricato ma con delle tappe, la freccia punta dritta alla
+// prossima: niente strada da seguire, quindi nemmeno il fuori percorso.
+static void navUpdateStops(double lat, double lon, double courseDeg, bool courseValid) {
+  nav.active     = true;
+  nav.total      = stopsCount;
+  nav.target     = stopNext;
+  nav.offRoute   = false;
+  nav.offDistM   = 0;
+  nav.finished   = stopsDone;
+  nav.toNextM    = stopDistM;
+
+  double resto = stopDistM;
+  for (uint8_t i = stopNext; i + 1 < stopsCount; i++)
+    resto += TinyGPSPlus::distanceBetween(stops[i].lat, stops[i].lon,
+                                          stops[i + 1].lat, stops[i + 1].lon);
+  nav.remainingM = resto;
+
+  navSetBearing(TinyGPSPlus::courseTo(lat, lon, stops[stopNext].lat, stops[stopNext].lon),
+                courseDeg, courseValid);
+}
+
 static void navUpdate(double lat, double lon, double courseDeg, bool courseValid) {
-  if (!routeCount) { nav.active = false; return; }
+  if (!routeCount) {
+    if (stopsCount && stopNext < stopsCount) navUpdateStops(lat, lon, courseDeg, courseValid);
+    else                                     nav.active = false;
+    return;
+  }
   nav.active = true;
   nav.total  = routeCount;
 
@@ -266,14 +301,8 @@ static void navUpdate(double lat, double lon, double courseDeg, bool courseValid
   nav.offRoute   = bestDist > ROUTE_OFF_ROUTE_M;
   nav.toNextM    = TinyGPSPlus::distanceBetween(lat, lon, routePts[target].lat, routePts[target].lon);
   nav.remainingM = nav.toNextM + routeCum[target];
-  nav.bearingDeg = TinyGPSPlus::courseTo(lat, lon, routePts[target].lat, routePts[target].lon);
-
-  // La freccia e' relativa a dove sei rivolto, ma la direzione di marcia del
-  // GPS ha senso solo in movimento: da fermo punta al nord.
-  double rel = nav.bearingDeg - (courseValid ? courseDeg : 0.0);
-  while (rel < -180) rel += 360;
-  while (rel >= 180) rel -= 360;
-  nav.relativeDeg = rel;
+  navSetBearing(TinyGPSPlus::courseTo(lat, lon, routePts[target].lat, routePts[target].lon),
+                courseDeg, courseValid);
 
   nav.finished = (target == routeCount - 1) && (nav.toNextM < ROUTE_FINISH_M);
 }

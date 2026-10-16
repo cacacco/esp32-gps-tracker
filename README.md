@@ -277,6 +277,12 @@ Dalla dashboard, anche dal telefono:
 * il nome si scrive direttamente nella riga, le frecce spostano l'ordine, la X cancella;
 * **Salva le modifiche** scrive tutto nella memoria interna.
 
+**Le tappe funzionano anche senza GPX.** Se non hai caricato nessun percorso ma hai delle
+tappe, la freccia punta dritta alla prossima, in linea d'aria: puoi quindi costruirti un
+giro dal telefono toccando la mappa, senza PC e senza file. La differenza rispetto al GPX e'
+che senza la linea del percorso non c'e' una strada da seguire, quindi non c'e' nemmeno
+l'avviso di fuori rotta: la freccia indica la direzione, la strada la scegli tu.
+
 Una tappa si considera raggiunta entro 100 metri (`STOP_ARRIVAL_M`) e si passa alla
 successiva. Il massimo e' 40 tappe, con nomi fino a 23 caratteri: il display non ne mostra
 di piu'.
