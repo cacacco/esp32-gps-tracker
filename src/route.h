@@ -18,6 +18,7 @@
 
 #include "config.h"
 #include "stops.h"
+#include "turns.h"
 
 struct RoutePoint {
   float lat;
@@ -68,6 +69,42 @@ static void routeThinOut() {
   routeCount = (uint16_t)((routeCount + 1) / 2);
 }
 
+// Le manovre arrivano in coordinate: qui ognuna viene agganciata al punto del
+// percorso piu' vicino, cosi' "quanto manca alla svolta" diventa una
+// sottrazione fra due distanze gia' calcolate invece di una ricerca continua.
+// La ricerca va solo in avanti perche' le manovre arrivano in ordine.
+static void turnsBindToRoute() {
+  turnNext  = 0;
+  turnDistM = 0;
+  if (!routeCount) return;
+
+  uint16_t from = 0;
+  for (uint16_t t = 0; t < turnCount; t++) {
+    // distanza approssimata sul piano: per trovare il punto piu' vicino basta,
+    // e costa un millesimo di una distanza sferica fatta 400.000 volte
+    const double kLon = cos((double)turns[t].lat * PI / 180.0);
+    uint16_t best  = from;
+    double   bestD = 1e18;
+    for (uint16_t i = from; i < routeCount; i++) {
+      const double dla = (double)routePts[i].lat - turns[t].lat;
+      const double dlo = ((double)routePts[i].lon - turns[t].lon) * kLon;
+      const double d   = dla * dla + dlo * dlo;
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    turns[t].idx = best;
+    from = best;
+  }
+}
+
+static void turnsUpdate() {
+  if (!turnCount || !routeCount) { turnDistM = 0; return; }
+  // la manovra resta quella finche' non l'hai superata
+  while (turnNext < turnCount && navIndex > turns[turnNext].idx) turnNext++;
+  if (turnNext >= turnCount) { turnDistM = 0; return; }
+  const float d = routeCum[navIndex] - routeCum[turns[turnNext].idx];
+  turnDistM = d > 0 ? d : 0;
+}
+
 static void navReset() {
   navIndex     = 0;
   nav.active   = routeCount > 0;
@@ -75,6 +112,8 @@ static void navReset() {
   nav.finished = false;
   nav.target   = 0;
   nav.total    = routeCount;
+  turnNext     = 0;
+  turnDistM    = 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -99,13 +138,16 @@ static void routeLoad() {
 
   routeComputeCum();
   navReset();
-  if (routeCount) Serial.printf("[ROTTA] percorso caricato: %u punti, %.1f km\r\n",
-                                routeCount, routeCum[0] / 1000.0);
+  turnsLoadRaw();
+  turnsBindToRoute();
+  if (routeCount) Serial.printf("[ROTTA] percorso caricato: %u punti, %.1f km, %u svolte\r\n",
+                                routeCount, routeCum[0] / 1000.0, turnCount);
 }
 
 static void routeClear() {
   routeCount = 0;
   LittleFS.remove(ROUTE_PATH);
+  turnsClear();
   navReset();
   nav.active = false;
   Serial.println(F("[ROTTA] percorso cancellato"));
@@ -128,6 +170,7 @@ static void routePush(double lat, double lon) {
 }
 
 static void routeBeginBuild() {
+  turnsClear();            // le svolte del percorso vecchio non valgono piu'
   routeCount   = 0;
   buildHasLast = false;
   buildSpacing = ROUTE_DRAW_SPACING_M;
@@ -255,6 +298,7 @@ static void routeParseTag(const char *tag) {
 }
 
 static void routeBeginParse() {
+  turnsClear();            // un GPX porta punti e tappe, non manovre
   routeCount = 0;
   gpxSpacing = ROUTE_MIN_SPACING_M;
   gpxTagLen  = 0;
@@ -365,4 +409,5 @@ static void navUpdate(double lat, double lon, double courseDeg, bool courseValid
                 courseDeg, courseValid);
 
   nav.finished = (target == routeCount - 1) && (nav.toNextM < ROUTE_FINISH_M);
+  turnsUpdate();
 }

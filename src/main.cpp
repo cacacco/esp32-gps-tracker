@@ -475,6 +475,11 @@ static void handleStatus() {
   navObj["off"]       = nav.offRoute;
   navObj["offDist"]   = nav.offDistM;
   navObj["done"]      = nav.finished;
+  navObj["turns"]     = turnCount;
+  navObj["turnKind"]  = turnNextKind();
+  navObj["turnExit"]  = turnNextExit();
+  navObj["turnName"]  = turnNextName();
+  navObj["turnDist"]  = turnDistM;
   navObj["stop"]      = stopNextName();
   navObj["stopDist"]  = stopDistM;
   navObj["stopIdx"]   = stopNext;
@@ -695,27 +700,99 @@ static void handleStopsClear() {
   server.send(200, "application/json", "{\"ok\":true}");
 }
 
-// Riceve i vertici toccati sulla mappa: [[lat,lon],[lat,lon],...]
+// Riceve il percorso come testo compatto: "lat,lon;lat,lon;...".
+// Niente JSON: un percorso stradale e' fatto di migliaia di punti e un
+// documento in memoria costerebbe piu' del percorso stesso.
 static void handleRouteDraw() {
   const String body = server.arg("plain");
-  if (!body.length()) { server.send(400, "application/json", "{\"error\":\"corpo vuoto\"}"); return; }
-  if (body.length() > 24000) { server.send(413, "application/json", "{\"error\":\"troppi punti\"}"); return; }
-
-  // il documento cresce con quello che arriva invece di tenere fissi 8 KB
-  DynamicJsonDocument doc(body.length() * 3 + 512);
-  if (deserializeJson(doc, body)) {
-    server.send(400, "application/json", "{\"error\":\"JSON non valido\"}");
-    return;
-  }
+  if (!body.length())        { server.send(400, "application/json", "{\"error\":\"corpo vuoto\"}"); return; }
+  if (body.length() > 40000) { server.send(413, "application/json", "{\"error\":\"troppi punti\"}"); return; }
 
   routeBeginBuild();
-  for (JsonArray v : doc.as<JsonArray>()) routeAddVertex(v[0] | 0.0, v[1] | 0.0);
+  const char *p = body.c_str();
+  while (*p) {
+    char *end;
+    const double lat = strtod(p, &end);
+    if (end == p) break;
+    p = end;
+    while (*p == ',' || *p == ' ') p++;
+    const double lon = strtod(p, &end);
+    if (end == p) break;
+    p = end;
+    while (*p == ';' || *p == '\n' || *p == '\r' || *p == ' ') p++;
+    routeAddVertex(lat, lon);
+  }
   routeEndBuild();
 
   char out[72];
   snprintf(out, sizeof(out), "{\"ok\":true,\"points\":%u,\"km\":%.1f}",
            routeCount, routeCount ? routeCum[0] / 1000.0 : 0.0);
   server.send(200, "application/json", out);
+}
+
+// Le svolte preparate dal telefono, una per riga:
+//   lat,lon,tipo,uscita,nome della strada
+// Il nome e' l'ultimo campo e arriva fino a fine riga, cosi' le virgole che
+// capitano nei nomi delle strade non rompono niente.
+static void handleTurnsPost() {
+  const String body = server.arg("plain");
+  if (!body.length())        { server.send(400, "application/json", "{\"error\":\"corpo vuoto\"}"); return; }
+  if (body.length() > 24000) { server.send(413, "application/json", "{\"error\":\"troppe svolte\"}"); return; }
+
+  turnsReset();
+  const char *p = body.c_str();
+  while (*p) {
+    char *end;
+    const double lat = strtod(p, &end);
+    if (end == p) break;
+    p = end; if (*p == ',') p++;
+    const double lon = strtod(p, &end);
+    if (end == p) break;
+    p = end; if (*p == ',') p++;
+    const long kind = strtol(p, &end, 10);
+    if (end == p) break;
+    p = end; if (*p == ',') p++;
+    const long exit = strtol(p, &end, 10);
+    if (end == p) break;
+    p = end; if (*p == ',') p++;
+
+    const char *fine = strchr(p, '\n');
+    char nome[TURN_NAME_LEN];
+    size_t n = fine ? (size_t)(fine - p) : strlen(p);
+    if (n && p[n - 1] == '\r') n--;
+    if (n >= sizeof(nome)) n = sizeof(nome) - 1;
+    memcpy(nome, p, n);
+    nome[n] = '\0';
+
+    turnsAdd(lat, lon, (uint8_t)kind, (uint8_t)exit, nome);
+    if (!fine) break;
+    p = fine + 1;
+  }
+
+  turnsBindToRoute();
+  turnsSave();
+  Serial.printf("[ROTTA] %u svolte ricevute\r\n", turnCount);
+
+  char out[48];
+  snprintf(out, sizeof(out), "{\"ok\":true,\"turns\":%u}", turnCount);
+  server.send(200, "application/json", out);
+}
+
+static void handleTurnsGet() {
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "application/json", "");
+
+  char buf[128], nome[TURN_NAME_LEN * 2];
+  outWrite("[");
+  for (uint16_t i = 0; i < turnCount; i++) {
+    jsonEscape(turns[i].name, nome, sizeof(nome));
+    snprintf(buf, sizeof(buf), "%s[%.6f,%.6f,%u,%u,\"%s\"]", i ? "," : "",
+             turns[i].lat, turns[i].lon, turns[i].kind, turns[i].exit, nome);
+    outWrite(buf);
+  }
+  outWrite("]");
+  outFlush();
+  server.sendContent("");
 }
 
 static void handleRouteClear() {
@@ -771,6 +848,8 @@ static void setupWebServer() {
   server.on("/api/route", HTTP_GET, handleRouteGet);
   server.on("/api/route", HTTP_POST, handleRouteDone, handleRouteUpload);
   server.on("/api/route/draw", HTTP_POST, handleRouteDraw);
+  server.on("/api/route/steps", HTTP_GET, handleTurnsGet);
+  server.on("/api/route/steps", HTTP_POST, handleTurnsPost);
   server.on("/api/route/clear", HTTP_POST, handleRouteClear);
   server.on("/api/stops", HTTP_GET, handleStopsGet);
   server.on("/api/stops", HTTP_POST, handleStopsPost);
@@ -932,6 +1011,10 @@ void loop() {
     d.navRemainM   = (float)nav.remainingM;
     d.navTarget    = nav.target;
     d.navTotal     = nav.total;
+    d.navTurnKind  = turnNextKind();
+    d.navTurnExit  = turnNextExit();
+    d.navTurnName  = turnNextName();
+    d.navTurnM     = turnDistM;
     d.navStopName  = stopNextName();
     d.navStopM     = (float)stopDistM;
     d.navStops     = stopsCount;

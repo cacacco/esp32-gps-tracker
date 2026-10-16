@@ -128,6 +128,10 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
     <input type="file" id="gpx" accept=".gpx,.xml" hidden>
     <button id="btnRoute" hidden>Cancella percorso</button>
   </div>
+  <div class="row">
+    <label><input type="checkbox" id="snap" checked> segui le strade e calcola le svolte</label>
+    <span class="coords" id="snapNote">serve internet solo adesso, non in auto</span>
+  </div>
   <div class="row" id="drawBox" hidden>
     <span class="coords" id="drawInfo">tocca la mappa punto per punto, seguendo la strada</span>
     <button id="btnDrawUndo">Annulla ultimo</button>
@@ -152,6 +156,14 @@ let map = null, marker = null, circle = null, line = null, firstFit = true;
 let routeLine = null, targetMark = null, routePts = [];
 let stopLayer = null, stopsArr = [], stopsNext = 0, stopsDirty = false, addOnMap = false;
 let drawLine = null, drawLayer = null, drawPts = [], drawMode = false;
+let turnLayer = null, turnsArr = [];
+
+// Il calcolo delle strade lo fa questo servizio pubblico, dal telefono, mentre
+// prepari il giro. Il tracker riceve solo il risultato. Per cambiarlo (server
+// proprio, altro provider) basta questa riga.
+const OSRM = 'https://router.project-osrm.org/route/v1/driving/';
+const OSRM_MAX_PUNTI = 25;      // vertici per chiamata, il resto va a pezzi
+const ROTTA_MAX_PUNTI = 1800;   // oltre non entra nel corpo della richiesta
 let lastFix = null;
 
 function initMap(){
@@ -169,6 +181,7 @@ function initMap(){
   stopLayer  = L.layerGroup().addTo(map);
   drawLine   = L.polyline([], {color:'#35c46a', weight:4, opacity:.9}).addTo(map);
   drawLayer  = L.layerGroup().addTo(map);
+  turnLayer  = L.layerGroup().addTo(map);
   map.on('click', e => {
     if (drawMode) {
       drawPts.push([e.latlng.lat, e.latlng.lng]);
@@ -181,6 +194,18 @@ function initMap(){
     renderStops();
   });
 }
+
+// direzione in gradi da a verso b
+function rotta(a, b){
+  const r = Math.PI/180;
+  const dLon = (b[1]-a[1])*r;
+  const y = Math.sin(dLon)*Math.cos(b[0]*r);
+  const x = Math.cos(a[0]*r)*Math.sin(b[0]*r) - Math.sin(a[0]*r)*Math.cos(b[0]*r)*Math.cos(dLon);
+  return (Math.atan2(y, x)*180/Math.PI + 360) % 360;
+}
+
+// di quanto cambia la direzione, con segno, fra -180 e 180
+function deltaGradi(a, b){ return (b - a + 540) % 360 - 180; }
 
 // distanza in metri tra due punti, per mostrare quanto manca a ogni tappa
 function metri(a, b){
@@ -247,7 +272,9 @@ async function refreshStatus(){
     const testa = n.done ? '<b style="color:#35c46a">Arrivato</b>'
       : n.off ? `<b style="color:#e8534f">Fuori percorso</b> di ${fmt(n.offDist,0)} m` : 'In rotta';
     const tappa = n.stops ? ` &nbsp;·&nbsp; prossima tappa <b>${n.stop}</b> a ${fmt(n.stopDist,0)} m` : '';
-    $('nav').innerHTML = `${testa} &nbsp;·&nbsp; restano ${fmt(n.remaining/1000,1)} km` + tappa;
+    const svolta = n.turnKind ? ` &nbsp;·&nbsp; fra ${fmt(n.turnDist,0)} m <b style="color:#f0a93b">` +
+      `${SVOLTA_PAROLA[n.turnKind] || ''}</b>${n.turnName ? ' su ' + n.turnName : ''}` : '';
+    $('nav').innerHTML = `${testa} &nbsp;·&nbsp; restano ${fmt(n.remaining/1000,1)} km` + svolta + tappa;
     if (map && routePts[n.target]) targetMark.setLatLng(routePts[n.target]).addTo(map);
   } else {
     $('nav').textContent = '';
@@ -342,6 +369,100 @@ async function refreshStops(){
   } catch(e){}
 }
 
+// ---------------------------------------------------------------------------
+// Dalle strade alle svolte. Il servizio restituisce il tracciato vero e
+// l'elenco delle manovre: il tracciato va alleggerito (arriva con un punto
+// ogni pochi metri) e le manovre ridotte a quelle che servono davvero.
+// ---------------------------------------------------------------------------
+const SVOLTA = {NONE:0, DRITTO:1, SX:2, DX:3, SX_LEGGERA:4, DX_LEGGERA:5,
+                SX_SECCA:6, DX_SECCA:7, INVERSIONE:8, ROTONDA:9, ARRIVO:10};
+const SVOLTA_PAROLA = ['', 'dritto', 'a sinistra', 'a destra', 'leggera sx',
+                       'leggera dx', 'secca sx', 'secca dx', 'inversione',
+                       'rotonda', 'arrivo'];
+
+function tipoSvolta(m){
+  const t = m.type || '';
+  if (t === 'arrive') return SVOLTA.ARRIVO;
+  if (t === 'roundabout' || t === 'rotary' || t === 'roundabout turn') return SVOLTA.ROTONDA;
+  switch (m.modifier || '') {
+    case 'left':        return SVOLTA.SX;
+    case 'right':       return SVOLTA.DX;
+    case 'slight left': return SVOLTA.SX_LEGGERA;
+    case 'slight right':return SVOLTA.DX_LEGGERA;
+    case 'sharp left':  return SVOLTA.SX_SECCA;
+    case 'sharp right': return SVOLTA.DX_SECCA;
+    case 'uturn':       return SVOLTA.INVERSIONE;
+  }
+  return SVOLTA.DRITTO;
+}
+
+// Tiene solo i punti in cui devi decidere qualcosa: "prosegui dritto sulla
+// stessa strada" sul display sarebbe solo rumore.
+function svoltaUtile(st){
+  const t = st.maneuver.type;
+  if (t === 'depart' || t === 'notification') return false;
+  if ((t === 'continue' || t === 'new name') &&
+      (st.maneuver.modifier || 'straight') === 'straight') return false;
+  return true;
+}
+
+// Toglie i punti in mezzo ai rettilinei e tiene quelli nelle curve.
+function rarefaiUna(pts, minM){
+  if (pts.length < 3) return pts.slice();
+  const out = [pts[0]];
+  let ultimo = pts[0];
+  for (let i = 1; i < pts.length - 1; i++){
+    const curva = Math.abs(deltaGradi(rotta(pts[i-1], pts[i]), rotta(pts[i], pts[i+1])));
+    if (metri(ultimo, pts[i]) < minM && curva < 20) continue;
+    out.push(pts[i]);
+    ultimo = pts[i];
+  }
+  out.push(pts[pts.length - 1]);
+  return out;
+}
+
+function rarefai(pts){
+  let passo = 25, out = pts;
+  for (let giro = 0; giro < 7; giro++){
+    out = rarefaiUna(pts, passo);
+    if (out.length <= ROTTA_MAX_PUNTI) break;
+    passo *= 2;
+  }
+  return out.length <= ROTTA_MAX_PUNTI ? out : out.slice(0, ROTTA_MAX_PUNTI);
+}
+
+async function calcolaStrade(punti, avviso){
+  const coords = [], svolte = [];
+  const passo = OSRM_MAX_PUNTI - 1;            // un vertice in comune fra i pezzi
+  for (let da = 0; da < punti.length - 1; da += passo){
+    const pezzo = punti.slice(da, da + OSRM_MAX_PUNTI);
+    if (pezzo.length < 2) break;
+    const ultimo = da + passo >= punti.length - 1;
+    if (avviso) avviso(Math.min(da + OSRM_MAX_PUNTI, punti.length), punti.length);
+
+    const url = OSRM + pezzo.map(p => p[1].toFixed(6) + ',' + p[0].toFixed(6)).join(';')
+              + '?overview=full&geometries=geojson&steps=true';
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('il servizio ha risposto ' + r.status);
+    const j = await r.json();
+    if (j.code !== 'Ok' || !j.routes || !j.routes.length)
+      throw new Error(j.message || j.code || 'nessuna strada trovata');
+
+    const rt = j.routes[0];
+    const g = rt.geometry.coordinates.map(c => [c[1], c[0]]);
+    for (let i = coords.length ? 1 : 0; i < g.length; i++) coords.push(g[i]);
+
+    for (const leg of rt.legs) for (const st of leg.steps){
+      if (!svoltaUtile(st)) continue;
+      if (st.maneuver.type === 'arrive' && !ultimo) continue;
+      svolte.push([st.maneuver.location[1], st.maneuver.location[0], tipoSvolta(st.maneuver),
+                   st.maneuver.exit || 0,
+                   (st.name || '').replace(/[\r\n,]/g, ' ').trim().slice(0, 19)]);
+    }
+  }
+  return {coords, svolte};
+}
+
 // ---- percorso disegnato a mano, senza bisogno di nessun file ----
 function renderDraw(){
   drawLine.setLatLngs(drawPts);
@@ -372,17 +493,52 @@ function setDrawMode(on){
   }
 }
 
+const NOTA_FERMA = 'serve internet solo adesso, non in auto';
+function nota(testo){ $('snapNote').textContent = testo || NOTA_FERMA; }
+
 async function inviaPercorso(punti){
   if (punti.length < 2) { alert('Servono almeno due punti.'); return false; }
-  const r = await fetch('/api/route/draw', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(punti.map(p => [ +p[0].toFixed(6), +p[1].toFixed(6) ]))
-  });
-  if (!r.ok) { alert('Salvataggio non riuscito.'); return false; }
-  const j = await r.json();
-  alert(`Percorso creato: ${j.points} punti, ${j.km} km`);
-  refreshRoute(); refreshStatus();
+  let coords = punti, svolte = null;
+
+  if ($('snap').checked){
+    try {
+      const res = await calcolaStrade(punti, (fatti, tot) => {
+        nota(`calcolo le strade... ${fatti}/${tot} punti`);
+      });
+      svolte = res.svolte;
+      coords = rarefai(res.coords);
+    } catch(e){
+      nota();
+      if (!confirm('Non riesco a calcolare le strade (' + e.message +
+                   ').\n\nSalvo il percorso a linee dritte fra i punti?')) {
+        renderDraw();
+        return false;
+      }
+      coords = punti; svolte = null;
+    }
+  }
+
+  nota('salvo sul tracker...');
+  const corpo = coords.map(p => p[0].toFixed(6) + ',' + p[1].toFixed(6)).join(';');
+  const r1 = await fetch('/api/route/draw',
+    {method:'POST', headers:{'Content-Type':'text/plain'}, body: corpo});
+  if (!r1.ok) { nota(); alert('Salvataggio non riuscito.'); renderDraw(); return false; }
+  const j = await r1.json();
+
+  let nSvolte = 0;
+  if (svolte && svolte.length){
+    const testo = svolte.map(t => `${t[0].toFixed(6)},${t[1].toFixed(6)},${t[2]},${t[3]},${t[4]}`).join('\n');
+    try {
+      const r2 = await fetch('/api/route/steps',
+        {method:'POST', headers:{'Content-Type':'text/plain'}, body: testo});
+      if (r2.ok) nSvolte = (await r2.json()).turns || 0;
+    } catch(e){}
+  }
+
+  nota();
+  alert(`Percorso: ${j.points} punti, ${j.km} km` +
+        (nSvolte ? `, ${nSvolte} svolte` : ' (senza svolte: freccia a vista)'));
+  refreshRoute(); refreshTurns(); refreshStatus();
   return true;
 }
 
@@ -392,6 +548,18 @@ async function refreshRoute(){
     const pts = await (await fetch('/api/route')).json();
     routePts = pts.map(p => [p[0], p[1]]);
     routeLine.setLatLngs(routePts);
+  } catch(e){}
+}
+
+async function refreshTurns(){
+  if (!map) return;
+  try {
+    turnsArr = await (await fetch('/api/route/steps')).json();
+    turnLayer.clearLayers();
+    turnsArr.forEach((t, i) => L.circleMarker([t[0], t[1]],
+      {radius:4, color:'#f0a93b', fillColor:'#0f1115', fillOpacity:1, weight:2})
+      .addTo(turnLayer)
+      .bindTooltip(`${i+1}. ${SVOLTA_PAROLA[t[2]] || ''}${t[4] ? ' su ' + t[4] : ''}`));
   } catch(e){}
 }
 
@@ -422,7 +590,7 @@ $('gpx').onchange = async (e) => {
   } catch(err){ alert('Caricamento non riuscito'); }
   e.target.value = '';
   stopsDirty = false;
-  refreshRoute(); refreshStops(); refreshStatus();
+  refreshRoute(); refreshTurns(); refreshStops(); refreshStatus();
 };
 $('btnDraw').onclick = () => {
   if (!map) { alert('Serve la mappa per disegnare il percorso.'); return; }
@@ -441,8 +609,9 @@ $('btnRoute').onclick = async () => {
   if (!confirm('Cancellare il percorso caricato?')) return;
   await fetch('/api/route/clear', {method:'POST'});
   if (routeLine) routeLine.setLatLngs([]);
-  routePts = [];
-  refreshRoute(); refreshStatus();
+  if (turnLayer) turnLayer.clearLayers();
+  routePts = []; turnsArr = [];
+  refreshRoute(); refreshTurns(); refreshStatus();
 };
 $('btnStopHere').onclick = () => {
   if (!lastFix) { alert('Serve un fix GPS valido.'); return; }
@@ -477,7 +646,7 @@ $('btnClear').onclick = async () => {
 };
 
 initMap();
-refreshStatus(); refreshTrack(); refreshRoute(); refreshStops();
+refreshStatus(); refreshTrack(); refreshRoute(); refreshTurns(); refreshStops();
 setInterval(refreshStatus, 2000);
 setInterval(refreshTrack, 10000);
 setInterval(refreshStops, 10000);

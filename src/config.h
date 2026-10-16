@@ -99,6 +99,12 @@
 #define ROUTE_MIN_SPACING_M       15   // distanza minima tra due punti del percorso
 #define ROUTE_DRAW_SPACING_M      50   // passo con cui si infittisce un percorso
                                        // disegnato a mano: 2000 punti = 100 km
+
+// ---- svolte --------------------------------------------------------------
+// Le manovre non le calcola la ESP32: arrivano gia' pronte dal telefono.
+#define TURNS_MAX                200   // svolte memorizzate, 32 byte l'una
+#define TURN_NAME_LEN             20   // nome della strada, caratteri
+#define TURN_WARN_M              400   // da quanto prima la freccia annuncia la svolta
 #define ROUTE_ARRIVAL_M           25   // entro questo raggio il punto e' raggiunto
 #define ROUTE_OFF_ROUTE_M         60   // oltre questa distanza sei fuori percorso
 #define ROUTE_FINISH_M            30   // arrivo sull'ultimo punto

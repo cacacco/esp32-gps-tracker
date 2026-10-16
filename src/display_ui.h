@@ -27,6 +27,8 @@
 #include <TFT_eSPI.h>
 #include <time.h>
 
+#include "turns.h"
+
 struct DisplayData {
   bool        fixValid;
   bool        gpsAlive;
@@ -52,6 +54,10 @@ struct DisplayData {
   float       navRemainM;
   uint16_t    navTarget;
   uint16_t    navTotal;
+  uint8_t     navTurnKind;   // prossima manovra, 0 se non ce ne sono
+  uint8_t     navTurnExit;   // uscita della rotonda
+  const char *navTurnName;   // strada su cui si prosegue
+  float       navTurnM;      // quanto manca alla manovra
   const char *navStopName;   // nome della prossima tappa
   float       navStopM;      // quanto manca
   uint8_t     navStops;
@@ -294,40 +300,73 @@ static void drawNavChrome() {
 
 static void drawNav(const DisplayData &d, bool force) {
   static int32_t pAngle = -9999, pNext = -1, pRemain = -1, pSpeed = -1, pStopM = -1;
-  static int8_t  pState = -1;
-  static char    pStop[24] = "";
+  static int8_t  pState = -1, pFont = -1;
+  static char    pStop[24] = "", pLine[40] = "";
   char buf[24];
 
   drawTopBar(d, force);
 
-  const uint16_t arrowColor = d.navFinished ? COL_OK : d.navOffRoute ? COL_WARN : TFT_CYAN;
-  const int32_t  angle      = (int32_t)d.navRelative;
-  const int8_t   state      = d.navFinished ? 2 : d.navOffRoute ? 1 : 0;
+  // Con le svolte caricate la freccia grande diventa la manovra: da lontano
+  // tiene la direzione del percorso, vicino alla svolta punta dove si gira.
+  const bool  hasTurn  = d.navTurnKind != TURN_NONE && !d.navFinished;
+  const bool  turnSoon = hasTurn && d.navTurnM <= TURN_WARN_M;
+  const float heading  = turnSoon ? turnAngle(d.navTurnKind) : d.navRelative;
+
+  const uint16_t arrowColor = d.navFinished ? COL_OK : d.navOffRoute ? COL_WARN
+                            : turnSoon      ? COL_WARN : TFT_CYAN;
+  const int32_t  angle      = (int32_t)heading;
+  const int8_t   state      = d.navFinished ? 2 : d.navOffRoute ? 1 : turnSoon ? 3 : 0;
 
   // Ridisegno la freccia solo se si e' mossa davvero: ogni ridisegno e' un
   // cerchio cancellato e due triangoli, inutile farlo per mezzo grado.
   if (force || abs(angle - pAngle) >= 4 || state != pState) {
     pAngle = angle;
     tft.fillCircle(ARROW_X, ARROW_Y, ARROW_R + 2, COL_BG);
-    drawArrow(d.navRelative, arrowColor);
+    drawArrow(heading, arrowColor);
   }
 
-  const int32_t next = (int32_t)d.navToNextM;
+  // Con le manovre il numero grande e' la distanza alla svolta: su un percorso
+  // stradale i punti sono a pochi metri l'uno dall'altro e "prossimo punto"
+  // non direbbe niente.
+  const float   dist = hasTurn ? d.navTurnM : d.navToNextM;
+  const int32_t next = (int32_t)dist;
   if (force || next != pNext) {
     pNext = next;
     if (next < 1000) snprintf(buf, sizeof(buf), "%ld m", (long)next);
-    else             snprintf(buf, sizeof(buf), "%.1f km", d.navToNextM / 1000.0f);
+    else             snprintf(buf, sizeof(buf), "%.1f km", dist / 1000.0f);
     tft.setTextSize(2);
     displayField(buf, ARROW_X, 258, 4, 270, COL_FG);
     tft.setTextSize(1);
   }
 
-  if (force || state != pState) {
-    pState = state;
-    if (d.navFinished)      displayField("ARRIVATO", ARROW_X, 302, 4, 280, COL_OK);
-    else if (d.navOffRoute) displayField("FUORI PERCORSO", ARROW_X, 302, 4, 280, COL_BAD);
-    else                    displayField("", ARROW_X, 302, 4, 280, COL_BG);
+  // Riga sotto la freccia: arrivo e fuori percorso hanno la precedenza, poi
+  // viene la manovra con il nome della strada.
+  char     line[40];
+  uint16_t lineCol  = COL_FG;
+  uint8_t  lineFont = 2;
+  if (d.navFinished) {
+    snprintf(line, sizeof(line), "ARRIVATO");       lineCol = COL_OK;  lineFont = 4;
+  } else if (d.navOffRoute) {
+    snprintf(line, sizeof(line), "FUORI PERCORSO"); lineCol = COL_BAD; lineFont = 4;
+  } else if (hasTurn && d.navTurnKind == TURN_ROUNDABOUT && d.navTurnExit) {
+    snprintf(line, sizeof(line), "rotonda, %u uscita", d.navTurnExit);
+  } else if (hasTurn) {
+    const char *strada = d.navTurnName ? d.navTurnName : "";
+    snprintf(line, sizeof(line), "%s%s%s", turnWord(d.navTurnKind),
+             *strada ? " su " : "", strada);
+  } else {
+    line[0] = '\0';
   }
+
+  if (force || lineFont != pFont || strcmp(line, pLine) != 0) {
+    // cambiando corpo del carattere l'area da pulire cambia: la svuoto a mano,
+    // altrimenti restano i bordi della scritta grande sotto quella piccola
+    if (force || lineFont != pFont) tft.fillRect(ARROW_X - 140, 288, 280, 29, COL_BG);
+    pFont = lineFont;
+    snprintf(pLine, sizeof(pLine), "%s", line);
+    displayField(line, ARROW_X, 302, lineFont, 280, line[0] ? lineCol : COL_BG);
+  }
+  pState = state;
 
   const int32_t remain = (int32_t)(d.navRemainM / 100);
   if (force || remain != pRemain) {

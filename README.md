@@ -11,8 +11,9 @@ L'ESP32 legge la posizione dal NEO-7M e:
   pronto per Google Earth, Strava o QGIS;
 * tiene le **statistiche del viaggio** (distanza, velocita' massima, tempo in movimento) e un
   **odometro totale** che non si azzera;
-* fa da **navigatore a freccia**: disegni il percorso dal telefono o ne carichi uno in GPX,
-  e il display mostra la direzione
+* fa da **navigatore a freccia con le svolte**: disegni il percorso dal telefono, che lo fa
+  passare per le strade vere e si fa dare le manovre; in auto il display annuncia la svolta
+  con distanza e nome della strada, senza rete
   del prossimo punto, quanto manca e l'avviso di fuori rotta, continuando a registrare la traccia;
 * tiene l'elenco delle **tappe con nome**, lette dal GPX o aggiunte dal telefono toccando la
   mappa: sul display leggi "Ponte sul Foglia", non "punto 47 di 340";
@@ -143,6 +144,9 @@ Le voci che probabilmente vorrai toccare:
 | `ROUTE_OFF_ROUTE_M` | 60 m | quanto puoi allontanarti dal percorso prima dell'avviso |
 | `ROUTE_MIN_SPACING_M` | 15 m | quanto vengono diradati i punti del GPX caricato |
 | `ROUTE_DRAW_SPACING_M` | 50 m | passo con cui si riempiono i tratti del percorso disegnato a mano |
+| `TURNS_MAX` | 200 | quante svolte stanno in memoria |
+| `TURN_NAME_LEN` | 20 | caratteri del nome della strada |
+| `TURN_WARN_M` | 400 m | da quanto prima la freccia grande annuncia la svolta |
 | `STOP_ARRIVAL_M` | 100 m | entro quale distanza una tappa si considera raggiunta |
 | `ENABLE_SINRICPRO` | 0 | mettilo a 1 per le notifiche push (vedi sotto) |
 | `GPS_AUTO_BAUD` | 1 | all'avvio cerca il baud giusto se il modulo non risponde a 9600 |
@@ -254,19 +258,49 @@ Non serve avere gia' un GPX ne' un computer: basta la dashboard.
 
 1. Premi **Disegna sulla mappa**. Il pulsante resta acceso e il *segui* si spegne da solo,
    cosi' la mappa non scappa mentre tocchi.
-2. **Tocca la mappa punto per punto seguendo la strada** che vuoi fare: a ogni tocco la
-   linea verde si allunga e sotto leggi quanti punti e quanti km. Non devi essere preciso
-   al metro, ma piu' tocchi metti nelle curve e piu' la freccia sara' fedele alla strada.
-   *Annulla ultimo* toglie l'ultimo tocco.
-3. Premi **Salva percorso**. Il tracker riempie da solo i tratti dritti con un punto ogni
-   50 metri, calcola la lunghezza e da li' in poi la freccia ti porta.
+2. **Tocca la mappa dove vuoi passare.** Con *segui le strade* attivo (vedi sotto) bastano
+   pochi tocchi: partenza, i bivi dove il percorso sarebbe ambiguo, arrivo. A ogni tocco la
+   linea verde si allunga e sotto leggi quanti punti e quanti km. *Annulla ultimo* toglie
+   l'ultimo tocco.
+3. Premi **Salva percorso**.
 
 C'e' anche la scorciatoia **Crea dalle tappe**: se hai gia' messo le tappe, costruisce il
-percorso unendole in ordine, senza toccare altro. Utile quando il giro e' fatto di strade
-dritte fra un paese e l'altro; in mezzo alle curve conviene disegnarlo a mano.
+percorso unendole in ordine, senza toccare altro.
 
 Il percorso disegnato sostituisce quello precedente e resta in memoria dopo lo spegnimento,
 esattamente come uno caricato da file.
+
+### Segui le strade e svolte (la casella sotto i pulsanti)
+
+Con la casella **segui le strade e calcola le svolte** attiva, il percorso non e' piu' una
+serie di linee dritte fra i tuoi tocchi: il telefono chiede a un servizio di calcolo
+itinerari il tracciato che passa davvero per le strade, e si fa dare anche l'elenco delle
+manovre. Alla ESP32 arrivano gia' pronti sia il tracciato sia le svolte.
+
+Questo e' l'unico momento in cui serve internet, ed e' lo stesso in cui gia' ti serve per
+vedere la mappa. **In auto sei offline come prima**: il percorso e le svolte sono in
+memoria sul tracker.
+
+Sul display, allora, la freccia grande diventa la manovra: da lontano tiene la direzione
+del percorso, sotto i 400 metri dalla svolta punta dove devi girare, con la distanza che
+scende e il nome della strada sotto. Sulla dashboard le svolte sono pallini arancioni sulla
+mappa e una riga di stato tipo *fra 250 m a destra su Via Roma*.
+
+Qualche cosa da sapere:
+
+* se il servizio non risponde (niente internet sul telefono in quel momento), la dashboard
+  te lo dice e ti offre di salvare comunque il percorso a linee dritte: funziona tutto
+  tranne le svolte, la freccia punta a vista verso il punto successivo;
+* i tocchi vengono mandati al servizio a gruppi di 25 e poi ricuciti, quindi puoi metterne
+  quanti vuoi;
+* il tracciato che torna indietro e' fittissimo (un punto ogni pochi metri): viene
+  alleggerito nel browser tenendo i punti nelle curve e togliendo quelli in mezzo ai
+  rettilinei, fino a stare in 1800 punti;
+* vengono tenute solo le manovre vere; i "prosegui dritto" sulla stessa strada verrebbero
+  solo a ingombrare il display e si buttano. Il limite e' `TURNS_MAX`, 200 svolte;
+* il servizio usato e' il server dimostrativo pubblico di OSRM. E' gratuito e senza
+  registrazione, ma e' pensato per le prove: se ne fai un uso intenso, o se vuoi un altro
+  provider, cambia la riga `const OSRM = ...` in `src/web_ui.h` - il resto non cambia.
 
 ### Prepararlo sul PC e caricarlo
 
@@ -392,7 +426,9 @@ offline la mappa resta vuota, ma numeri, stato e link a Google Maps continuano a
 | `GET` | `/track-precedente.gpx` | il file ruotato, quando esiste |
 | `GET` | `/api/route` | il percorso caricato, `[[lat, lon], ...]` |
 | `POST` | `/api/route` | carica un GPX (multipart) e lo sostituisce al precedente |
-| `POST` | `/api/route/draw` | crea il percorso dai punti toccati sulla mappa, `[[lat, lon], ...]` |
+| `POST` | `/api/route/draw` | crea il percorso, corpo `lat,lon;lat,lon;...` in testo semplice |
+| `GET` | `/api/route/steps` | le svolte, `[[lat, lon, tipo, uscita, "strada"], ...]` |
+| `POST` | `/api/route/steps` | carica le svolte, una per riga: `lat,lon,tipo,uscita,strada` |
 | `POST` | `/api/route/clear` | cancella il percorso e le sue tappe |
 | `GET` | `/api/stops` | elenco delle tappe e quale e' la prossima |
 | `POST` | `/api/stops` | sostituisce l'elenco (corpo JSON) |
@@ -505,8 +541,9 @@ projects/esp32-gps-tracker/
 │   ├── config.h                 tutte le impostazioni (l'unico file da modificare)
 │   ├── main.cpp                 lettura GPS, geofence, statistiche, web server, SinricPro
 │   ├── track_store.h            traccia e odometro su memoria interna (LittleFS)
-│   ├── route.h                  percorso GPX e navigazione a freccia
+│   ├── route.h                  percorso e navigazione a freccia
 │   ├── stops.h                  tappe con nome, dal GPX o aggiunte a mano
+│   ├── turns.h                  svolte preparate dal telefono
 │   ├── wifi_portal.h            connessione WiFi e portale di configurazione
 │   ├── display_ui.h             computer di bordo sul TFT 4" (facoltativo)
 │   └── web_ui.h                 dashboard HTML/CSS/JS servita dall'ESP32
