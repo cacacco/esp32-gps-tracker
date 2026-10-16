@@ -695,6 +695,29 @@ static void handleStopsClear() {
   server.send(200, "application/json", "{\"ok\":true}");
 }
 
+// Riceve i vertici toccati sulla mappa: [[lat,lon],[lat,lon],...]
+static void handleRouteDraw() {
+  const String body = server.arg("plain");
+  if (!body.length()) { server.send(400, "application/json", "{\"error\":\"corpo vuoto\"}"); return; }
+  if (body.length() > 24000) { server.send(413, "application/json", "{\"error\":\"troppi punti\"}"); return; }
+
+  // il documento cresce con quello che arriva invece di tenere fissi 8 KB
+  DynamicJsonDocument doc(body.length() * 3 + 512);
+  if (deserializeJson(doc, body)) {
+    server.send(400, "application/json", "{\"error\":\"JSON non valido\"}");
+    return;
+  }
+
+  routeBeginBuild();
+  for (JsonArray v : doc.as<JsonArray>()) routeAddVertex(v[0] | 0.0, v[1] | 0.0);
+  routeEndBuild();
+
+  char out[72];
+  snprintf(out, sizeof(out), "{\"ok\":true,\"points\":%u,\"km\":%.1f}",
+           routeCount, routeCount ? routeCum[0] / 1000.0 : 0.0);
+  server.send(200, "application/json", out);
+}
+
 static void handleRouteClear() {
   routeClear();
   stopsClear();
@@ -747,6 +770,7 @@ static void setupWebServer() {
   server.on("/api/fence", HTTP_POST, handleSetFence);
   server.on("/api/route", HTTP_GET, handleRouteGet);
   server.on("/api/route", HTTP_POST, handleRouteDone, handleRouteUpload);
+  server.on("/api/route/draw", HTTP_POST, handleRouteDraw);
   server.on("/api/route/clear", HTTP_POST, handleRouteClear);
   server.on("/api/stops", HTTP_GET, handleStopsGet);
   server.on("/api/stops", HTTP_POST, handleStopsPost);

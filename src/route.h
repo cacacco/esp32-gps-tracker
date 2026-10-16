@@ -60,6 +60,14 @@ static void routeComputeCum() {
   }
 }
 
+// Quando la memoria si riempie il percorso non viene tagliato a meta': si
+// tiene un punto su due e si raddoppia il passo. Un giro da 350 km entra
+// tutto, solo meno fitto, invece di fermarsi a meta' strada.
+static void routeThinOut() {
+  for (uint16_t i = 1; i * 2 < routeCount; i++) routePts[i] = routePts[i * 2];
+  routeCount = (uint16_t)((routeCount + 1) / 2);
+}
+
 static void navReset() {
   navIndex     = 0;
   nav.active   = routeCount > 0;
@@ -104,6 +112,56 @@ static void routeClear() {
 }
 
 // ---------------------------------------------------------------------------
+// Percorso disegnato a mano: dalla dashboard arrivano pochi vertici e i tratti
+// dritti vanno infittiti, altrimenti fra un tocco e l'altro la ricerca del
+// punto piu' vicino e il fuori percorso non hanno niente su cui lavorare.
+// ---------------------------------------------------------------------------
+static double buildLastLat = 0, buildLastLon = 0;
+static bool   buildHasLast = false;
+static float  buildSpacing = ROUTE_DRAW_SPACING_M;
+
+static void routePush(double lat, double lon) {
+  if (routeCount >= ROUTE_MAX_POINTS) { routeThinOut(); buildSpacing *= 2; }
+  routePts[routeCount].lat = (float)lat;
+  routePts[routeCount].lon = (float)lon;
+  routeCount++;
+}
+
+static void routeBeginBuild() {
+  routeCount   = 0;
+  buildHasLast = false;
+  buildSpacing = ROUTE_DRAW_SPACING_M;
+}
+
+static void routeAddVertex(double lat, double lon) {
+  if (lat == 0 && lon == 0) return;
+
+  if (buildHasLast) {
+    const double d = TinyGPSPlus::distanceBetween(buildLastLat, buildLastLon, lat, lon);
+    if (d < 1.0) return;                       // due tocchi sullo stesso punto
+    const uint16_t passi = (uint16_t)(d / buildSpacing);
+    for (uint16_t k = 1; k < passi; k++) {
+      const double t = (double)k / passi;
+      routePush(buildLastLat + (lat - buildLastLat) * t,
+                buildLastLon + (lon - buildLastLon) * t);
+    }
+  }
+
+  routePush(lat, lon);
+  buildLastLat = lat;
+  buildLastLon = lon;
+  buildHasLast = true;
+}
+
+static void routeEndBuild() {
+  routeComputeCum();
+  navReset();
+  routeSave();
+  Serial.printf("[ROTTA] percorso disegnato: %u punti ogni %.0f m, %.1f km\r\n",
+                routeCount, (double)buildSpacing, routeCount ? routeCum[0] / 1000.0 : 0.0);
+}
+
+// ---------------------------------------------------------------------------
 // Lettura del GPX, fatta mentre il file arriva dalla rete: non viene mai
 // salvato per intero, di un file da mezzo megabyte restano solo i punti.
 // ---------------------------------------------------------------------------
@@ -112,6 +170,7 @@ static uint16_t gpxTagLen  = 0;
 static bool     gpxInTag   = false;
 static double   gpxLastLat = 0, gpxLastLon = 0;
 static bool     gpxHasLast = false;
+static float    gpxSpacing = ROUTE_MIN_SPACING_M;
 
 // stato della tappa in lettura: nel GPX il nome e' un figlio di <wpt>, quindi
 // va tenuto da parte finche' non arriva la chiusura dell'elemento
@@ -128,12 +187,12 @@ static double gpxAttr(const char *p) {
 }
 
 static void routeAddPoint(double lat, double lon) {
-  if (routeCount >= ROUTE_MAX_POINTS) return;
+  if (routeCount >= ROUTE_MAX_POINTS) { routeThinOut(); gpxSpacing *= 2; }
   if (lat == 0 && lon == 0) return;
 
   // Un punto ogni ROUTE_MIN_SPACING_M: i GPX di Komoot o Google hanno un punto
   // ogni paio di metri, e ne verrebbero decine di migliaia senza guadagno.
-  if (gpxHasLast && TinyGPSPlus::distanceBetween(lat, lon, gpxLastLat, gpxLastLon) < ROUTE_MIN_SPACING_M)
+  if (gpxHasLast && TinyGPSPlus::distanceBetween(lat, lon, gpxLastLat, gpxLastLon) < gpxSpacing)
     return;
 
   routePts[routeCount].lat = (float)lat;
@@ -197,6 +256,7 @@ static void routeParseTag(const char *tag) {
 
 static void routeBeginParse() {
   routeCount = 0;
+  gpxSpacing = ROUTE_MIN_SPACING_M;
   gpxTagLen  = 0;
   gpxInTag   = false;
   gpxHasLast = false;

@@ -95,8 +95,10 @@
 //     direzione del prossimo punto e quanto manca: niente calcolo del
 //     percorso a bordo, niente ricalcolo se sbagli strada.
 // ===========================================================================
-#define ROUTE_MAX_POINTS        1200   // ~14 KB di RAM
+#define ROUTE_MAX_POINTS        2000   // ~24 KB di RAM
 #define ROUTE_MIN_SPACING_M       15   // distanza minima tra due punti del percorso
+#define ROUTE_DRAW_SPACING_M      50   // passo con cui si infittisce un percorso
+                                       // disegnato a mano: 2000 punti = 100 km
 #define ROUTE_ARRIVAL_M           25   // entro questo raggio il punto e' raggiunto
 #define ROUTE_OFF_ROUTE_M         60   // oltre questa distanza sei fuori percorso
 #define ROUTE_FINISH_M            30   // arrivo sull'ultimo punto

@@ -11,7 +11,8 @@ L'ESP32 legge la posizione dal NEO-7M e:
   pronto per Google Earth, Strava o QGIS;
 * tiene le **statistiche del viaggio** (distanza, velocita' massima, tempo in movimento) e un
   **odometro totale** che non si azzera;
-* fa da **navigatore a freccia**: carichi un percorso in GPX e il display mostra la direzione
+* fa da **navigatore a freccia**: disegni il percorso dal telefono o ne carichi uno in GPX,
+  e il display mostra la direzione
   del prossimo punto, quanto manca e l'avviso di fuori rotta, continuando a registrare la traccia;
 * tiene l'elenco delle **tappe con nome**, lette dal GPX o aggiunte dal telefono toccando la
   mappa: sul display leggi "Ponte sul Foglia", non "punto 47 di 340";
@@ -141,6 +142,7 @@ Le voci che probabilmente vorrai toccare:
 | `AP_SSID_PREFIX` / `AP_PASSWORD` | GPS-Tracker / gpstracker | nome e password dell'access point del portale |
 | `ROUTE_OFF_ROUTE_M` | 60 m | quanto puoi allontanarti dal percorso prima dell'avviso |
 | `ROUTE_MIN_SPACING_M` | 15 m | quanto vengono diradati i punti del GPX caricato |
+| `ROUTE_DRAW_SPACING_M` | 50 m | passo con cui si riempiono i tratti del percorso disegnato a mano |
 | `STOP_ARRIVAL_M` | 100 m | entro quale distanza una tappa si considera raggiunta |
 | `ENABLE_SINRICPRO` | 0 | mettilo a 1 per le notifiche push (vedi sotto) |
 | `GPS_AUTO_BAUD` | 1 | all'avvio cerca il baud giusto se il modulo non risponde a 9600 |
@@ -242,17 +244,42 @@ non danno fastidio, ma se dopo aver collegato il display il caricamento non part
 
 ## 5d. Navigazione a freccia (serve il display)
 
-Il percorso si prepara sul PC e si carica sul tracker: a bordo non c'e' nessun calcolo di
-rotta, tutto il lavoro pesante l'ha gia' fatto il computer. E' lo stesso principio dei
-navigatori a freccia da moto.
+Il percorso puoi **disegnarlo direttamente dal telefono** oppure prepararlo sul PC e
+caricarlo. A bordo non c'e' nessun calcolo di rotta: il tracker segue la linea che gli dai,
+e' lo stesso principio dei navigatori a freccia da moto.
+
+### Disegnarlo dal telefono, senza nessun file
+
+Non serve avere gia' un GPX ne' un computer: basta la dashboard.
+
+1. Premi **Disegna sulla mappa**. Il pulsante resta acceso e il *segui* si spegne da solo,
+   cosi' la mappa non scappa mentre tocchi.
+2. **Tocca la mappa punto per punto seguendo la strada** che vuoi fare: a ogni tocco la
+   linea verde si allunga e sotto leggi quanti punti e quanti km. Non devi essere preciso
+   al metro, ma piu' tocchi metti nelle curve e piu' la freccia sara' fedele alla strada.
+   *Annulla ultimo* toglie l'ultimo tocco.
+3. Premi **Salva percorso**. Il tracker riempie da solo i tratti dritti con un punto ogni
+   50 metri, calcola la lunghezza e da li' in poi la freccia ti porta.
+
+C'e' anche la scorciatoia **Crea dalle tappe**: se hai gia' messo le tappe, costruisce il
+percorso unendole in ordine, senza toccare altro. Utile quando il giro e' fatto di strade
+dritte fra un paese e l'altro; in mezzo alle curve conviene disegnarlo a mano.
+
+Il percorso disegnato sostituisce quello precedente e resta in memoria dopo lo spegnimento,
+esattamente come uno caricato da file.
+
+### Prepararlo sul PC e caricarlo
 
 1. **Prepara il percorso** e salvalo in **GPX**. Il modo piu' semplice e'
    [gpx.studio](https://gpx.studio): disegni il percorso sulla mappa e lo esporti. Vanno bene
    anche i GPX di Komoot, Strava, BRouter o di qualunque navigatore. Google Maps **non**
    esporta GPX: va passato da un convertitore.
-2. **Caricalo** dalla dashboard, pulsante *Carica percorso GPX*. Il file viene letto mentre
-   arriva e sul tracker restano solo i punti, uno ogni 15 metri: un GPX da mezzo megabyte
-   diventa qualche kilobyte. Il percorso resta in memoria anche dopo lo spegnimento.
+2. **Caricalo** dalla dashboard, pulsante *Carica GPX*. Il file viene letto mentre arriva e
+   sul tracker restano solo i punti, uno ogni 15 metri: un GPX da mezzo megabyte diventa
+   qualche kilobyte. Se il giro e' lungo e i punti non ci stanno tutti, il tracker **non
+   taglia il percorso a meta'**: tiene un punto su due e raddoppia il passo, cosi' il giro
+   arriva in fondo, solo meno fitto (un GPX da 300 km entra con un punto ogni ~240 m). Il
+   percorso resta in memoria anche dopo lo spegnimento.
 3. **Guida.** Appena c'e' il fix, il display passa alla schermata di navigazione.
 
 Sul display vedi una freccia grande che punta verso il prossimo punto del percorso
@@ -348,6 +375,7 @@ Nell'**Arduino IDE** lo schema di partizioni va impostato su *Default 4MB with s
   odometro totale;
 * pulsante **Centra l'area qui**: sposta il geofence sulla posizione attuale e lo salva
   nella memoria non volatile (resiste ai riavvii);
+* **Disegna sulla mappa**, **Crea dalle tappe** e **Carica GPX** per il percorso da seguire;
 * **Scarica GPX**, **Azzera viaggio** e **Cancella traccia salvata**;
 * in fondo i contatori diagnostici (frasi NMEA, checksum errati, heap libero, RSSI).
 
@@ -364,6 +392,7 @@ offline la mappa resta vuota, ma numeri, stato e link a Google Maps continuano a
 | `GET` | `/track-precedente.gpx` | il file ruotato, quando esiste |
 | `GET` | `/api/route` | il percorso caricato, `[[lat, lon], ...]` |
 | `POST` | `/api/route` | carica un GPX (multipart) e lo sostituisce al precedente |
+| `POST` | `/api/route/draw` | crea il percorso dai punti toccati sulla mappa, `[[lat, lon], ...]` |
 | `POST` | `/api/route/clear` | cancella il percorso e le sue tappe |
 | `GET` | `/api/stops` | elenco delle tappe e quale e' la prossima |
 | `POST` | `/api/stops` | sostituisce l'elenco (corpo JSON) |

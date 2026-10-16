@@ -120,10 +120,18 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
     <button id="btnClear">Cancella traccia salvata</button>
   </div>
 
+  <div class="sep">Percorso</div>
   <div class="row">
-    <label class="btn" for="gpx">Carica percorso GPX</label>
+    <button id="btnDraw" class="btn">Disegna sulla mappa</button>
+    <button id="btnFromStops">Crea dalle tappe</button>
+    <label class="btn" for="gpx">Carica GPX</label>
     <input type="file" id="gpx" accept=".gpx,.xml" hidden>
     <button id="btnRoute" hidden>Cancella percorso</button>
+  </div>
+  <div class="row" id="drawBox" hidden>
+    <span class="coords" id="drawInfo">tocca la mappa punto per punto, seguendo la strada</span>
+    <button id="btnDrawUndo">Annulla ultimo</button>
+    <button id="btnDrawSave">Salva percorso</button>
   </div>
 
   <div class="sep">Tappe</div>
@@ -143,6 +151,7 @@ const $ = id => document.getElementById(id);
 let map = null, marker = null, circle = null, line = null, firstFit = true;
 let routeLine = null, targetMark = null, routePts = [];
 let stopLayer = null, stopsArr = [], stopsNext = 0, stopsDirty = false, addOnMap = false;
+let drawLine = null, drawLayer = null, drawPts = [], drawMode = false;
 let lastFix = null;
 
 function initMap(){
@@ -158,7 +167,14 @@ function initMap(){
   routeLine  = L.polyline([], {color:'#f0a93b', weight:4, opacity:.8, dashArray:'1 8', lineCap:'round'}).addTo(map);
   targetMark = L.circleMarker([0,0], {radius:6, color:'#f0a93b', fillColor:'#f0a93b', fillOpacity:1});
   stopLayer  = L.layerGroup().addTo(map);
+  drawLine   = L.polyline([], {color:'#35c46a', weight:4, opacity:.9}).addTo(map);
+  drawLayer  = L.layerGroup().addTo(map);
   map.on('click', e => {
+    if (drawMode) {
+      drawPts.push([e.latlng.lat, e.latlng.lng]);
+      renderDraw();
+      return;
+    }
     if (!addOnMap) return;
     stopsArr.push({lat:e.latlng.lat, lon:e.latlng.lng, name:'Tappa ' + (stopsArr.length + 1)});
     stopsDirty = true;
@@ -326,6 +342,50 @@ async function refreshStops(){
   } catch(e){}
 }
 
+// ---- percorso disegnato a mano, senza bisogno di nessun file ----
+function renderDraw(){
+  drawLine.setLatLngs(drawPts);
+  drawLayer.clearLayers();
+  drawPts.forEach((p, i) => L.circleMarker(p, {radius:4, color:'#35c46a',
+    fillColor:'#0f1115', fillOpacity:1, weight:2}).addTo(drawLayer)
+    .bindTooltip(String(i + 1), {permanent:false}));
+  let km = 0;
+  for (let i = 1; i < drawPts.length; i++) km += metri(drawPts[i-1], drawPts[i]);
+  $('drawInfo').textContent = drawPts.length
+    ? `${drawPts.length} punti - ${(km/1000).toFixed(1)} km`
+    : 'tocca la mappa punto per punto, seguendo la strada';
+}
+
+function setDrawMode(on){
+  drawMode = on;
+  $('drawBox').hidden = !on;
+  $('btnDraw').classList.toggle('on', on);
+  $('btnDraw').textContent = on ? 'Chiudi disegno' : 'Disegna sulla mappa';
+  if (on) {
+    addOnMap = false;
+    $('btnStopMap').classList.remove('on');
+    $('btnStopMap').textContent = 'Aggiungi toccando la mappa';
+    $('follow').checked = false;          // la mappa non deve scappare mentre tocchi
+  } else {
+    drawPts = [];
+    renderDraw();
+  }
+}
+
+async function inviaPercorso(punti){
+  if (punti.length < 2) { alert('Servono almeno due punti.'); return false; }
+  const r = await fetch('/api/route/draw', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(punti.map(p => [ +p[0].toFixed(6), +p[1].toFixed(6) ]))
+  });
+  if (!r.ok) { alert('Salvataggio non riuscito.'); return false; }
+  const j = await r.json();
+  alert(`Percorso creato: ${j.points} punti, ${j.km} km`);
+  refreshRoute(); refreshStatus();
+  return true;
+}
+
 async function refreshRoute(){
   if (!map) return;
   try {
@@ -363,6 +423,19 @@ $('gpx').onchange = async (e) => {
   e.target.value = '';
   stopsDirty = false;
   refreshRoute(); refreshStops(); refreshStatus();
+};
+$('btnDraw').onclick = () => {
+  if (!map) { alert('Serve la mappa per disegnare il percorso.'); return; }
+  if (!drawMode && routePts.length &&
+      !confirm('C\'e\' gia\' un percorso: salvando quello nuovo lo sostituisci. Vado avanti?')) return;
+  setDrawMode(!drawMode);
+};
+$('btnDrawUndo').onclick = () => { drawPts.pop(); renderDraw(); };
+$('btnDrawSave').onclick = async () => { if (await inviaPercorso(drawPts)) setDrawMode(false); };
+$('btnFromStops').onclick = async () => {
+  if (stopsArr.length < 2) { alert('Servono almeno due tappe: aggiungile qui sotto e salvale.'); return; }
+  if (stopsDirty && !confirm('Hai modifiche alle tappe non salvate: uso quelle che vedi. Vado avanti?')) return;
+  if (await inviaPercorso(stopsArr.map(t => [t.lat, t.lon]))) setDrawMode(false);
 };
 $('btnRoute').onclick = async () => {
   if (!confirm('Cancellare il percorso caricato?')) return;
