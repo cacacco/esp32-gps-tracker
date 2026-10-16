@@ -11,6 +11,8 @@ L'ESP32 legge la posizione dal NEO-7M e:
   pronto per Google Earth, Strava o QGIS;
 * tiene le **statistiche del viaggio** (distanza, velocita' massima, tempo in movimento) e un
   **odometro totale** che non si azzera;
+* fa da **navigatore a freccia**: carichi un percorso in GPX e il display mostra la direzione
+  del prossimo punto, quanto manca e l'avviso di fuori rotta, continuando a registrare la traccia;
 * si fa configurare il **WiFi dal telefono**: se non trova la rete salvata apre un proprio
   access point con una pagina per sceglierne una, senza ricompilare niente;
 * sorveglia un'**area circolare (geofence)**: quando il tracker esce o rientra invia l'evento a
@@ -128,6 +130,8 @@ Le voci che probabilmente vorrai toccare:
 | `TRACK_MIN_DISTANCE_M` | 10 m | quanto ti devi spostare prima di registrare un nuovo punto |
 | `TRACK_FILE_MAX_POINTS` | 12000 | capienza del file traccia (~20-30 ore di guida) |
 | `AP_SSID_PREFIX` / `AP_PASSWORD` | GPS-Tracker / gpstracker | nome e password dell'access point del portale |
+| `ROUTE_OFF_ROUTE_M` | 60 m | quanto puoi allontanarti dal percorso prima dell'avviso |
+| `ROUTE_MIN_SPACING_M` | 15 m | quanto vengono diradati i punti del GPX caricato |
 | `ENABLE_SINRICPRO` | 0 | mettilo a 1 per le notifiche push (vedi sotto) |
 | `GPS_AUTO_BAUD` | 1 | all'avvio cerca il baud giusto se il modulo non risponde a 9600 |
 | `GPS_RAW_ECHO` | 0 | mettilo a 1 per vedere sul monitor i byte grezzi del GPS |
@@ -226,6 +230,42 @@ non danno fastidio, ma se dopo aver collegato il display il caricamento non part
 
 ---
 
+## 5d. Navigazione a freccia (serve il display)
+
+Il percorso si prepara sul PC e si carica sul tracker: a bordo non c'e' nessun calcolo di
+rotta, tutto il lavoro pesante l'ha gia' fatto il computer. E' lo stesso principio dei
+navigatori a freccia da moto.
+
+1. **Prepara il percorso** e salvalo in **GPX**. Il modo piu' semplice e'
+   [gpx.studio](https://gpx.studio): disegni il percorso sulla mappa e lo esporti. Vanno bene
+   anche i GPX di Komoot, Strava, BRouter o di qualunque navigatore. Google Maps **non**
+   esporta GPX: va passato da un convertitore.
+2. **Caricalo** dalla dashboard, pulsante *Carica percorso GPX*. Il file viene letto mentre
+   arriva e sul tracker restano solo i punti, uno ogni 15 metri: un GPX da mezzo megabyte
+   diventa qualche kilobyte. Il percorso resta in memoria anche dopo lo spegnimento.
+3. **Guida.** Appena c'e' il fix, il display passa alla schermata di navigazione.
+
+Sul display vedi una freccia grande che punta verso il prossimo punto del percorso
+**rispetto alla direzione in cui stai andando** (dritto = freccia in su), la distanza dal
+prossimo punto, quanta strada resta in tutto, a che punto sei (`12/340`) e la velocita'.
+La freccia diventa arancione e compare **FUORI PERCORSO** quando ti allontani di oltre 60 m
+dal tracciato, verde con **ARRIVATO** quando raggiungi l'ultimo punto.
+
+Sulla dashboard il percorso appare come una linea tratteggiata arancione, con un pallino sul
+punto che stai raggiungendo.
+
+Cosa **non** fa, perche' sia chiaro prima di salire in macchina:
+
+* niente ricalcolo: se sbagli strada ti avvisa, ma la via per rientrare la scegli tu;
+* niente nomi delle strade e niente voce: solo direzione e distanza;
+* da fermo la freccia punta al nord, perche' la direzione di marcia il GPS la conosce solo
+  in movimento (sopra i 3 km/h).
+
+La registrazione della traccia continua normalmente mentre navighi: sono due funzioni
+indipendenti, e a fine viaggio scarichi comunque il GPX di dove sei passato davvero.
+
+---
+
 ## 6. Dashboard
 
 `http://gps-tracker.local/` (o l'indirizzo IP stampato sulla seriale).
@@ -250,6 +290,9 @@ offline la mappa resta vuota, ma numeri, stato e link a Google Maps continuano a
 | `GET` | `/api/track` | traccia compatta `[[lat, lon, km/h, epoch], ...]` |
 | `GET` | `/track.gpx` | traccia in formato GPX 1.1, un `<trkseg>` per accensione |
 | `GET` | `/track-precedente.gpx` | il file ruotato, quando esiste |
+| `GET` | `/api/route` | il percorso caricato, `[[lat, lon], ...]` |
+| `POST` | `/api/route` | carica un GPX (multipart) e lo sostituisce al precedente |
+| `POST` | `/api/route/clear` | cancella il percorso |
 | `GET` | `/wifi` | pagina di configurazione della rete |
 | `POST` | `/api/fence?here=1&radius=200` | centra l'area sulla posizione attuale |
 | `POST` | `/api/fence?lat=45.1&lon=9.2&radius=500` | imposta l'area a mano |
@@ -358,6 +401,7 @@ projects/esp32-gps-tracker/
 │   ├── config.h                 tutte le impostazioni (l'unico file da modificare)
 │   ├── main.cpp                 lettura GPS, geofence, statistiche, web server, SinricPro
 │   ├── track_store.h            traccia e odometro su memoria interna (LittleFS)
+│   ├── route.h                  percorso GPX e navigazione a freccia
 │   ├── wifi_portal.h            connessione WiFi e portale di configurazione
 │   ├── display_ui.h             computer di bordo sul TFT 4" (facoltativo)
 │   └── web_ui.h                 dashboard HTML/CSS/JS servita dall'ESP32

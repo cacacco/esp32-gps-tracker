@@ -92,6 +92,10 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
   </div>
 
   <div class="row">
+    <span class="coords" id="nav"></span>
+  </div>
+
+  <div class="row">
     <label for="radius">Raggio area</label>
     <input type="number" id="radius" min="20" max="50000" step="10" value="150">
     <button id="btnHere">Centra l'area qui</button>
@@ -104,6 +108,12 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
     <button id="btnTrip">Azzera viaggio</button>
     <button id="btnClear">Cancella traccia salvata</button>
   </div>
+
+  <div class="row">
+    <label class="btn" for="gpx">Carica percorso GPX</label>
+    <input type="file" id="gpx" accept=".gpx,.xml" hidden>
+    <button id="btnRoute" hidden>Cancella percorso</button>
+  </div>
 </main>
 
 <footer id="diag">--</footer>
@@ -112,6 +122,7 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
 <script>
 const $ = id => document.getElementById(id);
 let map = null, marker = null, circle = null, line = null, firstFit = true;
+let routeLine = null, targetMark = null, routePts = [];
 
 function initMap(){
   if (typeof L === 'undefined') { $('map').innerHTML =
@@ -123,6 +134,8 @@ function initMap(){
   marker = L.circleMarker([0,0], {radius:7, color:'#4aa3ff', fillColor:'#4aa3ff', fillOpacity:.9}).addTo(map);
   circle = L.circle([0,0], {radius:150, color:'#35c46a', weight:2, fillOpacity:.07}).addTo(map);
   line   = L.polyline([], {color:'#4aa3ff', weight:3, opacity:.75}).addTo(map);
+  routeLine  = L.polyline([], {color:'#f0a93b', weight:4, opacity:.8, dashArray:'1 8', lineCap:'round'}).addTo(map);
+  targetMark = L.circleMarker([0,0], {radius:6, color:'#f0a93b', fillColor:'#f0a93b', fillOpacity:1});
 }
 
 function fmt(v, d=1){ return (v === null || v === undefined || isNaN(v)) ? '--' : Number(v).toFixed(d); }
@@ -175,6 +188,19 @@ async function refreshStatus(){
 
   $('btnOld').hidden = !s.diag.backup;
 
+  const n = s.nav || {};
+  $('btnRoute').hidden = !n.active;
+  if (n.active){
+    const testa = n.done ? '<b style="color:#35c46a">Arrivato</b>'
+      : n.off ? `<b style="color:#e8534f">Fuori percorso</b> di ${fmt(n.offDist,0)} m` : 'In rotta';
+    $('nav').innerHTML = `${testa} &nbsp;·&nbsp; prossimo punto ${n.target+1}/${n.points} ` +
+      `a ${fmt(n.toNext,0)} m &nbsp;·&nbsp; restano ${fmt(n.remaining/1000,1)} km`;
+    if (map && routePts[n.target]) targetMark.setLatLng(routePts[n.target]).addTo(map);
+  } else {
+    $('nav').textContent = '';
+    if (map && targetMark) map.removeLayer(targetMark);
+  }
+
   $('coords').innerHTML = s.fix
     ? `${s.lat.toFixed(6)}, ${s.lon.toFixed(6)} &nbsp; <a target="_blank" rel="noopener"
        href="https://www.google.com/maps?q=${s.lat},${s.lon}">apri in Google Maps</a>`
@@ -200,6 +226,15 @@ async function refreshStatus(){
   }
 }
 
+async function refreshRoute(){
+  if (!map) return;
+  try {
+    const pts = await (await fetch('/api/route')).json();
+    routePts = pts.map(p => [p[0], p[1]]);
+    routeLine.setLatLngs(routePts);
+  } catch(e){}
+}
+
 async function refreshTrack(){
   if (!map) return;
   try {
@@ -214,6 +249,27 @@ $('btnHere').onclick = async () => {
   if (!res.ok) alert('Serve un fix GPS valido per spostare qui il centro dell\'area.');
   refreshStatus();
 };
+$('gpx').onchange = async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  $('nav').textContent = 'caricamento di ' + f.name + '...';
+  const fd = new FormData();
+  fd.append('file', f, f.name);
+  try {
+    const j = await (await fetch('/api/route', {method:'POST', body: fd})).json();
+    alert(j.points ? `Percorso caricato: ${j.points} punti, ${j.km} km`
+                   : 'Nessun punto trovato: il file e\' un GPX valido?');
+  } catch(err){ alert('Caricamento non riuscito'); }
+  e.target.value = '';
+  refreshRoute(); refreshStatus();
+};
+$('btnRoute').onclick = async () => {
+  if (!confirm('Cancellare il percorso caricato?')) return;
+  await fetch('/api/route/clear', {method:'POST'});
+  if (routeLine) routeLine.setLatLngs([]);
+  routePts = [];
+  refreshRoute(); refreshStatus();
+};
 $('btnTrip').onclick = async () => { await fetch('/api/trip/reset', {method:'POST'}); refreshStatus(); };
 $('btnClear').onclick = async () => {
   if (!confirm('Cancellare la traccia salvata nella memoria del tracker?')) return;
@@ -223,7 +279,7 @@ $('btnClear').onclick = async () => {
 };
 
 initMap();
-refreshStatus(); refreshTrack();
+refreshStatus(); refreshTrack(); refreshRoute();
 setInterval(refreshStatus, 2000);
 setInterval(refreshTrack, 10000);
 </script>

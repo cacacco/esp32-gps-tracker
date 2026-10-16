@@ -89,6 +89,20 @@
 #define WIFI_RETRY_MS          120000     // ogni quanto riprovarla dal portale
 
 // ===========================================================================
+// 6bis) Navigazione a freccia
+//     Il percorso si prepara sul PC (Google Maps, BRouter, Komoot...), si
+//     esporta in GPX e si carica dalla dashboard. Il tracker mostra la
+//     direzione del prossimo punto e quanto manca: niente calcolo del
+//     percorso a bordo, niente ricalcolo se sbagli strada.
+// ===========================================================================
+#define ROUTE_MAX_POINTS        1200   // ~14 KB di RAM
+#define ROUTE_MIN_SPACING_M       15   // distanza minima tra due punti del percorso
+#define ROUTE_ARRIVAL_M           25   // entro questo raggio il punto e' raggiunto
+#define ROUTE_OFF_ROUTE_M         60   // oltre questa distanza sei fuori percorso
+#define ROUTE_FINISH_M            30   // arrivo sull'ultimo punto
+#define ROUTE_LOOKAHEAD           40   // quanti punti guardare avanti per ritrovarsi
+
+// ===========================================================================
 // 6c) Display TFT 4" ST7796 (480x320, SPI) - facoltativo
 //
 //     Collegamenti: VCC->3V3, GND->GND, CS->D15, RESET->D4, DC/RS->D2,

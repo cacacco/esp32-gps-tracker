@@ -44,6 +44,14 @@ struct DisplayData {
   uint32_t    sentences;
   const char *netName;
   bool        portal;
+  bool        navActive;
+  bool        navOffRoute;
+  bool        navFinished;
+  float       navRelative;   // gradi rispetto a dove sei rivolto
+  float       navToNextM;
+  float       navRemainM;
+  uint16_t    navTarget;
+  uint16_t    navTotal;
 };
 
 static TFT_eSPI tft;
@@ -56,7 +64,7 @@ static const uint16_t COL_OK    = TFT_GREEN;
 static const uint16_t COL_BAD   = TFT_RED;
 static const uint16_t COL_WARN  = TFT_ORANGE;
 
-enum DisplayScreen { SCREEN_NONE, SCREEN_WAIT, SCREEN_DRIVE };
+enum DisplayScreen { SCREEN_NONE, SCREEN_WAIT, SCREEN_DRIVE, SCREEN_NAV };
 static DisplayScreen displayScreen = SCREEN_NONE;
 
 // ---------------------------------------------------------------------------
@@ -84,6 +92,43 @@ static void displayDuration(uint32_t seconds, char *out, size_t len) {
   else                 snprintf(out, len, "%lum %02lus",
                                 (unsigned long)(seconds / 60),
                                 (unsigned long)(seconds % 60));
+}
+
+// ---------------------------------------------------------------------------
+// Barra superiore: stato dell'area, satelliti, qualita', orologio
+// ---------------------------------------------------------------------------
+static void drawTopBar(const DisplayData &d, bool force) {
+  static int32_t pSat = -1, pHdop = -1;
+  static char    pClock[8] = "";
+  static int8_t  pFence = -1;
+  char buf[32];
+
+  const int8_t fenceNow = d.outside ? 1 : 0;
+  if (force || fenceNow != pFence) {
+    pFence = fenceNow;
+    tft.fillCircle(18, 19, 7, d.outside ? COL_BAD : COL_OK);
+  }
+
+  if (force || (int32_t)d.satellites != pSat || (int32_t)(d.hdop * 10) != pHdop) {
+    pSat  = (int32_t)d.satellites;
+    pHdop = (int32_t)(d.hdop * 10);
+    snprintf(buf, sizeof(buf), "%lu sat   HDOP %.1f", (unsigned long)d.satellites, d.hdop);
+    tft.setTextDatum(ML_DATUM);
+    tft.setTextColor(COL_LABEL, COL_BG);
+    tft.setTextPadding(200);
+    tft.drawString(buf, 34, 19, 2);
+    tft.setTextPadding(0);
+  }
+
+  displayClock(d.epoch, buf, sizeof(buf));
+  if (force || strcmp(buf, pClock) != 0) {
+    snprintf(pClock, sizeof(pClock), "%s", buf);
+    tft.setTextDatum(MR_DATUM);
+    tft.setTextColor(COL_FG, COL_BG);
+    tft.setTextPadding(90);
+    tft.drawString(pClock, 472, 19, 4);
+    tft.setTextPadding(0);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -148,10 +193,9 @@ static void drawDriveChrome() {
 }
 
 static void drawDrive(const DisplayData &d, bool force) {
-  static int32_t pSpeed = -1, pSat = -1, pDist = -1, pTrip = -1;
-  static int32_t pMax = -1, pMov = -1, pAlt = -99999, pHdop = -1;
-  static char    pCard[6] = "", pClock[8] = "";
-  static int8_t  pFence = -1;
+  static int32_t pSpeed = -1, pDist = -1, pTrip = -1;
+  static int32_t pMax = -1, pMov = -1, pAlt = -99999;
+  static char    pCard[6] = "";
   char buf[24];
 
   // --- velocita' (font a sette segmenti, doppia altezza) ---
@@ -182,31 +226,7 @@ static void drawDrive(const DisplayData &d, bool force) {
     displayField(buf, 400, 196, 4, 150, d.outside ? COL_BAD : COL_OK);
   }
 
-  // --- banda alta: stato area, satelliti, HDOP, orologio ---
-  const int8_t fenceNow = d.outside ? 1 : 0;
-  if (force || fenceNow != pFence) {
-    pFence = fenceNow;
-    tft.fillCircle(18, 19, 7, d.outside ? COL_BAD : COL_OK);
-  }
-  if (force || (int32_t)d.satellites != pSat || (int32_t)(d.hdop * 10) != pHdop) {
-    pSat  = (int32_t)d.satellites;
-    pHdop = (int32_t)(d.hdop * 10);
-    snprintf(buf, sizeof(buf), "%lu sat   HDOP %.1f", (unsigned long)d.satellites, d.hdop);
-    tft.setTextDatum(ML_DATUM);
-    tft.setTextColor(COL_LABEL, COL_BG);
-    tft.setTextPadding(200);
-    tft.drawString(buf, 34, 19, 2);
-    tft.setTextPadding(0);
-  }
-  displayClock(d.epoch, buf, sizeof(buf));
-  if (force || strcmp(buf, pClock) != 0) {
-    snprintf(pClock, sizeof(pClock), "%s", buf);
-    tft.setTextDatum(MR_DATUM);
-    tft.setTextColor(COL_FG, COL_BG);
-    tft.setTextPadding(90);
-    tft.drawString(pClock, 472, 19, 4);
-    tft.setTextPadding(0);
-  }
+  drawTopBar(d, force);
 
   // --- banda bassa: statistiche ---
   const int32_t trip = (int32_t)(d.tripKm * 10);
@@ -236,6 +256,102 @@ static void drawDrive(const DisplayData &d, bool force) {
 }
 
 // ---------------------------------------------------------------------------
+// Schermata di navigazione: freccia verso il prossimo punto del percorso
+// ---------------------------------------------------------------------------
+static const int ARROW_X = 145, ARROW_Y = 152, ARROW_R = 76;
+
+static void drawArrow(float angleDeg, uint16_t color) {
+  const float a = angleDeg * (float)PI / 180.0f;
+  // Punta, due spalle e una coda rientrante: due triangoli bastano.
+  const int x0 = ARROW_X + (int)(sinf(a) * ARROW_R);
+  const int y0 = ARROW_Y - (int)(cosf(a) * ARROW_R);
+  const float aL = a + 2.44f, aR = a - 2.44f;         // ~140 gradi
+  const int xL = ARROW_X + (int)(sinf(aL) * ARROW_R * 0.78f);
+  const int yL = ARROW_Y - (int)(cosf(aL) * ARROW_R * 0.78f);
+  const int xR = ARROW_X + (int)(sinf(aR) * ARROW_R * 0.78f);
+  const int yR = ARROW_Y - (int)(cosf(aR) * ARROW_R * 0.78f);
+  const int xT = ARROW_X - (int)(sinf(a) * ARROW_R * 0.28f);
+  const int yT = ARROW_Y + (int)(cosf(a) * ARROW_R * 0.28f);
+
+  tft.fillTriangle(x0, y0, xL, yL, xT, yT, color);
+  tft.fillTriangle(x0, y0, xR, yR, xT, yT, color);
+}
+
+static void drawNavChrome() {
+  tft.fillScreen(COL_BG);
+  tft.drawFastHLine(0, 38, 480, COL_LINE);
+  tft.drawFastVLine(290, 46, 250, COL_LINE);
+
+  tft.setTextDatum(MC_DATUM);
+  tft.setTextColor(COL_LABEL, COL_BG);
+  tft.drawString("RESTANO", 385, 70, 2);
+  tft.drawString("PUNTO", 385, 155, 2);
+  tft.drawString("VELOCITA'", 385, 240, 2);
+}
+
+static void drawNav(const DisplayData &d, bool force) {
+  static int32_t pAngle = -9999, pNext = -1, pRemain = -1, pSpeed = -1, pIdx = -1;
+  static int8_t  pState = -1;
+  char buf[24];
+
+  drawTopBar(d, force);
+
+  const uint16_t arrowColor = d.navFinished ? COL_OK : d.navOffRoute ? COL_WARN : TFT_CYAN;
+  const int32_t  angle      = (int32_t)d.navRelative;
+  const int8_t   state      = d.navFinished ? 2 : d.navOffRoute ? 1 : 0;
+
+  // Ridisegno la freccia solo se si e' mossa davvero: ogni ridisegno e' un
+  // cerchio cancellato e due triangoli, inutile farlo per mezzo grado.
+  if (force || abs(angle - pAngle) >= 4 || state != pState) {
+    pAngle = angle;
+    tft.fillCircle(ARROW_X, ARROW_Y, ARROW_R + 2, COL_BG);
+    drawArrow(d.navRelative, arrowColor);
+  }
+
+  const int32_t next = (int32_t)d.navToNextM;
+  if (force || next != pNext) {
+    pNext = next;
+    if (next < 1000) snprintf(buf, sizeof(buf), "%ld m", (long)next);
+    else             snprintf(buf, sizeof(buf), "%.1f km", d.navToNextM / 1000.0f);
+    tft.setTextSize(2);
+    displayField(buf, ARROW_X, 258, 4, 270, COL_FG);
+    tft.setTextSize(1);
+  }
+
+  if (force || state != pState) {
+    pState = state;
+    if (d.navFinished)      displayField("ARRIVATO", ARROW_X, 302, 4, 280, COL_OK);
+    else if (d.navOffRoute) displayField("FUORI PERCORSO", ARROW_X, 302, 4, 280, COL_BAD);
+    else                    displayField("", ARROW_X, 302, 4, 280, COL_BG);
+  }
+
+  const int32_t remain = (int32_t)(d.navRemainM / 100);
+  if (force || remain != pRemain) {
+    pRemain = remain;
+    if (d.navRemainM < 1000) snprintf(buf, sizeof(buf), "%ld m", (long)d.navRemainM);
+    else                     snprintf(buf, sizeof(buf), "%.1f km", d.navRemainM / 1000.0f);
+    tft.setTextSize(2);
+    displayField(buf, 385, 108, 4, 180, COL_FG);
+    tft.setTextSize(1);
+  }
+
+  if (force || (int32_t)d.navTarget != pIdx) {
+    pIdx = (int32_t)d.navTarget;
+    snprintf(buf, sizeof(buf), "%u/%u", d.navTarget + 1, d.navTotal);
+    displayField(buf, 385, 190, 4, 180, COL_LABEL);
+  }
+
+  const int32_t speed = (int32_t)(d.speedKmh + 0.5f);
+  if (force || speed != pSpeed) {
+    pSpeed = speed;
+    snprintf(buf, sizeof(buf), "%ld", (long)speed);
+    tft.setTextSize(2);
+    displayField(buf, 385, 275, 4, 180, COL_FG);
+    tft.setTextSize(1);
+  }
+}
+
+// ---------------------------------------------------------------------------
 static void displayBegin() {
   tft.init();
   tft.setRotation(DISPLAY_ROTATION);
@@ -248,17 +364,21 @@ static void displayBegin() {
 }
 
 static void displayUpdate(const DisplayData &d) {
-  const DisplayScreen wanted = d.fixValid ? SCREEN_DRIVE : SCREEN_WAIT;
+  const DisplayScreen wanted = !d.fixValid          ? SCREEN_WAIT
+                             : d.navActive          ? SCREEN_NAV
+                                                    : SCREEN_DRIVE;
   const bool force = (wanted != displayScreen);
 
   if (force) {
     displayScreen = wanted;
-    if (wanted == SCREEN_DRIVE) drawDriveChrome();
-    else                        drawWaitChrome();
+    if      (wanted == SCREEN_NAV)   drawNavChrome();
+    else if (wanted == SCREEN_DRIVE) drawDriveChrome();
+    else                             drawWaitChrome();
   }
 
-  if (wanted == SCREEN_DRIVE) drawDrive(d, force);
-  else                        drawWait(d, force);
+  if      (wanted == SCREEN_NAV)   drawNav(d, force);
+  else if (wanted == SCREEN_DRIVE) drawDrive(d, force);
+  else                             drawWait(d, force);
 }
 
 #endif  // ENABLE_DISPLAY

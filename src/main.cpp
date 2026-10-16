@@ -26,6 +26,7 @@
 
 #include "config.h"
 #include "track_store.h"
+#include "route.h"
 #include "wifi_portal.h"
 #include "display_ui.h"
 #include "web_ui.h"
@@ -363,6 +364,7 @@ static void readGps() {
     updateStats();
     maybeAddTrackPoint();
     updateGeofence();
+    navUpdate(fix.lat, fix.lon, fix.course, fix.speedKmh >= STATS_MOVING_MIN_KMH);
   }
 
   // Fix scaduto: la posizione resta visibile ma marcata come non valida.
@@ -400,7 +402,7 @@ static void handleRoot() {
 }
 
 static void handleStatus() {
-  StaticJsonDocument<1536> doc;
+  StaticJsonDocument<2048> doc;
 
   doc["fix"]        = fix.valid;
   doc["lat"]        = fix.lat;
@@ -426,6 +428,17 @@ static void handleStatus() {
   tripObj["total"]  = trip.totalDistanceM;
   tripObj["max"]    = trip.maxSpeedKmh;
   tripObj["moving"] = trip.movingTimeS;
+
+  JsonObject navObj = doc.createNestedObject("nav");
+  navObj["active"]    = nav.active;
+  navObj["points"]    = nav.total;
+  navObj["target"]    = nav.target;
+  navObj["toNext"]    = nav.toNextM;
+  navObj["remaining"] = nav.remainingM;
+  navObj["rel"]       = nav.relativeDeg;
+  navObj["off"]       = nav.offRoute;
+  navObj["offDist"]   = nav.offDistM;
+  navObj["done"]      = nav.finished;
 
   JsonObject diag = doc.createNestedObject("diag");
   diag["chars"]     = gps.charsProcessed();
@@ -525,6 +538,40 @@ static void sendGpx(const char *path, const char *filename) {
 static void handleGpx()    { sendGpx(TRACK_PATH, "track.gpx"); }
 static void handleGpxOld() { sendGpx(TRACK_PATH_OLD, "track-precedente.gpx"); }
 
+// Il GPX arriva a pezzi e viene letto al volo: sul tracker restano solo i
+// punti, non il file.
+static void handleRouteUpload() {
+  HTTPUpload &up = server.upload();
+  if      (up.status == UPLOAD_FILE_START) routeBeginParse();
+  else if (up.status == UPLOAD_FILE_WRITE) routeFeed(up.buf, up.currentSize);
+  else if (up.status == UPLOAD_FILE_END)   routeEndParse();
+}
+
+static void handleRouteDone() {
+  char buf[96];
+  snprintf(buf, sizeof(buf), "{\"ok\":true,\"points\":%u,\"km\":%.1f}",
+           routeCount, routeCount ? routeCum[0] / 1000.0 : 0.0);
+  server.send(200, "application/json", buf);
+}
+
+static void handleRouteGet() {
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "application/json", "");
+  server.sendContent("[");
+  char buf[48];
+  for (uint16_t i = 0; i < routeCount; i++) {
+    snprintf(buf, sizeof(buf), "%s[%.6f,%.6f]", i ? "," : "", routePts[i].lat, routePts[i].lon);
+    server.sendContent(buf);
+  }
+  server.sendContent("]");
+  server.sendContent("");
+}
+
+static void handleRouteClear() {
+  routeClear();
+  server.send(200, "application/json", "{\"ok\":true}");
+}
+
 static void handleSetFence() {
   if (server.hasArg("here")) {
     if (!fix.valid) { server.send(409, "application/json", "{\"error\":\"nessun fix valido\"}"); return; }
@@ -569,6 +616,9 @@ static void setupWebServer() {
   server.on("/api/track/clear", HTTP_POST, handleClearTrack);
   server.on("/api/trip/reset", HTTP_POST, handleResetTrip);
   server.on("/api/fence", HTTP_POST, handleSetFence);
+  server.on("/api/route", HTTP_GET, handleRouteGet);
+  server.on("/api/route", HTTP_POST, handleRouteDone, handleRouteUpload);
+  server.on("/api/route/clear", HTTP_POST, handleRouteClear);
   server.on("/track.gpx", HTTP_GET, handleGpx);
   server.on("/track-precedente.gpx", HTTP_GET, handleGpxOld);
   wifiRegisterRoutes(server);
@@ -663,6 +713,7 @@ void setup() {
 #endif
 
   trackBegin();
+  routeLoad();
   loadSettings();
   Serial.printf("[GEOFENCE] centro %.6f, %.6f raggio %.0f m\r\n", fence.lat, fence.lon, fence.radius);
 
@@ -712,6 +763,14 @@ void loop() {
     d.sentences    = gps.passedChecksum();
     d.netName      = netName.c_str();
     d.portal       = wifiPortalOn;
+    d.navActive    = nav.active;
+    d.navOffRoute  = nav.offRoute;
+    d.navFinished  = nav.finished;
+    d.navRelative  = (float)nav.relativeDeg;
+    d.navToNextM   = (float)nav.toNextM;
+    d.navRemainM   = (float)nav.remainingM;
+    d.navTarget    = nav.target;
+    d.navTotal     = nav.total;
     displayUpdate(d);
   }
 #endif
