@@ -16,4 +16,4 @@ cp "$root/src/main.cpp"  "$out/$(basename "$out").ino"
 
 echo "Sketch pronto in: $out"
 echo "Apri $(basename "$out").ino con l'Arduino IDE, scheda \"ESP32 Dev Module\","
-echo "Partition Scheme: \"No OTA (2MB APP/2MB SPIFFS)\"."
+echo "Partition Scheme: \"Default 4MB with spiffs\"."

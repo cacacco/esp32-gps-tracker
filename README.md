@@ -81,7 +81,8 @@ manca lo installa, poi apre il log seriale.
 1. Doppio clic su **`tools\windows\carica-firmware.bat`**
 2. Premi Invio sul menu (la prima voce e' quella giusta)
 
-Il menu offre anche solo-log, solo-compilazione e ricompilazione pulita. Da riga di comando
+Il menu offre anche solo-log, solo-compilazione, ricompilazione pulita e **caricamento
+via WiFi**. Da riga di comando
 si possono passare le stesse opzioni:
 
 ```powershell
@@ -302,6 +303,41 @@ indipendenti, e a fine viaggio scarichi comunque il GPX di dove sei passato davv
 
 ---
 
+## 5e. Aggiornare senza cavo (OTA)
+
+Dopo il primo caricamento via USB, i successivi possono viaggiare sul WiFi: la scheda puo'
+restare in auto o dentro la sua scatola.
+
+```powershell
+.\tools\windows\carica-firmware.bat -WiFi
+```
+
+oppure a mano:
+
+```bash
+pio run -e ota -t upload
+```
+
+La scheda dev'essere accesa e sulla stessa rete. La password e' `OTA_PASSWORD` in
+`config.h`, e deve combaciare con `upload_flags` nella sezione `[env:ota]` di
+`platformio.ini`.
+
+Funziona perche' la memoria e' divisa in **due spazi per il firmware**: la scheda scrive
+quello nuovo nello spazio libero mentre gira con il vecchio, e al riavvio passa all'altro.
+Se l'aggiornamento si interrompe a meta', il firmware precedente e' ancora li' e la scheda
+riparte come prima.
+
+Due limiti da conoscere:
+
+* il **log seriale viaggia sul cavo**: dopo un caricamento via WiFi, per vedere i messaggi
+  serve comunque collegare la USB;
+* se `gps-tracker.local` non si risolve, metti l'indirizzo IP al posto di `upload_port`
+  nella sezione `[env:ota]`.
+
+Nell'**Arduino IDE** lo schema di partizioni va impostato su *Default 4MB with spiffs*.
+
+---
+
 ## 6. Dashboard
 
 `http://gps-tracker.local/` (o l'indirizzo IP stampato sulla seriale).
@@ -417,7 +453,7 @@ seriale verso il modulo.
 
 ## 10. Limiti noti e possibili estensioni
 
-La traccia sta su LittleFS, nella partizione da 2 MB: circa 12000 punti, poi il file ruota e il
+La traccia sta su LittleFS, nella partizione da 1,5 MB: circa 12000 punti, poi il file ruota e il
 precedente resta scaricabile come `/track-precedente.gpx`. Ogni punto costa 16 byte e se ne
 registra uno ogni 10 m, quindi sono ore e ore di viaggio. Se ti serve di piu':
 
