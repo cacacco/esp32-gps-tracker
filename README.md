@@ -67,8 +67,14 @@ Tre errori che costano un pomeriggio:
 
 ### Windows, con un doppio clic
 
-In `tools/windows/` c'e' uno script che fa tutto: se PlatformIO manca lo installa, poi
-compila, carica e apre il log seriale.
+In `tools/windows/` ci sono due script.
+
+**`aggiorna.bat`** - da usare quando esce una versione nuova: scarica le novita' con git,
+mette da parte le tue modifiche a `config.h` e le rimette dopo, ti elenca cosa e' cambiato,
+poi compila e carica. E' il modo piu' comodo di stare aggiornati.
+
+**`carica-firmware.bat`** - compila e carica quello che hai gia' in cartella. Se PlatformIO
+manca lo installa, poi apre il log seriale.
 
 1. Doppio clic su **`tools\windows\carica-firmware.bat`**
 2. Premi Invio sul menu (la prima voce e' quella giusta)
@@ -406,6 +412,7 @@ projects/esp32-gps-tracker/
 │   ├── display_ui.h             computer di bordo sul TFT 4" (facoltativo)
 │   └── web_ui.h                 dashboard HTML/CSS/JS servita dall'ESP32
 ├── tools/
+│   ├── windows/aggiorna.bat     scarica le novita' e ricarica il firmware
 │   ├── windows/carica-firmware.bat   compila, carica e apre il log su Windows
 │   ├── make_arduino_sketch.sh   genera lo sketch per l'Arduino IDE
 │   └── TFT_eSPI_User_Setup_ST7796.h  configurazione del display per l'Arduino IDE
