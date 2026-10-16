@@ -240,9 +240,15 @@ static void loadSettings() {
 static void updateGeofence() {
   if (!fix.valid) return;
 
+  // L'isteresi non puo' mangiarsi tutto il raggio: con un'area da 25 m e
+  // un'isteresi da 25 la soglia interna finirebbe a zero, non si potrebbe mai
+  // essere "dentro" e lo stato resterebbe per sempre sconosciuto.
+  const double hyst = GEOFENCE_HYSTERESIS_M < fence.radius / 3.0
+                    ? (double)GEOFENCE_HYSTERESIS_M : fence.radius / 3.0;
+
   FenceState observed;
-  if (fix.distanceHome > fence.radius + GEOFENCE_HYSTERESIS_M)      observed = FENCE_OUTSIDE;
-  else if (fix.distanceHome < fence.radius - GEOFENCE_HYSTERESIS_M) observed = FENCE_INSIDE;
+  if (fix.distanceHome > fence.radius + hyst)      observed = FENCE_OUTSIDE;
+  else if (fix.distanceHome < fence.radius - hyst) observed = FENCE_INSIDE;
   else return;                        // fascia di isteresi: nessuna decisione
 
   if (observed == fenceState) { pendingCount = 0; return; }
