@@ -92,6 +92,14 @@ if (-not (Test-Path $ini)) {
     exit 1
 }
 
+# Una porta malformata, arrivata per errore da uno script, deve fermarsi qui:
+# piu' avanti diventerebbe un messaggio incomprensibile di esptool.
+if ($Porta -and $Porta -notmatch '^COM\d+$') {
+    Scrivi ""
+    Scrivi "Porta '$Porta' non valida: serve un nome tipo COM7." 'Red'
+    exit 1
+}
+
 # --- menu, se lanciato senza opzioni (tipico del doppio clic) --------------
 if (-not ($Auto -or $SoloMonitor -or $SoloCompila -or $SenzaMonitor -or $Pulisci -or $Porta)) {
     Scrivi ""

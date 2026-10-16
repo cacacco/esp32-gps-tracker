@@ -118,7 +118,9 @@ if ($prima -eq $dopo) {
 # --- carico ----------------------------------------------------------------
 Scrivi ""
 Scrivi "Compilo e carico sulla scheda..." 'Cyan'
-$argomenti = @('-Auto')
-if ($Porta) { $argomenti += @('-Porta', $Porta) }
-& "$PSScriptRoot\carica-firmware.ps1" @argomenti
+# Tabella e non lista: con una lista PowerShell assegna i valori per posizione
+# e '-Auto' finirebbe dentro -Porta, cioe' nel nome della porta seriale.
+$opzioni = @{ Auto = $true }
+if ($Porta) { $opzioni['Porta'] = $Porta }
+& "$PSScriptRoot\carica-firmware.ps1" @opzioni
 exit $LASTEXITCODE
