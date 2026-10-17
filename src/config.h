@@ -162,9 +162,8 @@
 #define BUTTON_LONG_MS           600   // oltre questo tempo la pressione e' lunga
 #define BUTTON_CALIB_MS         3000   // tenendolo premuto cosi' a lungo, ritara il tocco
 #define TOUCH_MIN_GAP_MS         250   // due tocchi piu' ravvicinati contano per uno
-#define TOUCH_DEBUG                1   // a 1 stampa nel log le letture grezze del tocco
-                                       // (acceso per capire un tocco che non va:
-                                       //  rimettilo a 0 quando funziona)
+#define TOUCH_DEBUG                0   // a 1 stampa nel log le letture grezze del tocco,
+                                       // per capire un tocco che non risponde
 
 // ===========================================================================
 // 6d) Aggiornamento via WiFi (OTA)
