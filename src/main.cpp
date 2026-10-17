@@ -518,6 +518,7 @@ static void handleStatus() {
   JsonObject navObj = doc.createNestedObject("nav");
   navObj["active"]    = nav.active;
   navObj["points"]    = nav.total;
+  navObj["km"]        = routeCount ? routeCum[0] / 1000.0 : 0.0;
   navObj["target"]    = nav.target;
   navObj["toNext"]    = nav.toNextM;
   navObj["remaining"] = nav.remainingM;

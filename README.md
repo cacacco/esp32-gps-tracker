@@ -418,8 +418,23 @@ indicazioni stradali che gia' conosci.
 4. **Salva**. Al tracker arrivano il tracciato, le svolte e - cosa comoda - **le tappe con il
    nome che hai cercato**: sul display leggerai "Ponte sul Foglia", non "punto 47".
 
-Il percorso sostituisce quello precedente e resta in memoria dopo lo spegnimento, esattamente
-come uno caricato da file. La dashboard, intanto, resta quello che deve essere: il posto dove
+### Modificarne uno gia' fatto
+
+Quando in memoria c'e' gia' un percorso, il pulsante sulla dashboard diventa **Modifica
+percorso** e riapre l'editor con le tue tappe al loro posto: cambi quello che serve e salvi.
+
+Funziona perche' al salvataggio le tappe vengono scritte **con il loro nome**: il tracciato
+fitto non basterebbe a risalire ai posti che avevi cercato. Un percorso arrivato da un GPX,
+o fatto prima che esistesse questa pagina, non ha quei nomi: in quel caso la pagina lo dice
+e puoi solo rifarlo da capo.
+
+E un percorso non si perde per sbaglio: se apri l'editor **senza** aver chiesto di
+modificarlo mentre ce n'e' gia' uno, la pagina si ferma, ti dice quanto e' lungo quello in
+memoria e ti fa scegliere - **modifica quello** oppure **cancellalo e ricomincia**. Finche'
+non scegli, il pulsante Salva resta spento.
+
+Il percorso salvato resta in memoria dopo lo spegnimento, esattamente come uno caricato da
+file. La dashboard, intanto, resta quello che deve essere: il posto dove
 si guarda come va il tracker.
 
 ### Segui le strade e svolte (la casella sotto i pulsanti)

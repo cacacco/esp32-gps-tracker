@@ -125,7 +125,7 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
 
   <div class="sep">Percorso</div>
   <div class="row">
-    <a class="btn primario" href="/percorso">Crea percorso</a>
+    <a class="btn primario" id="btnPercorso" href="/percorso">Crea percorso</a>
     <label class="btn" for="gpx">Carica GPX</label>
     <input type="file" id="gpx" accept=".gpx,.xml" hidden>
     <button id="btnRoute" hidden>Cancella percorso</button>
@@ -251,6 +251,15 @@ async function refreshStatus(){
 
   const n = s.nav || {};
   $('btnRoute').hidden = !n.active;
+
+  // Con un percorso in memoria il pulsante porta a modificare quello, non a
+  // crearne un altro che lo sostituirebbe in silenzio.
+  const haPercorso = n.points > 0;
+  $('btnPercorso').textContent = haPercorso ? 'Modifica percorso' : 'Crea percorso';
+  $('btnPercorso').href        = haPercorso ? '/percorso?modifica=1' : '/percorso';
+  $('btnPercorso').title       = haPercorso
+    ? `${n.points} punti, ${fmt(n.km,1)} km: aprilo per cambiarlo`
+    : 'nessun percorso in memoria';
   if (n.active){
     const testa = n.done ? '<b style="color:#35c46a">Arrivato</b>'
       : n.off ? `<b style="color:#e8534f">Fuori percorso</b> di ${fmt(n.offDist,0)} m` : 'In rotta';

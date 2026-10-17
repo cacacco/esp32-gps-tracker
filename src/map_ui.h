@@ -55,6 +55,13 @@ static const char MAP_HTML[] PROGMEM = R"MAPUI(<!doctype html>
   .opzioni{display:flex;gap:16px;flex-wrap:wrap;margin:2px 0 0 31px;font-size:13px;color:var(--tenue)}
   .opzioni label{display:flex;align-items:center;gap:6px;cursor:pointer}
   .opzioni input{accent-color:var(--blu);width:15px;height:15px}
+  .avviso{background:#fef7e0;border:1px solid #f9d87b;border-radius:8px;
+    padding:9px 11px;margin-bottom:9px;font-size:13.5px;line-height:1.4}
+  .avviso.modifica{background:#e8f0fe;border-color:#aecbfa}
+  .avviso .scelte{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .avviso .scelte button{border:1px solid var(--filo);background:#fff;border-radius:16px;
+    padding:6px 13px;font:500 13px system-ui;color:var(--blu);cursor:pointer}
+  .avviso .scelte button:hover{background:#f1f3f4}
 
   .sugg{position:absolute;z-index:3;background:var(--sfondo);border-radius:8px;
     box-shadow:0 2px 10px rgba(0,0,0,.3);overflow:hidden;max-width:400px}
@@ -89,6 +96,7 @@ static const char MAP_HTML[] PROGMEM = R"MAPUI(<!doctype html>
     <button class="inverti" id="inverti" title="percorso al contrario" disabled>&#8645; inverti</button>
     <a href="/">&larr; cruscotto</a>
   </div>
+  <div class="avviso" id="avviso" hidden></div>
   <div id="righe"></div>
   <button class="piu" id="piu">+ Aggiungi tappa</button>
   <div class="opzioni">
@@ -118,6 +126,7 @@ const MAX_PUNTI = 1800, MAX_PER_CHIAMATA = 25;
 // una riga = una tappa del giro. Due all'inizio, come su qualunque navigatore.
 let righe = [{nome:'', lat:null, lon:null}, {nome:'', lat:null, lon:null}];
 let strada = null, svolte = [], mappa = null, linea = null, segni = null, attesa = 0;
+let bloccato = false;      // c'e' gia' un percorso e non hai detto cosa farne
 
 const SVOLTA = {left:2, right:3, 'slight left':4, 'slight right':5,
                 'sharp left':6, 'sharp right':7, uturn:8};
@@ -358,14 +367,14 @@ async function aggiorna(centra){
          : esclusioni().length ? ' - ' + (esclusioni().includes('motorway') ? 'senza autostrade' : '')
            + (esclusioni().length === 2 ? ' e ' : '')
            + (esclusioni().includes('toll') ? 'senza pedaggi' : '') : '');
-    $('salva').disabled = false;
+    $('salva').disabled = bloccato;
     if (centra) mappa.fitBounds(linea.getBounds(), {padding:[60,60]});
   } catch(e){
     strada = null;
     linea.setLatLngs(pronte().map(t => [t.lat, t.lon]));
     $('km').textContent = '--';
     $('nota').textContent = 'strade non calcolate (' + e.message + '): salvo a linee dritte';
-    $('salva').disabled = false;
+    $('salva').disabled = bloccato;
   }
 }
 
@@ -421,6 +430,80 @@ $('qui').onclick = async () => {
   } catch(e){ $('nota').textContent = 'non riesco a leggere la posizione'; }
 };
 
+// ---------------------------------------------------------------------------
+// Percorso gia' in memoria.
+//
+// Il tracciato salvato e' una linea fitta: dai suoi punti non si risale ai
+// posti che avevi cercato. Le tappe pero' si', perche' al salvataggio vengono
+// scritte con il loro nome - quindi "modifica" vuol dire ripartire da quelle.
+//
+// E un percorso non si sostituisce per sbaglio: se ce n'e' gia' uno e non hai
+// chiesto di modificarlo, la pagina si ferma e te lo fa scegliere.
+// ---------------------------------------------------------------------------
+function avviso(testo, classe, scelte){
+  const box = $('avviso');
+  box.className = 'avviso' + (classe ? ' ' + classe : '');
+  box.innerHTML = '';
+  box.append(document.createTextNode(testo));
+  if (scelte && scelte.length){
+    const riga = document.createElement('div');
+    riga.className = 'scelte';
+    scelte.forEach(([etichetta, azione]) => {
+      const b = document.createElement('button');
+      b.textContent = etichetta;
+      b.onclick = azione;
+      riga.appendChild(b);
+    });
+    box.appendChild(riga);
+  }
+  box.hidden = false;
+}
+
+async function caricaTappe(){
+  const t = await (await fetch('/api/stops')).json();
+  return (t.list || []).map(x => ({nome: x.name || '', lat: x.lat, lon: x.lon}));
+}
+
+async function apriPercorsoEsistente(){
+  const modifica = new URLSearchParams(location.search).has('modifica');
+  let stato = null;
+  try { stato = await (await fetch('/api/status')).json(); } catch(e){ return; }
+  const punti = stato.nav ? stato.nav.points : 0;
+  if (!punti) return;                       // niente in memoria: pagina pulita
+
+  const km = (stato.nav.km || 0).toFixed(1);
+
+  if (modifica){
+    const tappe = await caricaTappe();
+    if (tappe.length >= 2){
+      righe = tappe;
+      disegnaRighe();
+      avviso('Stai modificando il percorso in memoria (' + km + ' km). Cambia le tappe e salva: '
+             + 'quello vecchio viene sostituito.', 'modifica');
+      aggiorna(true);
+    } else {
+      avviso('Questo percorso non ha tappe con un nome - arriva da un file GPX, oppure e\' '
+             + 'stato fatto prima. Qui si puo\' solo rifarlo da capo: le tappe che metti '
+             + 'sostituiranno il percorso attuale.', 'modifica');
+    }
+    return;
+  }
+
+  // non hai chiesto di modificarlo: non te lo faccio sovrascrivere di nascosto
+  bloccato = true;
+  $('salva').disabled = true;
+  avviso('C\'e\' gia\' un percorso in memoria: ' + punti + ' punti, ' + km + ' km. '
+         + 'Decidi cosa farne prima di costruirne un altro.', '', [
+    ['Modifica quello', () => { location.search = '?modifica=1'; }],
+    ['Cancellalo e ricomincia', async () => {
+       await fetch('/api/route/clear', {method:'POST'});
+       bloccato = false;
+       $('avviso').hidden = true;
+       aggiorna();
+     }],
+  ]);
+}
+
 // ---- mappa -----------------------------------------------------------------
 mappa = L.map('map', {zoomControl:false}).setView([43.8513, 12.7605], 13);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -445,6 +528,7 @@ fetch('/api/status').then(r => r.json()).then(s => {
 }).catch(() => {});
 
 disegnaRighe();
+apriPercorsoEsistente();
 </script>
 </body>
 </html>
