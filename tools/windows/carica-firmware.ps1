@@ -164,6 +164,15 @@ try {
         exit $esito
     }
 
+    # Il monitor seriale tiene la porta: e' di gran lunga il motivo piu' comune
+    # per cui un caricamento fallisce, e capita proprio a chi sta guardando il
+    # log mentre lavora. Meglio dirlo prima che dopo.
+    if (-not $SoloCompila) {
+        Scrivi ""
+        Scrivi "Se hai un log seriale aperto in un'altra finestra, chiudilo adesso:" 'Yellow'
+        Scrivi "finche' e' aperto tiene occupata la porta e il caricamento non parte." 'Yellow'
+    }
+
     # La prima compilazione scarica toolchain e librerie: diverse centinaia di MB.
     Scrivi ""
     Scrivi "Compilazione... (la prima volta scarica il necessario, anche 10 minuti)" 'Cyan'
@@ -174,20 +183,35 @@ try {
         if ($Porta) { $argomenti += @('--upload-port', $Porta, '--monitor-port', $Porta) }
     }
 
-    & $pio @argomenti
-    $esito = $LASTEXITCODE
+    # Fino a tre tentativi: quasi sempre basta chiudere il log rimasto aperto,
+    # e ricominciare da capo con tutta la compilazione sarebbe una penitenza.
+    $tentativo = 0
+    while ($true) {
+        $tentativo++
+        & $pio @argomenti
+        $esito = $LASTEXITCODE
+        if ($esito -eq 0) { break }
 
-    if ($esito -ne 0) {
         Scrivi ""
         Scrivi "Qualcosa non ha funzionato (codice $esito). Le cause tipiche:" 'Yellow'
+        Scrivi "  - un altro programma tiene occupata la porta: un log seriale rimasto"
+        Scrivi "    aperto in un'altra finestra, u-center, l'IDE di Arduino. E' il caso"
+        Scrivi "    piu' frequente, e si risolve chiudendo quella finestra"
         Scrivi "  - la scheda non entra in modalita' caricamento: tieni premuto BOOT"
         Scrivi "    quando compare 'Connecting....' e rilascia appena inizia a scrivere"
-        Scrivi "  - un altro programma tiene occupata la porta (un monitor seriale"
-        Scrivi "    rimasto aperto, u-center): chiudilo e riprova"
         Scrivi "  - porta sbagliata: guarda l'elenco qui sotto e rilancia con -Porta COMx"
         Scrivi "  - cavo USB di sola ricarica, senza i fili dati"
         Scrivi ""
         & $pio device list
+
+        if ($SoloCompila -or $tentativo -ge 3) { break }
+
+        Scrivi ""
+        Scrivi "Chiudi l'eventuale finestra del log, poi premi INVIO per riprovare." 'Cyan'
+        $risposta = Read-Host "Riprovo? [S/n]"
+        if ($risposta -match '^[nN]') { break }
+        Scrivi ""
+        Scrivi "Riprovo (tentativo $($tentativo + 1) di 3)..." 'Cyan'
     }
 
     exit $esito

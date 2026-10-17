@@ -273,6 +273,11 @@ piu' di qualsiasi impostazione.
 
 **Immagine girata o specchiata**: `DISPLAY_ROTATION` in `config.h`, valori da 0 a 3.
 
+**«Could not open COM7, the port is busy»**: hai un log seriale aperto in un'altra finestra
+(o u-center, o l'IDE di Arduino) che tiene occupata la porta. Chiudi quella finestra: lo script
+te lo ricorda prima di cominciare e, se succede lo stesso, ti chiede se riprovare invece di
+farti ricompilare tutto da capo.
+
 **Caricamento del firmware**: con questi pin il caricamento via USB non viene disturbato
 (GPIO0, GPIO2, GPIO12 e GPIO15, che sono quelli che decidono come parte la scheda, restano
 liberi). `GPIO5` e' l'unico pin di avvio usato, come `CS`, e sta alto: non da' problemi.
