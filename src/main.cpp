@@ -30,6 +30,7 @@
 #include "wifi_portal.h"
 #include "display_ui.h"
 #include "web_ui.h"
+#include "map_ui.h"
 
 #if ENABLE_OTA
   #include <ArduinoOTA.h>
@@ -867,6 +868,7 @@ static void handleResetTrip() {
 
 static void setupWebServer() {
   server.on("/", HTTP_GET, handleRoot);
+  mapRegisterRoutes(server);                 // la pagina /percorso
   server.on("/api/status", HTTP_GET, handleStatus);
   server.on("/api/track", HTTP_GET, handleTrack);
   server.on("/api/track/clear", HTTP_POST, handleClearTrack);
