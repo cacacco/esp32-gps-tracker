@@ -392,7 +392,10 @@ indicazioni stradali che gia' conosci.
    ricalcola subito), la **&times;** la toglie, e **&#8645; inverti** rovescia tutto il giro -
    comodo per il ritorno.
 3. **Il percorso si calcola da solo** a ogni modifica, seguendo le strade vere: in fondo leggi
-   i chilometri, quante svolte sono uscite e quante tappe. Puoi **trascinare i segnalini
+   i chilometri, quante svolte sono uscite e quante tappe. Le due caselle **evita autostrade** e
+   **evita pedaggi** cambiano il giro all'istante. Il servizio sa escludere quelle strade solo
+   se e' stato preparato per farlo: quando non ci riesce, o quando senza autostrada non si
+   arriva, il percorso viene calcolato normale e la riga in fondo lo dice. Puoi **trascinare i segnalini
    numerati** sulla mappa per correggere, o toccare la mappa per aggiungere un punto.
 4. **Salva**. Al tracker arrivano il tracciato, le svolte e - cosa comoda - **le tappe con il
    nome che hai cercato**: sul display leggerai "Ponte sul Foglia", non "punto 47".

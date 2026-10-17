@@ -52,6 +52,9 @@ static const char MAP_HTML[] PROGMEM = R"MAPUI(<!doctype html>
   .piu{border:0;background:transparent;color:var(--blu);font:500 14px system-ui;
     cursor:pointer;padding:7px 4px;margin-left:31px}
   .piu:hover{text-decoration:underline}
+  .opzioni{display:flex;gap:16px;flex-wrap:wrap;margin:2px 0 0 31px;font-size:13px;color:var(--tenue)}
+  .opzioni label{display:flex;align-items:center;gap:6px;cursor:pointer}
+  .opzioni input{accent-color:var(--blu);width:15px;height:15px}
 
   .sugg{position:absolute;z-index:3;background:var(--sfondo);border-radius:8px;
     box-shadow:0 2px 10px rgba(0,0,0,.3);overflow:hidden;max-width:400px}
@@ -88,6 +91,10 @@ static const char MAP_HTML[] PROGMEM = R"MAPUI(<!doctype html>
   </div>
   <div id="righe"></div>
   <button class="piu" id="piu">+ Aggiungi tappa</button>
+  <div class="opzioni">
+    <label><input type="checkbox" id="noAuto"> evita autostrade</label>
+    <label><input type="checkbox" id="noPedaggi"> evita pedaggi</label>
+  </div>
 </div>
 
 <div class="sugg" id="sugg" hidden></div>
@@ -262,20 +269,42 @@ function cerca(i, input, subito){
 // ---- percorso --------------------------------------------------------------
 const pronte = () => righe.filter(t => t.lat !== null);
 
+// OSRM sa escludere certe strade solo se il suo profilo e' stato preparato
+// per farlo: se risponde picche si rifa' la domanda senza esclusioni, invece
+// di lasciare l'utente senza percorso.
+function esclusioni(){
+  const fuori = [];
+  if ($('noAuto').checked)     fuori.push('motorway');
+  if ($('noPedaggi').checked)  fuori.push('toll');
+  return fuori;
+}
+
+let esclusioniIgnorate = false;
+
 async function calcola(){
   const p = pronte();
   if (p.length < 2) return null;
   const coords = [], passi = [];
+  const fuori = esclusioni();
+  esclusioniIgnorate = false;
   for (let da = 0; da < p.length - 1; da += MAX_PER_CHIAMATA - 1){
     const pezzo = p.slice(da, da + MAX_PER_CHIAMATA);
     if (pezzo.length < 2) break;
     const ultimo = da + MAX_PER_CHIAMATA - 1 >= p.length - 1;
-    const url = OSRM + pezzo.map(t => t.lon.toFixed(6) + ',' + t.lat.toFixed(6)).join(';')
-              + '?overview=full&geometries=geojson&steps=true';
-    const r = await fetch(url);
-    if (!r.ok) throw new Error('servizio strade: ' + r.status);
-    const j = await r.json();
-    if (j.code !== 'Ok' || !j.routes || !j.routes.length) throw new Error(j.message || 'nessuna strada');
+    const base = OSRM + pezzo.map(t => t.lon.toFixed(6) + ',' + t.lat.toFixed(6)).join(';')
+               + '?overview=full&geometries=geojson&steps=true';
+
+    let j = null;
+    for (const prova of (fuori.length ? [fuori, []] : [[]])) {
+      const url = base + (prova.length ? '&exclude=' + prova.join(',') : '');
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('servizio strade: ' + r.status);
+      const risp = await r.json();
+      if (risp.code === 'Ok' && risp.routes && risp.routes.length) { j = risp; break; }
+      // niente strade senza autostrada e' un esito legittimo: lo si dice
+      if (prova.length) esclusioniIgnorate = true;
+      else throw new Error(risp.message || 'nessuna strada');
+    }
     const rt = j.routes[0];
     const g = rt.geometry.coordinates.map(c => [c[1], c[0]]);
     for (let i = coords.length ? 1 : 0; i < g.length; i++) coords.push(g[i]);
@@ -324,7 +353,11 @@ async function aggiorna(centra){
     let km = 0;
     for (let i = 1; i < strada.length; i++) km += metri(strada[i-1], strada[i]);
     $('km').textContent = (km/1000).toFixed(1) + ' km';
-    $('nota').textContent = svolte.length + ' svolte, ' + pronte().length + ' tappe';
+    $('nota').textContent = svolte.length + ' svolte, ' + pronte().length + ' tappe'
+      + (esclusioniIgnorate ? ' - senza quelle strade non si arriva, percorso normale'
+         : esclusioni().length ? ' - ' + (esclusioni().includes('motorway') ? 'senza autostrade' : '')
+           + (esclusioni().length === 2 ? ' e ' : '')
+           + (esclusioni().includes('toll') ? 'senza pedaggi' : '') : '');
     $('salva').disabled = false;
     if (centra) mappa.fitBounds(linea.getBounds(), {padding:[60,60]});
   } catch(e){
@@ -365,8 +398,17 @@ $('salva').onclick = async () => {
   $('salva').disabled = false;
 };
 
+$('noAuto').onchange = () => aggiorna();
+$('noPedaggi').onchange = () => aggiorna();
 $('inverti').onclick = () => { righe.reverse(); disegnaRighe(); aggiorna(true); };
-$('piu').onclick = () => { righe.splice(righe.length - 1, 0, {nome:'', lat:null, lon:null}); disegnaRighe(); };
+// La tappa nuova si mette in fondo: il giro si allunga da dove era arrivato,
+// e l'ultima riga diventa la destinazione. Il cursore ci va dentro da solo.
+$('piu').onclick = () => {
+  righe.push({nome:'', lat:null, lon:null});
+  disegnaRighe();
+  const campi = document.querySelectorAll('#righe input');
+  if (campi.length) campi[campi.length - 1].focus();
+};
 
 $('qui').onclick = async () => {
   try {
