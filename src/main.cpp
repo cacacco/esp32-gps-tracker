@@ -491,6 +491,11 @@ static void handleStatus() {
   diag["errors"]    = gps.failedChecksum();
   diag["points"]    = trackPoints;
   diag["backup"]    = trackHasBackup();
+#if ENABLE_DISPLAY && ENABLE_TOUCH
+  diag["touch"]     = true;
+#else
+  diag["touch"]     = false;
+#endif
   diag["fsfree"]    = trackReady ? (LittleFS.totalBytes() - LittleFS.usedBytes()) / 1024 : 0;
   diag["uptime"]    = millis() / 1000;
   diag["heap"]      = ESP.getFreeHeap();

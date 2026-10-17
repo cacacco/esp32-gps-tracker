@@ -266,6 +266,7 @@ async function refreshStatus(){
   $('tripTotal').textContent  = fmt(s.trip.total/1000, 1);
 
   $('btnOld').hidden = !s.diag.backup;
+  $('btnTouch').hidden = !s.diag.touch;      // senza touch il pulsante riavvierebbe e basta
 
   const n = s.nav || {};
   $('btnRoute').hidden = !n.active;
