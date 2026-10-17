@@ -160,6 +160,7 @@
 // verso massa.
 #define PIN_MENU_BUTTON            0   // 0 = tasto BOOT della DevKit
 #define BUTTON_LONG_MS           600   // oltre questo tempo la pressione e' lunga
+#define BUTTON_CALIB_MS         3000   // tenendolo premuto cosi' a lungo, ritara il tocco
 #define TOUCH_MIN_GAP_MS         250   // due tocchi piu' ravvicinati contano per uno
 #define TOUCH_DEBUG                1   // a 1 stampa nel log le letture grezze del tocco
                                        // (acceso per capire un tocco che non va:

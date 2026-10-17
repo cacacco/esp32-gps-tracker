@@ -98,13 +98,16 @@ static void touchProbe() {
 }
 
 static void touchRunCalibration() {
+  bool stretta = false;
   tft.fillScreen(COL_BG);
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("Taratura del tocco", 240, 120, 4);
+  tft.drawString("Taratura del tocco", 240, 110, 4);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("tocca la punta della freccia in ogni angolo", 240, 160, 2);
-  delay(1200);
+  tft.drawString("tocca la PUNTA della freccia in ogni angolo", 240, 150, 2);
+  tft.setTextColor(COL_WARN, COL_BG);
+  tft.drawString("piu' ti avvicini al bordo, piu' viene precisa", 240, 178, 2);
+  delay(1800);
 
   tft.calibrateTouch(touchCal, COL_WARN, COL_BG, 15);
   tft.setTouch(touchCal);
@@ -116,11 +119,27 @@ static void touchRunCalibration() {
   Serial.printf("[TOUCH] tarato: %u %u %u %u (rot %u)\r\n",
                 touchCal[0], touchCal[1], touchCal[2], touchCal[3], touchCal[4]);
 
+  // Ampiezze piccole = angoli toccati troppo dentro: meta' schermo finirebbe
+  // "fuori" e i tocchi verrebbero scartati. Meglio dirlo subito che lasciare
+  // l'utente a chiedersi perche' il menu risponde a sprazzi.
+  stretta = (touchCal[1] < 1500 || touchCal[3] < 1500);
+
   tft.fillScreen(COL_BG);
   tft.setTextDatum(MC_DATUM);
-  tft.setTextColor(COL_OK, COL_BG);
-  tft.drawString("fatto", 240, 150, 4);
-  delay(600);
+  if (stretta) {
+    Serial.println(F("[TOUCH] ampiezze piccole: hai toccato troppo dentro, meta' schermo "
+                     "restera' insensibile. Tieni premuto BOOT 3 secondi e rifalla."));
+    tft.setTextColor(COL_WARN, COL_BG);
+    tft.drawString("taratura imprecisa", 240, 130, 4);
+    tft.setTextColor(COL_LABEL, COL_BG);
+    tft.drawString("hai toccato troppo dentro: tieni premuto BOOT 3 secondi", 240, 168, 2);
+    tft.drawString("e rifalla toccando proprio sulla punta delle frecce", 240, 192, 2);
+    delay(3500);
+  } else {
+    tft.setTextColor(COL_OK, COL_BG);
+    tft.drawString("fatto", 240, 150, 4);
+    delay(600);
+  }
 }
 
 static void touchBegin() {

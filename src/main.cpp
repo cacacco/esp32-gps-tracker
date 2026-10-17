@@ -1029,6 +1029,12 @@ void loop() {
       giuPrima = false;
       const uint32_t durata = millis() - premutoDa;
       if (durata > 40) {                    // sotto i 40 ms e' rimbalzo del tasto
+#if ENABLE_TOUCH
+        if (durata >= BUTTON_CALIB_MS) {
+          Serial.println(F("[MENU] tasto tenuto a lungo: ritaro il tocco"));
+          touchRunCalibration();
+        } else
+#endif
         azione = (durata >= BUTTON_LONG_MS) ? uiActivate() : uiNext();
         lastDrawForce = true;
       }

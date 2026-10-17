@@ -299,6 +299,7 @@ touch non c'e' o non funziona, e non costa un filo in piu'.
 |---|---|
 | **breve** (meno di `BUTTON_LONG_MS`) | dalle schermate di marcia apre il menu; dentro il menu passa al pulsante successivo |
 | **lunga** (mezzo secondo buono) | preme il pulsante evidenziato, come un dito |
+| **tenuto 3 secondi** | ritara il tocco, da qualunque schermata |
 
 Il pulsante su cui sei si riconosce dalla cornice chiara. Le conferme partono sempre
 evidenziate su **No**, quindi una pressione lunga di troppo annulla e non cancella niente. Con
@@ -349,9 +350,17 @@ GPS, registrazione e dashboard restano in piedi. E non c'e' nessuna finestra da 
 il log stampa due volte al secondo le coordinate grezze.
 
 **La prima accensione chiede la taratura del tocco**: tocca la punta della freccia nei quattro
-angoli. Resta in memoria e non te lo chiede piu'. Se viene male e i tocchi finiscono fuori
-posto, dalla dashboard c'e' **Ritara il tocco**: butta via la taratura e il tracker riparte
-chiedendola da capo.
+angoli. Resta in memoria e non te lo chiede piu'.
+
+**Tocca proprio sulla punta, il piu' vicino possibile al bordo.** Se tocchi un po' dentro, il
+firmware crede che il vetro sia piu' corto di quello che e' e tutto quello che premi oltre
+meta' schermo finisce "fuori" e viene buttato: il menu risponde a sprazzi, o non risponde. Se
+succede te lo dice da solo (*taratura imprecisa*) e nel log trovi le ampiezze misurate: sotto
+1500 sono strette.
+
+Per rifarla ci sono tre strade: **tieni premuto BOOT per 3 secondi** (la piu' comoda, non serve
+altro), oppure **Ritara il tocco** dalla dashboard, oppure - se non c'e' nessuna taratura valida
+- basta appoggiare il dito sul vetro e parte da sola.
 
 ---
 
