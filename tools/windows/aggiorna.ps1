@@ -68,6 +68,10 @@ if ($modificati) {
     Scrivi "Hai modifiche locali (probabilmente config.h):" 'Yellow'
     $modificati | ForEach-Object { Scrivi "  $_" }
     Scrivi "Le metto da parte e le rimetto dopo l'aggiornamento."
+    if ($modificati -match 'config\.h') {
+        Scrivi "Suggerimento: se sposti le tue impostazioni in src/config_local.h" 'DarkGray'
+        Scrivi "(copia src/config_local.h.esempio) questo passaggio non serve piu'." 'DarkGray'
+    }
     & git -C $progetto stash push -m "aggiorna.ps1 $(Get-Date -Format s)" | Out-Null
     if ($LASTEXITCODE -ne 0) { Scrivi "Non sono riuscito a metterle da parte." 'Red'; exit 1 }
     $messoDaParte = $true
@@ -91,10 +95,19 @@ if ($messoDaParte) {
     & git -C $progetto stash pop
     if ($LASTEXITCODE -ne 0) {
         Scrivi ""
-        Scrivi "Le tue modifiche sono in conflitto con quelle nuove." 'Red'
-        Scrivi "Sono al sicuro: le recuperi con 'git stash pop' dopo aver risolto." 'Red'
-        Scrivi "Se vuoi buttarle e ripartire dalla versione pulita:" 'Red'
-        Scrivi "  git -C `"$progetto`" checkout -- ." 'Red'
+        Scrivi "Le tue modifiche a config.h sono in conflitto con quelle nuove." 'Red'
+        Scrivi ""
+        Scrivi "La via piu' corta: riparti dal config.h del progetto e rimetti" 'Yellow'
+        Scrivi "solo le tue due righe del WiFi." 'Yellow'
+        Scrivi "  git -C `"$progetto`" checkout -- ." 'Yellow'
+        Scrivi "  git -C `"$progetto`" stash drop" 'Yellow'
+        Scrivi ""
+        Scrivi "Poi, per non ritrovarti qui mai piu', copia" 'Yellow'
+        Scrivi "  projects/esp32-gps-tracker/src/config_local.h.esempio" 'Yellow'
+        Scrivi "in config_local.h e tieni li' le tue impostazioni: git non lo tocca." 'Yellow'
+        Scrivi ""
+        Scrivi "Se invece le tue modifiche ti servono tutte, sono al sicuro:" 'DarkGray'
+        Scrivi "risolvi i conflitti e poi 'git stash pop'." 'DarkGray'
         exit 1
     }
 }

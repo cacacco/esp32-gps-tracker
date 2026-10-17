@@ -189,3 +189,23 @@
 // Lasciare 0 se il modulo e' gia' a posto: il default di fabbrica e' 1 Hz.
 #define GPS_CONFIGURE_UBX          0
 #define GPS_UPDATE_RATE_HZ         1   // 1, 2, 5 o 10 Hz
+
+// ===========================================================================
+// 9) Le tue impostazioni, in un file solo tuo
+//
+//     Questo file e' del progetto e cambia a ogni aggiornamento: se ci metti
+//     dentro la password del WiFi, prima o poi "aggiorna.bat" finisce in
+//     conflitto fra le tue righe e le mie.
+//
+//     La soluzione: crea "src/config_local.h" (git lo ignora, non te lo
+//     tocca nessuno) e mettici solo quello che vuoi cambiare. Trovi un
+//     esempio pronto in "src/config_local.h.esempio": copialo, togli
+//     ".esempio" dal nome e compila le due righe del WiFi.
+//
+//     Quello che scrivi li' vince su tutto quello che c'e' qui sopra.
+// ===========================================================================
+#if defined(__has_include)
+#  if __has_include("config_local.h")
+#    include "config_local.h"
+#  endif
+#endif

@@ -236,10 +236,11 @@ I quattro fili del touch servono solo al menu: senza, metti `ENABLE_TOUCH` a 0 i
 
 In `config.h` basta `ENABLE_DISPLAY 1`: **nient'altro da cambiare.**
 
-> **Se aggiorni con `aggiorna.bat`**, il tuo `config.h` e' tuo (ci sono dentro le credenziali
-> WiFi) e lo script lo mette da parte e te lo ridà indietro dopo il `git pull`: il valore
-> `ENABLE_DISPLAY` che arriva dal progetto **non sovrascrive il tuo**. Dopo aver collegato il
-> display apri `src/config.h` e mettilo a 1 a mano, una volta sola. Dal log si vede subito:
+> **Tieni le tue impostazioni in `src/config_local.h`.** `config.h` e' del progetto e cambia a
+> ogni aggiornamento: se ci metti dentro la password del WiFi, prima o poi `aggiorna.bat` finisce
+> in conflitto fra le tue righe e quelle nuove. Copia `src/config_local.h.esempio` in
+> `src/config_local.h`, mettici le due righe del WiFi, e sei a posto per sempre: git quel file
+> lo ignora, e quello che scrivi li' vince su `config.h`. Dal log si vede subito cosa e' attivo:
 > `[DISPLAY] acceso: CS D5, ...` oppure `[DISPLAY] spento da config.h`. Il LED di bordo resta su GPIO2 e il PPS del GPS su GPIO4, perche' i pin del
 pannello sono stati scelti fra quelli liberi. Se ne sposti uno su una funzione gia' occupata
 la compilazione si ferma con un messaggio che dice quale: meglio un errore subito che mezza

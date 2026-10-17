@@ -1,0 +1,34 @@
+#pragma once
+// ---------------------------------------------------------------------------
+// Le tue impostazioni.
+//
+// Copia questo file come "config_local.h" (stessa cartella, senza ".esempio")
+// e cambia quello che ti serve. Git lo ignora: resta tuo, e gli aggiornamenti
+// del progetto non lo toccano mai.
+//
+// Ogni voce si scrive in due righe, #undef e #define, perche' deve avere la
+// meglio su quella scritta in config.h.
+// ---------------------------------------------------------------------------
+
+#undef  WIFI_SSID
+#define WIFI_SSID        "la-mia-rete"
+
+#undef  WIFI_PASSWORD
+#define WIFI_PASSWORD    "la-mia-password"
+
+// Altre cose che potresti voler cambiare (togli le barre per attivarle):
+
+// #undef  ENABLE_TOUCH
+// #define ENABLE_TOUCH            0     // niente tocco: il menu resta solo all'avvio
+
+// #undef  TOUCH_DEBUG
+// #define TOUCH_DEBUG             0     // spegne le righe [TOUCH] nel log
+
+// #undef  DISPLAY_ROTATION
+// #define DISPLAY_ROTATION        3     // gira l'immagine di 180 gradi
+
+// #undef  GEOFENCE_RADIUS_M
+// #define GEOFENCE_RADIUS_M     150     // raggio dell'area di casa, in metri
+
+// #undef  TIME_UTC_OFFSET_MIN
+// #define TIME_UTC_OFFSET_MIN    60     // ora solare; 120 con l'ora legale
