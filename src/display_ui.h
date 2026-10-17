@@ -786,6 +786,15 @@ static void displayUpdate(const DisplayData &d) {
   uiHasRoute = d.navTotal > 0;
   uiPortalOn = d.portal;
 
+#if ENABLE_TOUCH
+  // Dopo una taratura lo schermo e' stato riempito dai mirini: ridisegno tutto.
+  if (touchRitarato) {
+    touchRitarato = false;
+    uiDirty       = true;
+    displayScreen = SCREEN_NONE;
+  }
+#endif
+
   if (uiPage != PAGE_LIVE) {
     if (!uiDirty) return;             // le pagine sono ferme: si disegnano una volta
     uiDirty = false;

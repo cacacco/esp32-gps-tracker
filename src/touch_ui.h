@@ -23,6 +23,7 @@
 static uint16_t touchCal[5]  = {0, 0, 0, 0, 0};
 static uint16_t touchZRiposo = 0;       // quanto legge il controller non premuto
 static bool     touchReady   = false;
+static bool     touchRitarato = false;  // appena tarato: la pagina va ridisegnata
 static bool     touchDown    = false;   // dito gia' appoggiato al giro prima
 static uint32_t touchLastMs  = 0;
 
@@ -108,7 +109,12 @@ static void touchRunCalibration() {
   tft.calibrateTouch(touchCal, COL_WARN, COL_BG, 15);
   tft.setTouch(touchCal);
   touchSaveCal();
-  touchReady = true;
+  touchReady    = true;
+  touchRitarato = true;
+  touchDown     = true;          // il dito e' ancora appoggiato: non e' un tocco
+  touchLastMs   = millis();
+  Serial.printf("[TOUCH] tarato: %u %u %u %u (rot %u)\r\n",
+                touchCal[0], touchCal[1], touchCal[2], touchCal[3], touchCal[4]);
 
   tft.fillScreen(COL_BG);
   tft.setTextDatum(MC_DATUM);
@@ -153,6 +159,18 @@ static void touchBegin() {
 // dieci volte mentre tieni premuto.
 static bool touchPressed(int16_t &x, int16_t &y) {
   uint16_t tx = 0, ty = 0;
+
+  // Senza una taratura valida il tocco non puo' funzionare, e all'accensione
+  // c'era da azzeccare una finestra di quindici secondi. Meglio cosi': la
+  // taratura parte da sola alla prima pressione vera, quando capita.
+  if (!touchReady) {
+    if (tft.getTouchRawZ() > touchSogliaDito()) {
+      Serial.println(F("[TOUCH] pressione rilevata: parte la taratura"));
+      touchRunCalibration();
+    }
+    return false;
+  }
+
 
 #if TOUCH_DEBUG
   // Con TOUCH_DEBUG a 1 il log dice cosa legge davvero il controller: se

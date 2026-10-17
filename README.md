@@ -344,7 +344,8 @@ Le due righe dicono due cose diverse:
 
 Quando manca una taratura valida il display chiede di toccare lo schermo per cominciare: se in
 15 secondi non sente niente, **non si blocca** - lo dice nel log e prosegue senza tocco, cosi'
-GPS, registrazione e dashboard restano in piedi. Per vedere cosa legge il controller mentre premi, metti `TOUCH_DEBUG` a 1 in `config.h`:
+GPS, registrazione e dashboard restano in piedi. E non c'e' nessuna finestra da azzeccare:
+**appena appoggi il dito sul vetro, in qualunque momento, la taratura parte da sola.** Per vedere cosa legge il controller mentre premi, metti `TOUCH_DEBUG` a 1 in `config.h`:
 il log stampa due volte al secondo le coordinate grezze.
 
 **La prima accensione chiede la taratura del tocco**: tocca la punta della freccia nei quattro
