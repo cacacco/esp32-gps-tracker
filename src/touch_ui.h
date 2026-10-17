@@ -157,15 +157,23 @@ static bool touchPressed(int16_t &x, int16_t &y) {
 #if TOUCH_DEBUG
   // Con TOUCH_DEBUG a 1 il log dice cosa legge davvero il controller: se
   // premendo i numeri non si muovono, il problema e' prima della taratura.
-  static uint32_t ultimoLog = 0;
-  if (millis() - ultimoLog >= 500) {
-    ultimoLog = millis();
-    uint16_t gx = 0, gy = 0;
-    tft.getTouchRaw(&gx, &gy);
-    uint16_t cx = 0, cy = 0;
-    const bool preso = touchReady && tft.getTouch(&cx, &cy);
-    Serial.printf("[TOUCH] grezzo x=%u y=%u z=%u | tarato %s x=%u y=%u\r\n",
-                  gx, gy, tft.getTouchRawZ(), preso ? "SI" : "no", cx, cy);
+  // Mentre premi stampa fitto, da fermo ogni tre secondi: altrimenti le
+  // righe del GPS si perdono in mezzo e non si legge piu' niente.
+  {
+    static uint32_t ultimoLog = 0;
+    const uint16_t z       = tft.getTouchRawZ();
+    const bool     dito    = z > touchSogliaDito();
+    const uint32_t ogni    = dito ? 300 : 3000;
+    if (millis() - ultimoLog >= ogni) {
+      ultimoLog = millis();
+      uint16_t gx = 0, gy = 0;
+      tft.getTouchRaw(&gx, &gy);
+      uint16_t cx = 0, cy = 0;
+      const bool preso = touchReady && tft.getTouch(&cx, &cy);
+      Serial.printf("[TOUCH] %s z=%4u (soglia %u)  grezzo x=%4u y=%4u  tarato %s x=%u y=%u\r\n",
+                    dito ? "DITO " : "fermo", z, touchSogliaDito(), gx, gy,
+                    preso ? "SI" : "no", cx, cy);
+    }
   }
 #endif
 

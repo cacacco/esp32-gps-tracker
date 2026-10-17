@@ -153,7 +153,9 @@
 #define ENABLE_TOUCH               1
 #define MENU_TIMEOUT_MS        15000   // quanto resta il menu se non tocchi niente
 #define TOUCH_MIN_GAP_MS         250   // due tocchi piu' ravvicinati contano per uno
-#define TOUCH_DEBUG                0   // a 1 stampa nel log le letture grezze del tocco
+#define TOUCH_DEBUG                1   // a 1 stampa nel log le letture grezze del tocco
+                                       // (acceso per capire un tocco che non va:
+                                       //  rimettilo a 0 quando funziona)
 
 // ===========================================================================
 // 6d) Aggiornamento via WiFi (OTA)
