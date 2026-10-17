@@ -59,6 +59,7 @@ struct DisplayData {
   uint32_t    movingS;
   uint32_t    epoch;
   uint32_t    sentences;
+  uint32_t    searchS;       // da quanti secondi cerca il fix
   const char *netName;
   const char *ipText;        // indirizzo della dashboard, "" se non connesso
   const char *apName;        // nome della rete creata dal tracker
@@ -215,10 +216,20 @@ static void drawWait(const DisplayData &d, bool force) {
     displayField(buf, 240, 190, 2, 460, COL_LABEL);
   }
 
+  // Il cronometro della ricerca: serve a sapere se il modulo sta partendo a
+  // freddo o se c'e' qualcosa che non va.
+  static int32_t pCerca = -1;
+  if (force || (int32_t)d.searchS != pCerca) {
+    pCerca = (int32_t)d.searchS;
+    snprintf(buf, sizeof(buf), "in ricerca da %lu:%02lu",
+             (unsigned long)(d.searchS / 60), (unsigned long)(d.searchS % 60));
+    displayField(buf, 240, 230, 2, 460, d.searchS > 120 ? COL_WARN : COL_LABEL);
+  }
+
   if (force) {
-    displayField("l'antenna deve vedere il cielo", 240, 230, 2, 460, COL_LABEL);
+    displayField("l'antenna deve vedere il cielo", 240, 258, 2, 460, COL_LABEL);
     snprintf(buf, sizeof(buf), "%s %s", d.portal ? "access point:" : "rete:", d.netName);
-    displayField(buf, 240, 285, 2, 460, d.portal ? COL_WARN : COL_LABEL);
+    displayField(buf, 240, 292, 2, 460, d.portal ? COL_WARN : COL_LABEL);
   }
 }
 

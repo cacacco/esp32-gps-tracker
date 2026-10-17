@@ -371,10 +371,21 @@ static bool fixIsUsable() {
   return gps.location.age() < FIX_TIMEOUT_MS;
 }
 
+// Quanto ci mette ad agganciare: senza un numero non si capisce se una
+// modifica all'antenna o al modulo serva a qualcosa.
+static uint32_t ttffMs = 0;
+
 static void readGps() {
   pumpGps();
 
   if (gps.location.isUpdated() && fixIsUsable()) {
+    if (!ttffMs) {
+      ttffMs = millis();
+      Serial.printf("[GPS] primo fix dopo %lu s dall'accensione (%lu satelliti, HDOP %.1f)\r\n",
+                    (unsigned long)(ttffMs / 1000),
+                    (unsigned long)(gps.satellites.isValid() ? gps.satellites.value() : 0),
+                    gps.hdop.isValid() ? gps.hdop.hdop() : 99.0);
+    }
     fix.valid       = true;
     fix.lat         = gps.location.lat();
     fix.lon         = gps.location.lng();
@@ -1103,6 +1114,7 @@ void loop() {
     d.movingS      = trip.movingTimeS;
     d.epoch        = fix.epoch ? fix.epoch : nowEpoch();
     d.sentences    = gps.passedChecksum();
+    d.searchS      = ttffMs ? ttffMs / 1000 : millis() / 1000;
     d.netName      = netName.c_str();
     d.ipText       = ipText.c_str();
     d.apName       = wifiApName.c_str();
