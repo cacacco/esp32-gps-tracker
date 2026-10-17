@@ -804,15 +804,61 @@ static UiAction uiActivate() {
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Logo di accensione: la freccia della navigazione dentro il cerchio, con un
+// satellite che gira sull'orbita. Disegnato con le primitive invece che con
+// un'immagine: un bitmap a colori di questa misura costerebbe decine di
+// kilobyte di flash, qui non costa niente e si muove.
+// ---------------------------------------------------------------------------
+static const int LOGO_X = 240, LOGO_Y = 130;
+static const int LOGO_R = 62;          // cerchio
+static const int ORB_RX = 96, ORB_RY = 34;   // orbita del satellite
+
+static void drawSplash() {
+  tft.fillScreen(COL_BG);
+#if SPLASH_MS > 0
+
+  tft.setTextDatum(MC_DATUM);
+  tft.setTextColor(COL_FG, COL_BG);
+  tft.setTextSize(2);
+  tft.drawString("GPS TRACKER", 240, 240, 4);
+  tft.setTextSize(1);
+  tft.setTextColor(COL_LABEL, COL_BG);
+  tft.drawString("registra i percorsi e ti porta a destinazione", 240, 286, 2);
+
+  const uint8_t  fotogrammi = 26;
+  const uint32_t pausa = SPLASH_MS / fotogrammi;
+  int satX = LOGO_X + ORB_RX, satY = LOGO_Y;
+
+  for (uint8_t i = 0; i <= fotogrammi; i++) {
+    const float f = (float)i / fotogrammi;
+
+    // via il satellite di prima e l'area della freccia, poi si ridisegna
+    tft.fillCircle(satX, satY, 6, COL_BG);
+    tft.fillCircle(LOGO_X, LOGO_Y, 48, COL_BG);
+
+    tft.drawEllipse(LOGO_X, LOGO_Y, ORB_RX,     ORB_RY,     COL_LINE);
+    tft.drawEllipse(LOGO_X, LOGO_Y, ORB_RX - 1, ORB_RY - 1, COL_LINE);
+    tft.drawCircle(LOGO_X, LOGO_Y, LOGO_R,     COL_CYAN);
+    tft.drawCircle(LOGO_X, LOGO_Y, LOGO_R - 1, COL_CYAN);
+
+    // la freccia entra girando, come quando aggancia il fix
+    drawArrowAt(LOGO_X, LOGO_Y, 40, -70.0f + 70.0f * f, COL_CYAN);
+
+    const float giro = f * 2.0f * (float)PI;
+    satX = LOGO_X + (int)(cosf(giro) * ORB_RX);
+    satY = LOGO_Y + (int)(sinf(giro) * ORB_RY);
+    tft.fillCircle(satX, satY, 4, COL_WARN);
+
+    delay(pausa);
+  }
+#endif
+}
+
 static void displayBegin() {
   tft.init();
   tft.setRotation(DISPLAY_ROTATION);
-  tft.fillScreen(COL_BG);
-  tft.setTextDatum(MC_DATUM);
-  tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("ESP32 GPS Tracker", 240, 150, 4);
-  tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("avvio...", 240, 190, 2);
+  drawSplash();
 
 #if ENABLE_TOUCH
   touchBegin();            // la prima accensione chiede la taratura

@@ -135,6 +135,7 @@
 #define ENABLE_DISPLAY             1
 #define DISPLAY_ROTATION           1   // 0-3: gira l'immagine di 90 gradi
 #define DISPLAY_REFRESH_MS       250   // ogni quanto aggiornare i numeri
+#define SPLASH_MS               1300   // durata del logo all'accensione, 0 per saltarlo
 #define TIME_UTC_OFFSET_MIN      120   // orologio: 60 in inverno, 120 in estate
 
 // ---- tocco e menu --------------------------------------------------------

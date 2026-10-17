@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 320" width="480" height="320" font-family="DejaVu Sans, Verdana, sans-serif">
+  <rect width="480" height="320" fill="#000000"/>
+  <ellipse cx="240" cy="130" rx="96" ry="34" fill="none" stroke="#2b3240" stroke-width="2"/>
+  <circle cx="240" cy="130" r="62" fill="none" stroke="#00e5ff" stroke-width="2"/>
+  <polygon points="240.0,90.0 260.1,153.8 240.0,141.2 219.9,153.8" fill="#00e5ff"/>
+  <circle cx="336" cy="130" r="4" fill="#f0a93b"/>
+  <text x="240" y="258" font-size="52" font-weight="600" fill="#ffffff" text-anchor="middle">GPS TRACKER</text>
+  <text x="240" y="291" font-size="13" fill="#8b94a7" text-anchor="middle">registra i percorsi e ti porta a destinazione</text>
+</svg>

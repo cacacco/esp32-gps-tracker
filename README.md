@@ -275,6 +275,12 @@ piu' di qualsiasi impostazione.
 
 **Immagine girata o specchiata**: `DISPLAY_ROTATION` in `config.h`, valori da 0 a 3.
 
+**All'accensione** compare il logo, disegnato con le primitive del display invece che con
+un'immagine: non occupa flash e si anima (la freccia entra girando, il satellite fa un giro
+d'orbita). Dura `SPLASH_MS`, e con 0 si salta.
+
+![Logo di accensione](docs/logo-avvio.svg)
+
 **«Could not open COM7, the port is busy»**: hai un log seriale aperto in un'altra finestra
 (o u-center, o l'IDE di Arduino) che tiene occupata la porta. Chiudi quella finestra: lo script
 te lo ricorda prima di cominciare e, se succede lo stesso, ti chiede se riprovare invece di
