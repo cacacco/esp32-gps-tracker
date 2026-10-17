@@ -301,6 +301,20 @@ disegni il percorso come al solito.
 Le due cancellazioni passano da una conferma: un tocco involontario non ti porta via il
 percorso. *Azzera viaggio* no, quello e' innocuo.
 
+**Se il tocco non risponde.** Il log all'avvio dice due cose:
+
+```
+[TOUCH] controller a riposo: z fra 12 e 18          <- il controller c'e'
+[TOUCH] taratura caricata: 320 3810 405 3700 (rot 1)
+```
+
+Se invece leggi `z fra 0 e 0` o `z fra 4095 e 4095` seguito da *non risponde*, il controller
+non sta parlando: controlla `T_CS` su `D27` e che i tre ponti (`T_CLK`, `T_DIN`, `T_DO`) siano
+davvero sulla stessa riga della breadboard di `SCK`, `SDI` e `SDO`. Se i numeri della taratura
+sono tutti uguali o a zero, era nata da letture spurie: il firmware se ne accorge da solo e la
+rifa'. Per vedere cosa legge il controller mentre premi, metti `TOUCH_DEBUG` a 1 in `config.h`:
+il log stampa due volte al secondo le coordinate grezze.
+
 **La prima accensione chiede la taratura del tocco**: tocca la punta della freccia nei quattro
 angoli. Resta in memoria e non te lo chiede piu'. Se viene male e i tocchi finiscono fuori
 posto, dalla dashboard c'e' **Ritara il tocco**: butta via la taratura e il tracker riparte

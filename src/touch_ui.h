@@ -17,6 +17,9 @@
 
 #include <Preferences.h>
 
+#define STRINGA2(x) #x
+#define STRINGA(x)  STRINGA2(x)
+
 static uint16_t touchCal[5]  = {0, 0, 0, 0, 0};
 static bool     touchReady   = false;
 static bool     touchDown    = false;   // dito gia' appoggiato al giro prima
@@ -38,6 +41,33 @@ static bool touchLoadCal() {
                   p.getBytes("cal", touchCal, sizeof(touchCal)) == sizeof(touchCal);
   p.end();
   return ok;
+}
+
+// Una taratura nata da letture spurie (controller che non risponde, filo del
+// T_CS staccato) e' fatta di numeri senza senso: meglio accorgersene qui che
+// ritrovarsi un menu che non risponde e non capire perche'.
+static bool touchCalSensata() {
+  for (uint8_t i = 0; i < 4; i++)
+    if (touchCal[i] == 0 || touchCal[i] == 0xFFFF) return false;
+  const int32_t dx = (int32_t)touchCal[1] - (int32_t)touchCal[0];
+  const int32_t dy = (int32_t)touchCal[3] - (int32_t)touchCal[2];
+  return abs(dx) > 100 && abs(dy) > 100;
+}
+
+// Chiede al controller la pressione, senza taratura di mezzo: serve solo a
+// sapere se dall'altra parte del filo c'e' qualcuno.
+static void touchProbe() {
+  uint16_t minZ = 0xFFFF, maxZ = 0;
+  for (uint8_t i = 0; i < 16; i++) {
+    const uint16_t z = tft.getTouchRawZ();
+    if (z < minZ) minZ = z;
+    if (z > maxZ) maxZ = z;
+    delay(5);
+  }
+  const bool morto = (minZ == maxZ) && (minZ == 0 || minZ >= 4000);
+  Serial.printf("[TOUCH] controller a riposo: z fra %u e %u%s\r\n", minZ, maxZ,
+                morto ? "  -- non risponde: controlla T_CS su D"
+                        STRINGA(TOUCH_CS) " e i ponti di T_CLK, T_DIN, T_DO" : "");
 }
 
 static void touchRunCalibration() {
@@ -62,12 +92,15 @@ static void touchRunCalibration() {
 }
 
 static void touchBegin() {
-  if (touchLoadCal()) {
+  touchProbe();
+
+  if (touchLoadCal() && touchCalSensata()) {
     tft.setTouch(touchCal);
     touchReady = true;
-    Serial.println(F("[TOUCH] taratura caricata dalla memoria"));
+    Serial.printf("[TOUCH] taratura caricata: %u %u %u %u (rot %u)\r\n",
+                  touchCal[0], touchCal[1], touchCal[2], touchCal[3], touchCal[4]);
   } else {
-    Serial.println(F("[TOUCH] prima accensione: taratura del tocco"));
+    Serial.println(F("[TOUCH] taratura assente o senza senso: la rifaccio"));
     touchRunCalibration();
   }
 }
@@ -76,6 +109,22 @@ static void touchBegin() {
 // dieci volte mentre tieni premuto.
 static bool touchPressed(int16_t &x, int16_t &y) {
   uint16_t tx = 0, ty = 0;
+
+#if TOUCH_DEBUG
+  // Con TOUCH_DEBUG a 1 il log dice cosa legge davvero il controller: se
+  // premendo i numeri non si muovono, il problema e' prima della taratura.
+  static uint32_t ultimoLog = 0;
+  if (millis() - ultimoLog >= 500) {
+    ultimoLog = millis();
+    uint16_t gx = 0, gy = 0;
+    tft.getTouchRaw(&gx, &gy);
+    uint16_t cx = 0, cy = 0;
+    const bool preso = touchReady && tft.getTouch(&cx, &cy);
+    Serial.printf("[TOUCH] grezzo x=%u y=%u z=%u | tarato %s x=%u y=%u\r\n",
+                  gx, gy, tft.getTouchRawZ(), preso ? "SI" : "no", cx, cy);
+  }
+#endif
+
   const bool giu = touchReady && tft.getTouch(&tx, &ty);
 
   if (!giu) { touchDown = false; return false; }
