@@ -97,12 +97,19 @@ static void turnsBindToRoute() {
 }
 
 static void turnsUpdate() {
-  if (!turnCount || !routeCount) { turnDistM = 0; return; }
+  turnDistM = turnDist2M = 0;
+  if (!turnCount || !routeCount) return;
   // la manovra resta quella finche' non l'hai superata
   while (turnNext < turnCount && navIndex > turns[turnNext].idx) turnNext++;
-  if (turnNext >= turnCount) { turnDistM = 0; return; }
+  if (turnNext >= turnCount) return;
+
   const float d = routeCum[navIndex] - routeCum[turns[turnNext].idx];
   turnDistM = d > 0 ? d : 0;
+
+  if (turnNext + 1 < turnCount) {
+    const float d2 = routeCum[navIndex] - routeCum[turns[turnNext + 1].idx];
+    turnDist2M = d2 > 0 ? d2 : 0;
+  }
 }
 
 static void navReset() {

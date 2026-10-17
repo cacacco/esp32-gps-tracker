@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 320" width="480" height="320" font-family="DejaVu Sans, Verdana, sans-serif">
+  <rect width="480" height="320" fill="#000000"/>
+  <circle cx="18" cy="19" r="7" fill="#35c46a"/>
+  <text x="34" y="24" font-size="13" fill="#8b94a7">10 sat   HDOP 0.8</text>
+  <rect x="260" y="13" width="14" height="2" fill="#8b94a7"/>
+  <rect x="260" y="18" width="14" height="2" fill="#8b94a7"/>
+  <rect x="260" y="23" width="14" height="2" fill="#8b94a7"/>
+  <text x="280" y="24" font-size="13" fill="#8b94a7">menu</text>
+  <text x="472" y="27" font-size="22" fill="#ffffff" text-anchor="end">20:14</text>
+  <line x1="0" y1="38" x2="480" y2="38" stroke="#2b3240" stroke-width="1"/>
+  <line x1="292" y1="46" x2="292" y2="316" stroke="#2b3240" stroke-width="1"/>
+  <line x1="296" y1="168" x2="480" y2="168" stroke="#2b3240" stroke-width="1"/>
+  <line x1="296" y1="242" x2="480" y2="242" stroke="#2b3240" stroke-width="1"/>
+  <polygon points="177.1,83.1 160.5,209.2 136.0,171.3 91.2,176.9" fill="#00e5ff"/>
+  <text x="144" y="243" font-size="13" fill="#8b94a7" text-anchor="middle">RESTANO</text>
+  <text x="144" y="277" font-size="26" fill="#ffffff" text-anchor="middle">12.4 km</text>
+  <text x="144" y="307" font-size="13" fill="#8b94a7" text-anchor="middle">tappa: Ponte sul Foglia</text>
+  <rect x="296" y="44" width="180" height="122" rx="8" fill="none" stroke="#f0a93b" stroke-width="1"/>
+  <text x="386" y="63" font-size="13" fill="#8b94a7" text-anchor="middle">SVOLTA</text>
+  <polygon points="358.0,100.0 313.3,114.1 322.2,100.0 313.3,85.9" fill="#f0a93b"/>
+  <text x="420" y="110" font-size="26" fill="#f0a93b" text-anchor="middle">250 m</text>
+  <text x="386" y="145" font-size="13" fill="#8b94a7" text-anchor="middle">a destra Via Roma</text>
+  <text x="386" y="185" font-size="13" fill="#8b94a7" text-anchor="middle">POI</text>
+  <polygon points="312.0,212.0 340.7,202.9 335.0,212.0 340.7,221.1" fill="#8b94a7"/>
+  <text x="420" y="218" font-size="13" fill="#8b94a7" text-anchor="middle">1.2 km</text>
+  <text x="386" y="259" font-size="13" fill="#8b94a7" text-anchor="middle">km/h</text>
+  <text x="386" y="309" font-size="52" fill="#ffffff" text-anchor="middle">52</text>
+</svg>

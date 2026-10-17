@@ -1122,6 +1122,8 @@ void loop() {
     d.navTurnExit  = turnNextExit();
     d.navTurnName  = turnNextName();
     d.navTurnM     = turnDistM;
+    d.navTurn2Kind = turnAfterKind();
+    d.navTurn2M    = turnDist2M;
     d.navStopName  = stopNextName();
     d.navStopM     = (float)stopDistM;
     d.navStops     = stopsCount;

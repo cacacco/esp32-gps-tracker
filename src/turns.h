@@ -41,6 +41,7 @@ static Turn     turns[TURNS_MAX];
 static uint16_t turnCount = 0;
 static uint16_t turnNext  = 0;   // manovra verso cui stai andando
 static float    turnDistM = 0;   // quanto manca, lungo il percorso
+static float    turnDist2M = 0;  // e quanto manca a quella dopo ancora
 
 // Come si legge la manovra ad alta voce. Corto: deve stare su una riga del
 // display insieme al nome della strada.
@@ -136,4 +137,14 @@ static uint8_t turnNextKind() {
 
 static uint8_t turnNextExit() {
   return (turnCount && turnNext < turnCount) ? turns[turnNext].exit : 0;
+}
+
+// La manovra dopo quella in arrivo: sul display sta nel riquadro "poi",
+// come sui navigatori da auto.
+static uint8_t turnAfterKind() {
+  return (turnCount && turnNext + 1 < turnCount) ? turns[turnNext + 1].kind : (uint8_t)TURN_NONE;
+}
+
+static const char *turnAfterName() {
+  return (turnCount && turnNext + 1 < turnCount) ? turns[turnNext + 1].name : "";
 }

@@ -399,9 +399,21 @@ Questo e' l'unico momento in cui serve internet, ed e' lo stesso in cui gia' ti 
 vedere la mappa. **In auto sei offline come prima**: il percorso e le svolte sono in
 memoria sul tracker.
 
-Sul display, allora, la freccia grande diventa la manovra: da lontano tiene la direzione
-del percorso, sotto i 400 metri dalla svolta punta dove devi girare, con la distanza che
-scende e il nome della strada sotto. Sulla dashboard le svolte sono pallini arancioni sulla
+Sul display la schermata di navigazione e' impaginata come un navigatore da auto:
+
+![Schermata di navigazione](docs/schermata-navigazione.svg)
+
+* a sinistra la **freccia grande**, che e' la direzione in cui andare adesso, e sotto quanto
+  manca all'arrivo e la prossima tappa;
+* in alto a destra la **svolta in arrivo**: freccia sua, distanza che scende e nome della
+  strada. Sotto i `TURN_WARN_M` (400 m) diventa arancione e si accende la cornice, cosi' la
+  vedi con la coda dell'occhio senza leggere i numeri;
+* sotto, **POI**: la manovra successiva, per sapere gia' che dopo la rotonda devi stare a
+  destra;
+* in basso la velocita'.
+
+Senza svolte caricate il riquadro in alto mostra la prossima tappa invece della svolta, e la
+freccia grande basta a orientarsi. Sulla dashboard le svolte sono pallini arancioni sulla
 mappa e una riga di stato tipo *fra 250 m a destra su Via Roma*.
 
 Qualche cosa da sapere:

@@ -76,6 +76,8 @@ struct DisplayData {
   uint16_t    navTotal;
   uint8_t     navTurnKind;   // prossima manovra, 0 se non ce ne sono
   uint8_t     navTurnExit;   // uscita della rotonda
+  uint8_t     navTurn2Kind;  // la manovra dopo quella in arrivo
+  float       navTurn2M;     // quanto manca a quella
   const char *navTurnName;   // strada su cui si prosegue
   float       navTurnM;      // quanto manca alla manovra
   const char *navStopName;   // nome della prossima tappa
@@ -311,145 +313,175 @@ static void drawDrive(const DisplayData &d, bool force) {
 // ---------------------------------------------------------------------------
 static const int ARROW_X = 145, ARROW_Y = 152, ARROW_R = 76;
 
-static void drawArrow(float angleDeg, uint16_t color) {
+// Una freccia qualunque: serve grande per la direzione e piccola per le due
+// manovre in arrivo.
+static void drawArrowAt(int cx, int cy, int r, float angleDeg, uint16_t color) {
   const float a = angleDeg * (float)PI / 180.0f;
   // Punta, due spalle e una coda rientrante: due triangoli bastano.
-  const int x0 = ARROW_X + (int)(sinf(a) * ARROW_R);
-  const int y0 = ARROW_Y - (int)(cosf(a) * ARROW_R);
+  const int x0 = cx + (int)(sinf(a) * r);
+  const int y0 = cy - (int)(cosf(a) * r);
   const float aL = a + 2.44f, aR = a - 2.44f;         // ~140 gradi
-  const int xL = ARROW_X + (int)(sinf(aL) * ARROW_R * 0.78f);
-  const int yL = ARROW_Y - (int)(cosf(aL) * ARROW_R * 0.78f);
-  const int xR = ARROW_X + (int)(sinf(aR) * ARROW_R * 0.78f);
-  const int yR = ARROW_Y - (int)(cosf(aR) * ARROW_R * 0.78f);
-  const int xT = ARROW_X - (int)(sinf(a) * ARROW_R * 0.28f);
-  const int yT = ARROW_Y + (int)(cosf(a) * ARROW_R * 0.28f);
+  const int xL = cx + (int)(sinf(aL) * r * 0.78f);
+  const int yL = cy - (int)(cosf(aL) * r * 0.78f);
+  const int xR = cx + (int)(sinf(aR) * r * 0.78f);
+  const int yR = cy - (int)(cosf(aR) * r * 0.78f);
+  const int xT = cx - (int)(sinf(a) * r * 0.28f);
+  const int yT = cy + (int)(cosf(a) * r * 0.28f);
 
   tft.fillTriangle(x0, y0, xL, yL, xT, yT, color);
   tft.fillTriangle(x0, y0, xR, yR, xT, yT, color);
 }
 
+static void drawArrow(float angleDeg, uint16_t color) {
+  drawArrowAt(ARROW_X, ARROW_Y, ARROW_R, angleDeg, color);
+}
+
+// ---------------------------------------------------------------------------
+// Schermata di navigazione, impaginata come un navigatore da auto:
+//
+//   a sinistra la freccia grande, che e' la direzione in cui andare adesso;
+//   a destra in alto la SVOLTA in arrivo - freccia sua, distanza che scende e
+//   nome della strada - e sotto POI, la manovra successiva, cosi' sai gia'
+//   che dopo la rotonda devi stare a destra. In fondo la velocita'.
+//
+// Senza svolte caricate il riquadro SVOLTA mostra la prossima tappa: lo
+// spazio non resta vuoto e la freccia grande basta a orientarsi.
+// ---------------------------------------------------------------------------
+static const int SV_X = 330, SV_Y = 100, SV_R = 28;     // freccia della svolta
+static const int PO_X = 330, PO_Y = 212, PO_R = 18;     // freccia del "poi"
+
 static void drawNavChrome() {
   tft.fillScreen(COL_BG);
   tft.drawFastHLine(0, 38, 480, COL_LINE);
-  tft.drawFastVLine(290, 46, 250, COL_LINE);
+  tft.drawFastVLine(292, 46, 270, COL_LINE);
+  tft.drawFastHLine(296, 168, 184, COL_LINE);
+  tft.drawFastHLine(296, 242, 184, COL_LINE);
 
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
 #if ENABLE_TOUCH
-  drawMenuHint(260);                      // fra il contasatelliti e l'orologio
+  drawMenuHint(260);
 #endif
-  tft.setTextDatum(MC_DATUM);
-  tft.drawString("RESTANO", 385, 70, 2);
-  tft.drawString("PROSSIMA TAPPA", 385, 152, 2);
-  tft.drawString("VELOCITA'", 385, 240, 2);
+  tft.drawString("RESTANO", 144, 238, 2);
+  tft.drawString("km/h", 386, 254, 2);
 }
 
 static void drawNav(const DisplayData &d, bool force) {
-  static int32_t pAngle = -9999, pNext = -1, pRemain = -1, pSpeed = -1, pStopM = -1;
-  static int8_t  pState = -1, pFont = -1;
-  static char    pStop[24] = "", pLine[40] = "";
-  char buf[24];
+  static int32_t pAngle = -9999, pRemain = -1, pSpeed = -1, pTurnM = -1, pPoiM = -1;
+  static int8_t  pState = -1, pMode = -1, pVicina = -1;
+  static int32_t pTurnA = -9999, pPoiA = -9999;
+  static char    pLinea[40] = "", pStrada[28] = "";
+  char buf[32];
 
   drawTopBar(d, force);
 
-  // Con le svolte caricate la freccia grande diventa la manovra: da lontano
-  // tiene la direzione del percorso, vicino alla svolta punta dove si gira.
-  const bool  hasTurn  = d.navTurnKind != TURN_NONE && !d.navFinished;
-  const bool  turnSoon = hasTurn && d.navTurnM <= TURN_WARN_M;
-  const float heading  = turnSoon ? turnAngle(d.navTurnKind) : d.navRelative;
-
-  const uint16_t arrowColor = d.navFinished ? COL_OK : d.navOffRoute ? COL_WARN
-                            : turnSoon      ? COL_WARN : TFT_CYAN;
-  const int32_t  angle      = (int32_t)heading;
-  const int8_t   state      = d.navFinished ? 2 : d.navOffRoute ? 1 : turnSoon ? 3 : 0;
-
-  // Ridisegno la freccia solo se si e' mossa davvero: ogni ridisegno e' un
-  // cerchio cancellato e due triangoli, inutile farlo per mezzo grado.
-  if (force || abs(angle - pAngle) >= 4 || state != pState) {
-    pAngle = angle;
+  // ---- freccia grande: dove andare adesso ---------------------------------
+  const uint16_t coloreFreccia = d.navFinished ? COL_OK : d.navOffRoute ? COL_WARN : COL_CYAN;
+  const int32_t  angolo = (int32_t)d.navRelative;
+  const int8_t   stato  = d.navFinished ? 2 : d.navOffRoute ? 1 : 0;
+  if (force || abs(angolo - pAngle) >= 4 || stato != pState) {
+    pAngle = angolo;
     tft.fillCircle(ARROW_X, ARROW_Y, ARROW_R + 2, COL_BG);
-    drawArrow(heading, arrowColor);
+    drawArrow(d.navRelative, coloreFreccia);
   }
 
-  // Con le manovre il numero grande e' la distanza alla svolta: su un percorso
-  // stradale i punti sono a pochi metri l'uno dall'altro e "prossimo punto"
-  // non direbbe niente.
-  const float   dist = hasTurn ? d.navTurnM : d.navToNextM;
-  const int32_t next = (int32_t)dist;
-  if (force || next != pNext) {
-    pNext = next;
-    if (next < 1000) snprintf(buf, sizeof(buf), "%ld m", (long)next);
-    else             snprintf(buf, sizeof(buf), "%.1f km", dist / 1000.0f);
-    tft.setTextSize(2);
-    displayField(buf, ARROW_X, 258, 4, 270, COL_FG);
-    tft.setTextSize(1);
-  }
-
-  // Riga sotto la freccia: arrivo e fuori percorso hanno la precedenza, poi
-  // viene la manovra con il nome della strada.
-  char     line[40];
-  uint16_t lineCol  = COL_FG;
-  uint8_t  lineFont = 2;
-  if (d.navFinished) {
-    snprintf(line, sizeof(line), "ARRIVATO");       lineCol = COL_OK;  lineFont = 4;
-  } else if (d.navOffRoute) {
-    snprintf(line, sizeof(line), "FUORI PERCORSO"); lineCol = COL_BAD; lineFont = 4;
-  } else if (hasTurn && d.navTurnKind == TURN_ROUNDABOUT && d.navTurnExit) {
-    snprintf(line, sizeof(line), "rotonda, %u uscita", d.navTurnExit);
-  } else if (hasTurn) {
-    const char *strada = d.navTurnName ? d.navTurnName : "";
-    snprintf(line, sizeof(line), "%s%s%s", turnWord(d.navTurnKind),
-             *strada ? " su " : "", strada);
-  } else {
-    line[0] = '\0';
-  }
-
-  if (force || lineFont != pFont || strcmp(line, pLine) != 0) {
-    // cambiando corpo del carattere l'area da pulire cambia: la svuoto a mano,
-    // altrimenti restano i bordi della scritta grande sotto quella piccola
-    if (force || lineFont != pFont) tft.fillRect(ARROW_X - 140, 288, 280, 29, COL_BG);
-    pFont = lineFont;
-    snprintf(pLine, sizeof(pLine), "%s", line);
-    displayField(line, ARROW_X, 302, lineFont, 280, line[0] ? lineCol : COL_BG);
-  }
-  pState = state;
-
-  const int32_t remain = (int32_t)(d.navRemainM / 100);
-  if (force || remain != pRemain) {
-    pRemain = remain;
+  // ---- quanto manca alla fine --------------------------------------------
+  const int32_t restano = (int32_t)(d.navRemainM / 100);
+  if (force || restano != pRemain) {
+    pRemain = restano;
     if (d.navRemainM < 1000) snprintf(buf, sizeof(buf), "%ld m", (long)d.navRemainM);
     else                     snprintf(buf, sizeof(buf), "%.1f km", d.navRemainM / 1000.0f);
+    displayField(buf, 144, 268, 4, 270, COL_FG);
+  }
+
+  // ---- riga di stato sotto la freccia -------------------------------------
+  char linea[40];
+  uint16_t coloreLinea = COL_LABEL;
+  if (d.navFinished)      { snprintf(linea, sizeof(linea), "ARRIVATO");       coloreLinea = COL_OK; }
+  else if (d.navOffRoute) { snprintf(linea, sizeof(linea), "FUORI PERCORSO"); coloreLinea = COL_BAD; }
+  else if (d.navStops)    { snprintf(linea, sizeof(linea), "tappa: %s", d.navStopName ? d.navStopName : "--"); }
+  else                    { linea[0] = '\0'; }
+  if (force || strcmp(linea, pLinea) != 0) {
+    snprintf(pLinea, sizeof(pLinea), "%s", linea);
+    displayField(linea, 144, 302, 2, 280, linea[0] ? coloreLinea : COL_BG);
+  }
+
+  // ---- riquadro SVOLTA ----------------------------------------------------
+  const bool    haSvolta = d.navTurnKind != TURN_NONE && !d.navFinished;
+  const int8_t  modo     = haSvolta ? 0 : 1;          // 0 = svolta, 1 = tappa
+  const bool    vicina   = haSvolta && d.navTurnM <= TURN_WARN_M;
+
+  if (force || modo != pMode) {
+    pMode = modo;
+    displayField(haSvolta ? "SVOLTA" : "PROSSIMA TAPPA", 386, 58, 2, 180, COL_LABEL);
+    pTurnA = -9999; pTurnM = -1; pStrada[0] = '\0';
+  }
+
+  // la cornice arancione dice "ci sei quasi" senza bisogno di leggere i numeri
+  const bool cambiaVicina = force || (int8_t)vicina != pVicina;
+  if (cambiaVicina) tft.drawRoundRect(296, 44, 180, 122, 8, vicina ? COL_WARN : COL_BG);
+
+  const int32_t angoloSvolta = haSvolta ? (int32_t)turnAngle(d.navTurnKind) : -9999;
+  if (force || angoloSvolta != pTurnA || cambiaVicina) {
+    pTurnA = angoloSvolta;
+    tft.fillCircle(SV_X, SV_Y, SV_R + 2, COL_BG);
+    if (haSvolta) drawArrowAt(SV_X, SV_Y, SV_R, (float)angoloSvolta, vicina ? COL_WARN : COL_FG);
+  }
+
+  const float   distSvolta = haSvolta ? d.navTurnM : d.navStopM;
+  const int32_t distTonda  = (int32_t)distSvolta;
+  if (force || distTonda != pTurnM || cambiaVicina) {
+    pTurnM = distTonda;
+    if (!haSvolta && !d.navStops)   snprintf(buf, sizeof(buf), "--");
+    else if (distSvolta < 1000)     snprintf(buf, sizeof(buf), "%ld m", (long)distSvolta);
+    else                            snprintf(buf, sizeof(buf), "%.1f km", distSvolta / 1000.0f);
+    displayField(buf, 420, 100, 4, 100, vicina ? COL_WARN : COL_FG);
+  }
+
+  // nome: la strada su cui si prosegue, o la tappa se non ci sono svolte
+  char strada[28];
+  if (haSvolta && d.navTurnKind == TURN_ROUNDABOUT && d.navTurnExit)
+    snprintf(strada, sizeof(strada), "%u uscita: %s", d.navTurnExit, d.navTurnName ? d.navTurnName : "");
+  else if (haSvolta)
+    snprintf(strada, sizeof(strada), "%s %s", turnWord(d.navTurnKind), d.navTurnName ? d.navTurnName : "");
+  else
+    snprintf(strada, sizeof(strada), "%s", d.navStops ? (d.navStopName ? d.navStopName : "--") : "nessuna");
+  if (force || strcmp(strada, pStrada) != 0) {
+    snprintf(pStrada, sizeof(pStrada), "%s", strada);
+    displayField(strada, 386, 140, 2, 180, COL_LABEL);
+  }
+
+  // ---- riquadro POI -------------------------------------------------------
+  const bool    haPoi  = d.navTurn2Kind != TURN_NONE && !d.navFinished;
+  const int32_t poiA   = haPoi ? (int32_t)turnAngle(d.navTurn2Kind) : -9999;
+  if (force || poiA != pPoiA) {
+    pPoiA = poiA;
+    displayField(haPoi ? "POI" : "", 386, 180, 2, 180, COL_LABEL);
+    tft.fillCircle(PO_X, PO_Y, PO_R + 2, COL_BG);
+    if (haPoi) drawArrowAt(PO_X, PO_Y, PO_R, (float)poiA, COL_LABEL);
+  }
+
+  const int32_t poiM = haPoi ? (int32_t)d.navTurn2M : -1;
+  if (force || poiM != pPoiM) {
+    pPoiM = poiM;
+    if (!haPoi)                 buf[0] = '\0';
+    else if (d.navTurn2M < 1000) snprintf(buf, sizeof(buf), "%ld m", (long)d.navTurn2M);
+    else                         snprintf(buf, sizeof(buf), "%.1f km", d.navTurn2M / 1000.0f);
+    displayField(buf, 420, 212, 2, 100, COL_LABEL);
+  }
+
+  // ---- velocita' ----------------------------------------------------------
+  const int32_t velocita = (int32_t)(d.speedKmh + 0.5f);
+  if (force || velocita != pSpeed) {
+    pSpeed = velocita;
+    snprintf(buf, sizeof(buf), "%ld", (long)velocita);
     tft.setTextSize(2);
-    displayField(buf, 385, 108, 4, 180, COL_FG);
+    displayField(buf, 386, 290, 4, 170, COL_FG);
     tft.setTextSize(1);
   }
 
-  // Nome della tappa, accorciato se non ci sta nella colonna.
-  const char *tappa = d.navStopName ? d.navStopName : "--";
-  if (force || strcmp(tappa, pStop) != 0) {
-    snprintf(pStop, sizeof(pStop), "%s", tappa);
-    char corto[21];
-    snprintf(corto, sizeof(corto), "%s", d.navStops ? tappa : "nessuna");
-    displayField(corto, 385, 178, 2, 190, d.navStops ? COL_FG : COL_LABEL);
-  }
-
-  const int32_t tappaM = (int32_t)d.navStopM;
-  if (force || tappaM != pStopM) {
-    pStopM = tappaM;
-    if (!d.navStops)       snprintf(buf, sizeof(buf), "--");
-    else if (tappaM < 1000) snprintf(buf, sizeof(buf), "%ld m", (long)tappaM);
-    else                    snprintf(buf, sizeof(buf), "%.1f km", d.navStopM / 1000.0f);
-    displayField(buf, 385, 206, 4, 180, COL_LABEL);
-  }
-
-  const int32_t speed = (int32_t)(d.speedKmh + 0.5f);
-  if (force || speed != pSpeed) {
-    pSpeed = speed;
-    snprintf(buf, sizeof(buf), "%ld", (long)speed);
-    tft.setTextSize(2);
-    displayField(buf, 385, 275, 4, 180, COL_FG);
-    tft.setTextSize(1);
-  }
+  pState  = stato;
+  pVicina = (int8_t)vicina;
 }
 
 // ---------------------------------------------------------------------------
