@@ -370,31 +370,27 @@ Il percorso puoi **disegnarlo direttamente dal telefono** oppure prepararlo sul 
 caricarlo. A bordo non c'e' nessun calcolo di rotta: il tracker segue la linea che gli dai,
 e' lo stesso principio dei navigatori a freccia da moto.
 
-### Disegnarlo dal telefono, senza nessun file
+### Dal telefono, nella pagina "Crea percorso"
 
-Non serve avere gia' un GPX ne' un computer: basta la dashboard.
+Non serve avere gia' un GPX ne' un computer. Dalla dashboard premi **Crea percorso** (oppure
+vai dritto a `http://gps-tracker.local/percorso`): si apre una pagina a parte, fatta come le
+indicazioni stradali che gia' conosci.
 
-1. Premi **Disegna sulla mappa**. Il pulsante resta acceso e il *segui* si spegne da solo,
-   cosi' la mappa non scappa mentre tocchi.
-2. **Metti i punti dove vuoi passare**, in due modi che si mescolano come ti comoda:
-   * **toccando la mappa**, oppure
-   * **cercando un indirizzo**: scrivi "Montecchio" o "Via Roma 12, Urbino" nella casella e
-     premi Cerca. Scegli dall'elenco e il punto si aggiunge da solo, con il suo nome.
-     La ricerca e' quella di OpenStreetMap e serve internet sul telefono, come la mappa.
+1. **Scrivi dove vuoi partire e dove vuoi arrivare.** Due righe, come su un navigatore
+   qualunque: scegli dall'elenco dei suggerimenti e il punto si piazza da solo. La ricerca e'
+   quella di OpenStreetMap, e serve internet sul telefono - lo stesso che gia' ti serve per
+   vedere la mappa.
+2. **+ Aggiungi tappa** mette un passaggio intermedio, quante volte vuoi. Il pulsante tondo in
+   basso a destra usa la **posizione del tracker** come partenza, se ha il fix.
+3. **Il percorso si calcola da solo** a ogni modifica, seguendo le strade vere: in fondo leggi
+   i chilometri, quante svolte sono uscite e quante tappe. Puoi **trascinare i segnalini
+   numerati** sulla mappa per correggere, o toccare la mappa per aggiungere un punto.
+4. **Salva**. Al tracker arrivano il tracciato, le svolte e - cosa comoda - **le tappe con il
+   nome che hai cercato**: sul display leggerai "Ponte sul Foglia", non "punto 47".
 
-   Con *segui le strade* attivo bastano pochi punti: partenza, i bivi dove il percorso sarebbe
-   ambiguo, arrivo.
-3. **I punti sono numerati** sulla mappa e ripetuti nell'elenco qui sotto. Puoi:
-   * **trascinarli** sulla mappa per spostarli;
-   * **cancellarne uno qualsiasi** con la "&times;" del suo gettone - non solo l'ultimo;
-   * togliere l'ultimo con *Annulla ultimo*.
-4. Premi **Salva percorso**.
-
-C'e' anche la scorciatoia **Crea dalle tappe**: se hai gia' messo le tappe, costruisce il
-percorso unendole in ordine, senza toccare altro.
-
-Il percorso disegnato sostituisce quello precedente e resta in memoria dopo lo spegnimento,
-esattamente come uno caricato da file.
+Il percorso sostituisce quello precedente e resta in memoria dopo lo spegnimento, esattamente
+come uno caricato da file. La dashboard, intanto, resta quello che deve essere: il posto dove
+si guarda come va il tracker.
 
 ### Segui le strade e svolte (la casella sotto i pulsanti)
 
@@ -438,7 +434,7 @@ Qualche cosa da sapere:
   solo a ingombrare il display e si buttano. Il limite e' `TURNS_MAX`, 200 svolte;
 * il servizio usato e' il server dimostrativo pubblico di OSRM. E' gratuito e senza
   registrazione, ma e' pensato per le prove: se ne fai un uso intenso, o se vuoi un altro
-  provider, cambia la riga `const OSRM = ...` in `src/web_ui.h` - il resto non cambia.
+  provider, cambia la riga `const OSRM = ...` in `src/map_ui.h` - il resto non cambia.
 
 ### Prepararlo sul PC e caricarlo
 
@@ -562,6 +558,7 @@ offline la mappa resta vuota, ma numeri, stato e link a Google Maps continuano a
 | `GET` | `/api/track` | traccia compatta `[[lat, lon, km/h, epoch], ...]` |
 | `GET` | `/track.gpx` | traccia in formato GPX 1.1, un `<trkseg>` per accensione |
 | `GET` | `/track-precedente.gpx` | il file ruotato, quando esiste |
+| `GET` | `/percorso` | la pagina per costruire il percorso |
 | `GET` | `/api/route` | il percorso caricato, `[[lat, lon], ...]` |
 | `POST` | `/api/route` | carica un GPX (multipart) e lo sostituisce al precedente |
 | `POST` | `/api/route/draw` | crea il percorso, corpo `lat,lon;lat,lon;...` in testo semplice |
@@ -686,7 +683,8 @@ projects/esp32-gps-tracker/
 │   ├── wifi_portal.h            connessione WiFi e portale di configurazione
 │   ├── display_ui.h             computer di bordo e menu sul TFT 4" (facoltativo)
 │   ├── touch_ui.h               tocco sul pannello e sua taratura
-│   └── web_ui.h                 dashboard HTML/CSS/JS servita dall'ESP32
+│   ├── web_ui.h                 dashboard HTML/CSS/JS servita dall'ESP32
+│   └── map_ui.h                 pagina /percorso per costruire i giri
 ├── tools/
 │   ├── windows/aggiorna.bat     scarica le novita' e ricarica il firmware
 │   ├── windows/carica-firmware.bat   compila, carica e apre il log su Windows
