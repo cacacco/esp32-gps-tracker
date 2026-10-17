@@ -890,11 +890,20 @@ static void printStatus() {
   const uint32_t frasi  = gps.passedChecksum();
   const uint32_t errori = gps.failedChecksum();
 
-  // Caso 1: non arriva proprio niente -> problema di cablaggio.
-  if (chars == lastChars) {
-    Serial.printf("[GPS] nessun byte in arrivo (%lu in totale): il TX del modulo va sul pin D%d, "
+  // Caso 1: non e' mai arrivato niente -> il filo non c'e' o il modulo e' spento.
+  if (!chars) {
+    Serial.printf("[GPS] nessun byte in arrivo: il TX del modulo va sul pin D%d, "
                   "serve il GND in comune e il modulo deve essere alimentato\r\n",
-                  (unsigned long)chars, PIN_GPS_RX);
+                  PIN_GPS_RX);
+    return;
+  }
+
+  // Caso 1b: arrivavano e si sono fermati. E' tutta un'altra storia: il
+  // cablaggio e' giusto, ma qualcosa lo interrompe.
+  if (chars == lastChars) {
+    Serial.printf("[GPS] flusso interrotto, fermo a %lu byte: contatto incerto sul filo del TX, "
+                  "alimentazione che balla, o modulo che si riavvia\r\n",
+                  (unsigned long)chars);
     return;
   }
   lastChars = chars;
