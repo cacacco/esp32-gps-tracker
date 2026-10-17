@@ -943,8 +943,14 @@ void setup() {
   configureGps();
 #endif
 
+  // Il display e' l'unica cosa che non si vede nel log, e quando non si accende
+  // la prima domanda e' sempre "ma il firmware ci sta parlando?". Adesso lo dice.
 #if ENABLE_DISPLAY
   displayBegin();
+  Serial.printf("[DISPLAY] acceso: CS D%d, DC D%d, RESET D%d, SCK D%d, MOSI D%d\r\n",
+                TFT_CS, TFT_DC, TFT_RST, TFT_SCLK, TFT_MOSI);
+#else
+  Serial.println(F("[DISPLAY] spento da config.h: per usarlo metti ENABLE_DISPLAY a 1"));
 #endif
 
   trackBegin();

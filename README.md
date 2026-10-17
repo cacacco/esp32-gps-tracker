@@ -225,8 +225,13 @@ cambia da un modulo all'altro, i nomi no.
 | `T_CLK` `T_CS` `T_DIN` `T_DO` `T_IRQ` | — | **non collegati**: il touch non serve |
 | `SD_CS` `SD_MOSI` `SD_MISO` `SD_SCK` | — | **non collegati**: la microSD non e' usata |
 
-In `config.h` c'e' solo `ENABLE_DISPLAY 1`, che e' il valore di partenza: **nient'altro da
-cambiare.** Il LED di bordo resta su GPIO2 e il PPS del GPS su GPIO4, perche' i pin del
+In `config.h` basta `ENABLE_DISPLAY 1`: **nient'altro da cambiare.**
+
+> **Se aggiorni con `aggiorna.bat`**, il tuo `config.h` e' tuo (ci sono dentro le credenziali
+> WiFi) e lo script lo mette da parte e te lo ridà indietro dopo il `git pull`: il valore
+> `ENABLE_DISPLAY` che arriva dal progetto **non sovrascrive il tuo**. Dopo aver collegato il
+> display apri `src/config.h` e mettilo a 1 a mano, una volta sola. Dal log si vede subito:
+> `[DISPLAY] acceso: CS D5, ...` oppure `[DISPLAY] spento da config.h`. Il LED di bordo resta su GPIO2 e il PPS del GPS su GPIO4, perche' i pin del
 pannello sono stati scelti fra quelli liberi. Se ne sposti uno su una funzione gia' occupata
 la compilazione si ferma con un messaggio che dice quale: meglio un errore subito che mezza
 giornata a chiedersi perche' il GPS non parla piu'.

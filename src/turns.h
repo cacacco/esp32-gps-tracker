@@ -114,6 +114,9 @@ static bool turnsSave() {
 // l'unico che sa dove passa il percorso.
 static void turnsLoadRaw() {
   turnsReset();
+  // Senza questo controllo, al primo avvio dopo l'aggiornamento il log si apre
+  // con un errore rosso del filesystem per un file che e' normale non esista.
+  if (!LittleFS.exists(TURNS_PATH)) return;
   File f = LittleFS.open(TURNS_PATH, "r");
   if (!f) return;
   const uint32_t n = f.size() / sizeof(Turn);
