@@ -795,6 +795,17 @@ static void handleTurnsGet() {
   server.sendContent("");
 }
 
+// Via d'uscita se la taratura del tocco viene male: da qui si butta via e al
+// riavvio il display la richiede da capo. Senza questo, un menu che non
+// risponde ai tocchi non si sistemerebbe piu' dal telefono.
+static void handleTouchReset() {
+  Preferences p;
+  if (p.begin("touch", false)) { p.clear(); p.end(); }
+  server.send(200, "application/json", "{\"ok\":true}");
+  delay(200);
+  ESP.restart();
+}
+
 static void handleRouteClear() {
   routeClear();
   stopsClear();
@@ -850,6 +861,7 @@ static void setupWebServer() {
   server.on("/api/route/draw", HTTP_POST, handleRouteDraw);
   server.on("/api/route/steps", HTTP_GET, handleTurnsGet);
   server.on("/api/route/steps", HTTP_POST, handleTurnsPost);
+  server.on("/api/touch/reset", HTTP_POST, handleTouchReset);
   server.on("/api/route/clear", HTTP_POST, handleRouteClear);
   server.on("/api/stops", HTTP_GET, handleStopsGet);
   server.on("/api/stops", HTTP_POST, handleStopsPost);
@@ -984,13 +996,49 @@ void loop() {
   server.handleClient();
 
 #if ENABLE_DISPLAY
+  static bool lastDrawForce = false;
+
+#if ENABLE_TOUCH
+  int16_t tx = 0, ty = 0;
+  if (touchPressed(tx, ty)) {
+    switch (uiTouch(tx, ty)) {
+      case UI_ROUTE_CLEAR:
+        routeClear();
+        Serial.println(F("[MENU] percorso cancellato"));
+        break;
+      case UI_TRACK_CLEAR:
+        trackClear();
+        lastTrackMs = 0;
+        Serial.println(F("[MENU] traccia cancellata"));
+        break;
+      case UI_TRIP_RESET:
+        trip.tripDistanceM = 0;
+        trip.maxSpeedKmh   = 0;
+        trip.movingTimeS   = 0;
+        Serial.println(F("[MENU] viaggio azzerato"));
+        break;
+      case UI_PORTAL_ON:
+        if (!wifiPortalOn) wifiStartPortal();
+        break;
+      case UI_PORTAL_OFF:
+        if (wifiPortalOn) wifiStopPortal();
+        break;
+      default:
+        break;
+    }
+    lastDrawForce = true;             // ridisegna subito, senza aspettare il turno
+  }
+#endif
+
   static uint32_t lastDraw = 0;
-  if (millis() - lastDraw >= DISPLAY_REFRESH_MS) {
+  if (lastDrawForce || millis() - lastDraw >= DISPLAY_REFRESH_MS) {
+    lastDrawForce = false;
     lastDraw = millis();
 
     // netName vive oltre la chiamata: DisplayData tiene un puntatore, non una copia.
-    static String netName;
+    static String netName, ipText;
     netName = wifiPortalOn ? wifiApName : WiFi.SSID();
+    ipText  = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : String("");
 
     DisplayData d;
     d.fixValid     = fix.valid;
@@ -1008,7 +1056,12 @@ void loop() {
     d.epoch        = fix.epoch ? fix.epoch : nowEpoch();
     d.sentences    = gps.passedChecksum();
     d.netName      = netName.c_str();
+    d.ipText       = ipText.c_str();
+    d.apName       = wifiApName.c_str();
     d.portal       = wifiPortalOn;
+    d.routeTurns   = turnCount;
+    d.routeKm      = routeCount ? (float)(routeCum[0] / 1000.0) : 0.0f;
+    d.trackPoints  = trackPoints;
     d.navActive    = nav.active;
     d.navOffRoute  = nav.offRoute;
     d.navFinished  = nav.finished;

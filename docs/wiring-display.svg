@@ -1,70 +1,101 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 674" width="860" height="674" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
-  <rect width="860" height="674" fill="#ffffff"/>
-  <text x="430" y="38" text-anchor="middle" font-size="20" font-weight="600" fill="#1b2430">Display TFT 4&quot; ST7796 (SPI) &#8594; ESP32 DevKit v1</text>
-  <text x="430" y="60" text-anchor="middle" font-size="13" fill="#6b7585">abbina le SIGLE stampate sulla scheda: l&#8217;ordine dei pin cambia da un modulo all&#8217;altro</text>
-  <rect x="40" y="104" width="300" height="458" rx="12" fill="#eaf0f7" stroke="#2f3b4d" stroke-width="2"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 884" width="880" height="884" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <rect width="880" height="884" fill="#ffffff"/>
+  <text x="440" y="38" text-anchor="middle" font-size="20" font-weight="600" fill="#1b2430">Display TFT 4&quot; ST7796 + touch &#8594; ESP32 DevKit v1</text>
+  <text x="440" y="60" text-anchor="middle" font-size="13" fill="#6b7585">abbina le SIGLE stampate sulla scheda: l&#8217;ordine dei pin cambia da un modulo all&#8217;altro</text>
+  <rect x="40" y="104" width="300" height="684" rx="12" fill="#eaf0f7" stroke="#2f3b4d" stroke-width="2"/>
   <rect x="40" y="104" width="300" height="38" rx="12" fill="#2f3b4d"/>
   <rect x="40" y="130" width="300" height="12" fill="#2f3b4d"/>
   <text x="190" y="130" text-anchor="middle" font-size="15" font-weight="600" fill="#ffffff">display ST7796 480x320</text>
-  <rect x="520" y="104" width="300" height="458" rx="12" fill="#eaf0f7" stroke="#2f3b4d" stroke-width="2"/>
-  <rect x="520" y="104" width="300" height="38" rx="12" fill="#2f3b4d"/>
-  <rect x="520" y="130" width="300" height="12" fill="#2f3b4d"/>
-  <text x="670" y="130" text-anchor="middle" font-size="15" font-weight="600" fill="#ffffff">ESP32 DevKit v1</text>
-  <text x="320" y="177" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">VCC</text>
-  <circle cx="340" cy="172" r="6" fill="#2f3b4d"/>
-  <path d="M346 172 H514" stroke="#e8534f" stroke-width="3.5" fill="none"/>
-  <circle cx="520" cy="172" r="6" fill="#2f3b4d"/>
-  <text x="540" y="177" font-size="15" font-weight="600" fill="#1b2430">3V3</text>
-  <text x="600" y="177" font-size="12" fill="#6b7585">alimentazione del pannello</text>
-  <text x="320" y="223" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">GND</text>
-  <circle cx="340" cy="218" r="6" fill="#2f3b4d"/>
-  <path d="M346 218 H514" stroke="#2f3b4d" stroke-width="3.5" fill="none"/>
-  <circle cx="520" cy="218" r="6" fill="#2f3b4d"/>
-  <text x="540" y="223" font-size="15" font-weight="600" fill="#1b2430">GND</text>
-  <text x="600" y="223" font-size="12" fill="#6b7585">massa in comune con tutto</text>
-  <text x="320" y="269" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">CS</text>
-  <circle cx="340" cy="264" r="6" fill="#2f3b4d"/>
-  <path d="M346 264 H514" stroke="#f0a93b" stroke-width="3.5" fill="none"/>
-  <circle cx="520" cy="264" r="6" fill="#2f3b4d"/>
-  <text x="540" y="269" font-size="15" font-weight="600" fill="#1b2430">D5</text>
-  <text x="600" y="269" font-size="12" fill="#6b7585">selezione del pannello</text>
-  <text x="320" y="315" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">RESET</text>
-  <circle cx="340" cy="310" r="6" fill="#2f3b4d"/>
-  <path d="M346 310 H514" stroke="#8e7cc3" stroke-width="3.5" fill="none"/>
-  <circle cx="520" cy="310" r="6" fill="#2f3b4d"/>
-  <text x="540" y="315" font-size="15" font-weight="600" fill="#1b2430">D22</text>
-  <text x="600" y="315" font-size="12" fill="#6b7585">azzeramento</text>
+  <rect x="540" y="104" width="300" height="684" rx="12" fill="#eaf0f7" stroke="#2f3b4d" stroke-width="2"/>
+  <rect x="540" y="104" width="300" height="38" rx="12" fill="#2f3b4d"/>
+  <rect x="540" y="130" width="300" height="12" fill="#2f3b4d"/>
+  <text x="690" y="130" text-anchor="middle" font-size="15" font-weight="600" fill="#ffffff">ESP32 DevKit v1</text>
+  <text x="48" y="170" font-size="12.5" font-weight="600" fill="#6b7585">PANNELLO</text>
+  <text x="320" y="193" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">VCC</text>
+  <circle cx="340" cy="188" r="6" fill="#2f3b4d"/>
+  <path d="M346 188 H534" stroke="#e8534f" stroke-width="3.5" fill="none"/>
+  <circle cx="540" cy="188" r="6" fill="#2f3b4d"/>
+  <text x="560" y="193" font-size="15" font-weight="600" fill="#1b2430">3V3</text>
+  <text x="620" y="193" font-size="12" fill="#6b7585">alimentazione del pannello</text>
+  <text x="320" y="235" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">GND</text>
+  <circle cx="340" cy="230" r="6" fill="#2f3b4d"/>
+  <path d="M346 230 H534" stroke="#2f3b4d" stroke-width="3.5" fill="none"/>
+  <circle cx="540" cy="230" r="6" fill="#2f3b4d"/>
+  <text x="560" y="235" font-size="15" font-weight="600" fill="#1b2430">GND</text>
+  <text x="620" y="235" font-size="12" fill="#6b7585">massa in comune con tutto</text>
+  <text x="320" y="277" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">CS</text>
+  <circle cx="340" cy="272" r="6" fill="#2f3b4d"/>
+  <path d="M346 272 H534" stroke="#f0a93b" stroke-width="3.5" fill="none"/>
+  <circle cx="540" cy="272" r="6" fill="#2f3b4d"/>
+  <text x="560" y="277" font-size="15" font-weight="600" fill="#1b2430">D5</text>
+  <text x="620" y="277" font-size="12" fill="#6b7585">selezione del pannello</text>
+  <text x="320" y="319" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">RESET</text>
+  <circle cx="340" cy="314" r="6" fill="#2f3b4d"/>
+  <path d="M346 314 H534" stroke="#8e7cc3" stroke-width="3.5" fill="none"/>
+  <circle cx="540" cy="314" r="6" fill="#2f3b4d"/>
+  <text x="560" y="319" font-size="15" font-weight="600" fill="#1b2430">D22</text>
+  <text x="620" y="319" font-size="12" fill="#6b7585">azzeramento</text>
   <text x="320" y="361" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">DC / RS</text>
   <circle cx="340" cy="356" r="6" fill="#2f3b4d"/>
-  <path d="M346 356 H514" stroke="#4aa3ff" stroke-width="3.5" fill="none"/>
-  <circle cx="520" cy="356" r="6" fill="#2f3b4d"/>
-  <text x="540" y="361" font-size="15" font-weight="600" fill="#1b2430">D21</text>
-  <text x="600" y="361" font-size="12" fill="#6b7585">dato o comando</text>
-  <text x="320" y="407" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">SDI / MOSI</text>
-  <circle cx="340" cy="402" r="6" fill="#2f3b4d"/>
-  <path d="M346 402 H514" stroke="#35c46a" stroke-width="3.5" fill="none"/>
-  <circle cx="520" cy="402" r="6" fill="#2f3b4d"/>
-  <text x="540" y="407" font-size="15" font-weight="600" fill="#1b2430">D23</text>
-  <text x="600" y="407" font-size="12" fill="#6b7585">dati verso il display</text>
-  <text x="320" y="453" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">SCK</text>
-  <circle cx="340" cy="448" r="6" fill="#2f3b4d"/>
-  <path d="M346 448 H514" stroke="#2bb3c0" stroke-width="3.5" fill="none"/>
-  <circle cx="520" cy="448" r="6" fill="#2f3b4d"/>
-  <text x="540" y="453" font-size="15" font-weight="600" fill="#1b2430">D18</text>
-  <text x="600" y="453" font-size="12" fill="#6b7585">clock</text>
-  <text x="320" y="499" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">LED</text>
-  <circle cx="340" cy="494" r="6" fill="#2f3b4d"/>
-  <path d="M346 494 H514" stroke="#e8534f" stroke-width="3.5" fill="none"/>
-  <circle cx="520" cy="494" r="6" fill="#2f3b4d"/>
-  <text x="540" y="499" font-size="15" font-weight="600" fill="#1b2430">3V3</text>
-  <text x="600" y="499" font-size="12" fill="#6b7585">retroilluminazione, sempre accesa</text>
-  <text x="320" y="545" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">SDO / MISO</text>
-  <circle cx="340" cy="540" r="6" fill="#2f3b4d"/>
-  <path d="M346 540 H514" stroke="#9aa5b4" stroke-width="3.5" fill="none"/>
-  <circle cx="520" cy="540" r="6" fill="#2f3b4d"/>
-  <text x="540" y="545" font-size="15" font-weight="600" fill="#1b2430">D19</text>
-  <text x="600" y="545" font-size="12" fill="#6b7585">dati di ritorno, opzionale</text>
-  <text x="40" y="580" font-size="13" fill="#1b2430" font-weight="600">Da non collegare</text>
-  <text x="40" y="602" font-size="12.5" fill="#6b7585">T_CLK, T_CS, T_DIN, T_DO, T_IRQ (touch) e SD_CS/SD_MOSI/SD_MISO/SD_SCK (microSD): non servono.</text>
-  <text x="40" y="624" font-size="12.5" fill="#6b7585">Se la scheda riporta &#171;VCC 5V&#187; va bene anche 5V al posto di 3V3, ma i pin dati restano a 3,3 V.</text>
+  <path d="M346 356 H534" stroke="#4aa3ff" stroke-width="3.5" fill="none"/>
+  <circle cx="540" cy="356" r="6" fill="#2f3b4d"/>
+  <text x="560" y="361" font-size="15" font-weight="600" fill="#1b2430">D21</text>
+  <text x="620" y="361" font-size="12" fill="#6b7585">dato o comando</text>
+  <text x="320" y="403" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">SDI / MOSI</text>
+  <circle cx="340" cy="398" r="6" fill="#2f3b4d"/>
+  <path d="M346 398 H534" stroke="#35c46a" stroke-width="3.5" fill="none"/>
+  <circle cx="540" cy="398" r="6" fill="#2f3b4d"/>
+  <text x="560" y="403" font-size="15" font-weight="600" fill="#1b2430">D23</text>
+  <text x="620" y="403" font-size="12" fill="#6b7585">dati verso il display</text>
+  <text x="320" y="445" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">SCK</text>
+  <circle cx="340" cy="440" r="6" fill="#2f3b4d"/>
+  <path d="M346 440 H534" stroke="#2bb3c0" stroke-width="3.5" fill="none"/>
+  <circle cx="540" cy="440" r="6" fill="#2f3b4d"/>
+  <text x="560" y="445" font-size="15" font-weight="600" fill="#1b2430">D18</text>
+  <text x="620" y="445" font-size="12" fill="#6b7585">clock</text>
+  <text x="320" y="487" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">LED</text>
+  <circle cx="340" cy="482" r="6" fill="#2f3b4d"/>
+  <path d="M346 482 H534" stroke="#e8534f" stroke-width="3.5" fill="none"/>
+  <circle cx="540" cy="482" r="6" fill="#2f3b4d"/>
+  <text x="560" y="487" font-size="15" font-weight="600" fill="#1b2430">3V3</text>
+  <text x="620" y="487" font-size="12" fill="#6b7585">retroilluminazione, sempre accesa</text>
+  <text x="320" y="529" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">SDO / MISO</text>
+  <circle cx="340" cy="524" r="6" fill="#2f3b4d"/>
+  <path d="M346 524 H534" stroke="#9aa5b4" stroke-width="3.5" fill="none"/>
+  <circle cx="540" cy="524" r="6" fill="#2f3b4d"/>
+  <text x="560" y="529" font-size="15" font-weight="600" fill="#1b2430">D19</text>
+  <text x="620" y="529" font-size="12" fill="#6b7585">dati di ritorno</text>
+  <path d="M56 548 H824" stroke="#c9d3e0" stroke-width="1" fill="none"/>
+  <text x="48" y="578" font-size="12.5" font-weight="600" fill="#6b7585">TOUCH &#8212; serve per il menu sul display</text>
+  <text x="320" y="601" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">T_CLK</text>
+  <circle cx="340" cy="596" r="6" fill="#2f3b4d"/>
+  <path d="M346 596 H534" stroke="#2bb3c0" stroke-width="3.5" fill="none"/>
+  <circle cx="540" cy="596" r="6" fill="#2f3b4d"/>
+  <text x="560" y="601" font-size="15" font-weight="600" fill="#1b2430">D18</text>
+  <text x="620" y="601" font-size="12" fill="#6b7585">stesso clock del pannello</text>
+  <text x="320" y="643" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">T_DIN</text>
+  <circle cx="340" cy="638" r="6" fill="#2f3b4d"/>
+  <path d="M346 638 H534" stroke="#35c46a" stroke-width="3.5" fill="none"/>
+  <circle cx="540" cy="638" r="6" fill="#2f3b4d"/>
+  <text x="560" y="643" font-size="15" font-weight="600" fill="#1b2430">D23</text>
+  <text x="620" y="643" font-size="12" fill="#6b7585">stesso MOSI del pannello</text>
+  <text x="320" y="685" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">T_DO</text>
+  <circle cx="340" cy="680" r="6" fill="#2f3b4d"/>
+  <path d="M346 680 H534" stroke="#9aa5b4" stroke-width="3.5" fill="none"/>
+  <circle cx="540" cy="680" r="6" fill="#2f3b4d"/>
+  <text x="560" y="685" font-size="15" font-weight="600" fill="#1b2430">D19</text>
+  <text x="620" y="685" font-size="12" fill="#6b7585">stesso MISO del pannello</text>
+  <text x="320" y="727" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">T_CS</text>
+  <circle cx="340" cy="722" r="6" fill="#2f3b4d"/>
+  <path d="M346 722 H534" stroke="#f0a93b" stroke-width="3.5" fill="none"/>
+  <circle cx="540" cy="722" r="6" fill="#2f3b4d"/>
+  <text x="560" y="727" font-size="15" font-weight="600" fill="#1b2430">D27</text>
+  <text x="620" y="727" font-size="12" fill="#6b7585">suo, per il solo touch</text>
+  <text x="320" y="769" text-anchor="end" font-size="15" font-weight="600" fill="#1b2430">T_IRQ</text>
+  <circle cx="340" cy="764" r="6" fill="#2f3b4d"/>
+  <path d="M346 764 H420" stroke="#6b7585" stroke-width="2.5" stroke-dasharray="5 5" fill="none"/>
+  <text x="620" y="769" font-size="12" fill="#6b7585">non serve, lascialo scollegato</text>
+  <text x="40" y="822" font-size="13" fill="#1b2430" font-weight="600">Da non collegare</text>
+  <text x="40" y="844" font-size="12.5" fill="#6b7585">SD_CS / SD_MOSI / SD_MISO / SD_SCK della microSD: per ora non servono.</text>
+  <text x="40" y="866" font-size="12.5" fill="#6b7585">Senza i fili del touch metti ENABLE_TOUCH a 0 in config.h: tutto il resto funziona uguale.</text>
 </svg>

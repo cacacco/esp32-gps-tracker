@@ -147,6 +147,8 @@ Le voci che probabilmente vorrai toccare:
 | `TURNS_MAX` | 200 | quante svolte stanno in memoria |
 | `TURN_NAME_LEN` | 20 | caratteri del nome della strada |
 | `TURN_WARN_M` | 400 m | da quanto prima la freccia grande annuncia la svolta |
+| `ENABLE_TOUCH` | 1 | tocco e menu sul display; a 0 se non colleghi i fili `T_*` |
+| `MENU_TIMEOUT_MS` | 15000 | dopo quanto il menu lascia il posto alla navigazione |
 | `STOP_ARRIVAL_M` | 100 m | entro quale distanza una tappa si considera raggiunta |
 | `ENABLE_SINRICPRO` | 0 | mettilo a 1 per le notifiche push (vedi sotto) |
 | `GPS_AUTO_BAUD` | 1 | all'avvio cerca il baud giusto se il modulo non risponde a 9600 |
@@ -222,8 +224,15 @@ cambia da un modulo all'altro, i nomi no.
 | `SCK` | `D18` | clock |
 | `LED` | `3V3` | retroilluminazione, sempre accesa |
 | `SDO (MISO)` | `D19` | dati di ritorno, si puo' anche omettere |
-| `T_CLK` `T_CS` `T_DIN` `T_DO` `T_IRQ` | — | **non collegati**: il touch non serve |
+| `T_CLK` | `D18` | touch: stesso clock del pannello |
+| `T_DIN` | `D23` | touch: stesso MOSI del pannello |
+| `T_DO` | `D19` | touch: stesso MISO del pannello |
+| `T_CS` | `D27` | touch: suo, solo per il tocco |
+| `T_IRQ` | — | **non collegato**, non serve |
 | `SD_CS` `SD_MOSI` `SD_MISO` `SD_SCK` | — | **non collegati**: la microSD non e' usata |
+
+I quattro fili del touch servono solo al menu: senza, metti `ENABLE_TOUCH` a 0 in
+`config.h` e tutto il resto funziona identico.
 
 In `config.h` basta `ENABLE_DISPLAY 1`: **nient'altro da cambiare.**
 
@@ -266,6 +275,36 @@ piu' di qualsiasi impostazione.
 **Caricamento del firmware**: con questi pin il caricamento via USB non viene disturbato
 (GPIO0, GPIO2, GPIO12 e GPIO15, che sono quelli che decidono come parte la scheda, restano
 liberi). `GPIO5` e' l'unico pin di avvio usato, come `CS`, e sta alto: non da' problemi.
+
+### Il menu sul display
+
+All'accensione compare un menu con quattro pulsanti grandi. Se non lo tocchi entro
+`MENU_TIMEOUT_MS` (15 secondi) si fa da parte da solo ed entra in navigazione, quindi anche
+senza touch collegato il tracker parte come sempre. Per tornarci, **tocca la barra in alto**:
+e' l'unica zona che apre il menu, cosi' una manata sullo schermo mentre guidi non ti toglie
+la freccia da davanti.
+
+| Pulsante | Cosa fa |
+|---|---|
+| **Naviga** | va alle schermate di marcia: velocita', viaggio, freccia e svolte |
+| **Percorso** | quanto e' lungo, quanti punti, svolte e tappe; e lo cancella |
+| **Telefono** | l'indirizzo a cui collegarti, oppure accende la rete del tracker |
+| **Viaggio** | km, velocita' massima, tempo in movimento, punti registrati; azzera e cancella |
+
+**Caricare un GPX o disegnare un percorso resta roba da telefono**: sul display non c'e' una
+tastiera e non si sceglie un file. Il menu fa quello che ha senso a bordo - dire cosa c'e' in
+memoria, buttarlo via, e tirare su la rete per farti collegare. Il pulsante *Telefono* e'
+proprio la scorciatoia per quello: se sei fuori casa, accendi la rete del tracker, ti colleghi
+col telefono alla rete `GPS-Tracker-...` e apri `http://192.168.4.1`, da dove carichi il GPX o
+disegni il percorso come al solito.
+
+Le due cancellazioni passano da una conferma: un tocco involontario non ti porta via il
+percorso. *Azzera viaggio* no, quello e' innocuo.
+
+**La prima accensione chiede la taratura del tocco**: tocca la punta della freccia nei quattro
+angoli. Resta in memoria e non te lo chiede piu'. Se viene male e i tocchi finiscono fuori
+posto, dalla dashboard c'e' **Ritara il tocco**: butta via la taratura e il tracker riparte
+chiedendola da capo.
 
 ---
 
@@ -453,6 +492,7 @@ offline la mappa resta vuota, ma numeri, stato e link a Google Maps continuano a
 | `GET` | `/api/route/steps` | le svolte, `[[lat, lon, tipo, uscita, "strada"], ...]` |
 | `POST` | `/api/route/steps` | carica le svolte, una per riga: `lat,lon,tipo,uscita,strada` |
 | `POST` | `/api/route/clear` | cancella il percorso e le sue tappe |
+| `POST` | `/api/touch/reset` | butta via la taratura del tocco e riavvia |
 | `GET` | `/api/stops` | elenco delle tappe e quale e' la prossima |
 | `POST` | `/api/stops` | sostituisce l'elenco (corpo JSON) |
 | `POST` | `/api/stops/clear` | cancella le tappe |
@@ -568,7 +608,8 @@ projects/esp32-gps-tracker/
 │   ├── stops.h                  tappe con nome, dal GPX o aggiunte a mano
 │   ├── turns.h                  svolte preparate dal telefono
 │   ├── wifi_portal.h            connessione WiFi e portale di configurazione
-│   ├── display_ui.h             computer di bordo sul TFT 4" (facoltativo)
+│   ├── display_ui.h             computer di bordo e menu sul TFT 4" (facoltativo)
+│   ├── touch_ui.h               tocco sul pannello e sua taratura
 │   └── web_ui.h                 dashboard HTML/CSS/JS servita dall'ESP32
 ├── tools/
 │   ├── windows/aggiorna.bat     scarica le novita' e ricarica il firmware

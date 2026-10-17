@@ -118,6 +118,7 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
     <a class="btn" id="btnOld" href="/track-precedente.gpx" download hidden>GPX precedente</a>
     <button id="btnTrip">Azzera viaggio</button>
     <button id="btnClear">Cancella traccia salvata</button>
+    <button id="btnTouch">Ritara il tocco</button>
   </div>
 
   <div class="sep">Percorso</div>
@@ -636,6 +637,11 @@ $('btnStopsSave').onclick = async () => {
   $('btnStopMap').classList.remove('on');
   $('btnStopMap').textContent = 'Aggiungi toccando la mappa';
   refreshStops();
+};
+$('btnTouch').onclick = async () => {
+  if (!confirm('Butto via la taratura del tocco del display: il tracker si riavvia e la rifa\' da capo. Procedo?')) return;
+  try { await fetch('/api/touch/reset', {method:'POST'}); } catch(e){}
+  alert('Il tracker si sta riavviando: segui le istruzioni sul display.');
 };
 $('btnTrip').onclick = async () => { await fetch('/api/trip/reset', {method:'POST'}); refreshStatus(); };
 $('btnClear').onclick = async () => {

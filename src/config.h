@@ -137,6 +137,23 @@
 #define DISPLAY_REFRESH_MS       250   // ogni quanto aggiornare i numeri
 #define TIME_UTC_OFFSET_MIN      120   // orologio: 60 in inverno, 120 in estate
 
+// ---- tocco e menu --------------------------------------------------------
+//     Il pannello ha gia' il touch a bordo: servono quattro fili in piu'.
+//
+//       display        ESP32          (i primi tre sono gli stessi del pannello)
+//       -----------------------
+//       T_CLK       -> D18
+//       T_DIN       -> D23
+//       T_DO        -> D19
+//       T_CS        -> D27
+//       T_IRQ       -> scollegato, non serve
+//
+//     Senza questi fili metti ENABLE_TOUCH a 0: il menu compare lo stesso
+//     all'avvio e dopo MENU_TIMEOUT_MS entra da solo in navigazione.
+#define ENABLE_TOUCH               1
+#define MENU_TIMEOUT_MS        15000   // quanto resta il menu se non tocchi niente
+#define TOUCH_MIN_GAP_MS         250   // due tocchi piu' ravvicinati contano per uno
+
 // ===========================================================================
 // 6d) Aggiornamento via WiFi (OTA)
 //     Permette di caricare il firmware senza cavo, con la scheda accesa sulla

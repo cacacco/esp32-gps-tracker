@@ -26,8 +26,14 @@
 // finiscano anche su un'altra funzione. Meglio una compilazione che si ferma
 // con un messaggio chiaro che mezza giornata a chiedersi perche' il GPS non
 // parla piu' da quando c'e' lo schermo.
+#if ENABLE_TOUCH && defined(TOUCH_CS)
+  #define DISPLAY_PIN_TOUCH(p) ((p) == TOUCH_CS)
+#else
+  #define DISPLAY_PIN_TOUCH(p) (false)
+#endif
 #define DISPLAY_USA_PIN(p) ((p) == TFT_CS   || (p) == TFT_DC   || (p) == TFT_RST || \
-                            (p) == TFT_SCLK || (p) == TFT_MOSI || (p) == TFT_MISO)
+                            (p) == TFT_SCLK || (p) == TFT_MOSI || (p) == TFT_MISO || \
+                            DISPLAY_PIN_TOUCH(p))
 #if DISPLAY_USA_PIN(PIN_LED)
   #error "PIN_LED e' un pin del display: in config.h scegline un altro (32 va bene)"
 #endif
@@ -54,7 +60,12 @@ struct DisplayData {
   uint32_t    epoch;
   uint32_t    sentences;
   const char *netName;
+  const char *ipText;        // indirizzo della dashboard, "" se non connesso
+  const char *apName;        // nome della rete creata dal tracker
   bool        portal;
+  uint16_t    routeTurns;    // svolte caricate
+  float       routeKm;       // lunghezza del percorso
+  uint32_t    trackPoints;   // punti di traccia salvati
   bool        navActive;
   bool        navOffRoute;
   bool        navFinished;
@@ -82,8 +93,13 @@ static const uint16_t COL_OK    = TFT_GREEN;
 static const uint16_t COL_BAD   = TFT_RED;
 static const uint16_t COL_WARN  = TFT_ORANGE;
 
+static const uint16_t COL_BTN   = 0x18E3;        // fondo dei pulsanti
+static const uint16_t COL_CYAN  = TFT_CYAN;
+
 enum DisplayScreen { SCREEN_NONE, SCREEN_WAIT, SCREEN_DRIVE, SCREEN_NAV };
 static DisplayScreen displayScreen = SCREEN_NONE;
+
+#include "touch_ui.h"
 
 // ---------------------------------------------------------------------------
 static void displayField(const char *text, int32_t x, int32_t y,
@@ -202,6 +218,9 @@ static void drawDriveChrome() {
 
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
+#if ENABLE_TOUCH
+  tft.drawString("= menu", 240, 19, 2);      // tocca la barra in alto
+#endif
   tft.drawString("km/h", 158, 212, 4);
   tft.drawString("DIREZIONE", 400, 70, 2);
   tft.drawString("DALLA BASE", 400, 162, 2);
@@ -302,6 +321,9 @@ static void drawNavChrome() {
 
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
+#if ENABLE_TOUCH
+  tft.drawString("= menu", 150, 19, 2);
+#endif
   tft.drawString("RESTANO", 385, 70, 2);
   tft.drawString("PROSSIMA TAPPA", 385, 152, 2);
   tft.drawString("VELOCITA'", 385, 240, 2);
@@ -416,6 +438,251 @@ static void drawNav(const DisplayData &d, bool force) {
 }
 
 // ---------------------------------------------------------------------------
+// Menu
+//
+// Quattro pulsanti grandi: in auto si deve centrare senza mirare. Le pagine
+// sono statiche, si ridisegnano quando ci entri e basta - solo le schermate
+// di marcia hanno bisogno del ridisegno parziale continuo.
+//
+// Attenzione: caricare un GPX o disegnare un percorso resta roba da telefono,
+// qui non c'e' tastiera. Il menu fa le cose che hanno senso a bordo: dire
+// cosa c'e' in memoria, buttarlo via, e tirare su la rete per farti collegare.
+// ---------------------------------------------------------------------------
+enum UiPage : uint8_t {
+  PAGE_LIVE = 0,      // le schermate di marcia, scelte dallo stato del fix
+  PAGE_MENU,
+  PAGE_ROUTE,
+  PAGE_PHONE,
+  PAGE_TRIP,
+  PAGE_CONFIRM
+};
+
+enum UiAction : uint8_t {
+  UI_NONE = 0, UI_ROUTE_CLEAR, UI_TRACK_CLEAR, UI_TRIP_RESET,
+  UI_PORTAL_ON, UI_PORTAL_OFF
+};
+
+struct Rect { int16_t x, y, w, h; };
+
+static bool rectHit(const Rect &r, int16_t x, int16_t y) {
+  return x >= r.x && x < (int16_t)(r.x + r.w) && y >= r.y && y < (int16_t)(r.y + r.h);
+}
+
+// due colonne per due righe, margini uguali da tutti i lati
+static const Rect MENU_BTN[4] = {
+  { 14,  50, 221, 123}, {245,  50, 221, 123},
+  { 14, 183, 221, 123}, {245, 183, 221, 123}
+};
+// tre posti in fondo alle pagine: indietro, azione, azione
+static const Rect PAGE_BTN[3] = {
+  { 14, 258, 140, 48}, {170, 258, 140, 48}, {326, 258, 140, 48}
+};
+static const Rect BARRA_MENU = {0, 0, 480, 40};   // tocca qui per il menu
+
+static UiPage    uiPage     = PAGE_MENU;          // all'accensione si parte da qui
+static bool      uiDirty    = true;
+static UiAction  uiPending  = UI_NONE;            // azione in attesa di conferma
+static UiPage    uiBack     = PAGE_MENU;
+static char      uiQuestion[48] = "";
+static bool      uiPortalOn = false;              // copia per il pulsante del telefono
+static uint32_t  uiTouchMs  = 0;
+
+static void uiGoto(UiPage p) {
+  uiPage  = p;
+  uiDirty = true;
+  if (p == PAGE_LIVE) displayScreen = SCREEN_NONE;   // forza il ridisegno della cornice
+}
+
+static void uiAsk(UiAction a, const char *domanda) {
+  uiPending = a;
+  uiBack    = uiPage;
+  snprintf(uiQuestion, sizeof(uiQuestion), "%s", domanda);
+  uiGoto(PAGE_CONFIRM);
+}
+
+static void drawButton(const Rect &r, const char *titolo, const char *sotto, uint16_t bordo) {
+  tft.fillRoundRect(r.x, r.y, r.w, r.h, 10, COL_BTN);
+  tft.drawRoundRect(r.x, r.y, r.w, r.h, 10, bordo);
+  tft.setTextDatum(MC_DATUM);
+  tft.setTextColor(COL_FG, COL_BTN);
+  const int16_t cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+  const bool    due = sotto && *sotto;
+  tft.drawString(titolo, cx, due ? cy - 16 : cy, 4);
+  if (due) {
+    tft.setTextColor(COL_LABEL, COL_BTN);
+    tft.drawString(sotto, cx, cy + 20, 2);
+  }
+}
+
+static void drawPageHead(const char *titolo) {
+  tft.fillScreen(COL_BG);
+  tft.drawFastHLine(0, 38, 480, COL_LINE);
+  tft.setTextDatum(ML_DATUM);
+  tft.setTextColor(COL_FG, COL_BG);
+  tft.drawString(titolo, 14, 19, 4);
+}
+
+static void drawRiga(const char *etichetta, const char *valore, int16_t y) {
+  tft.setTextDatum(ML_DATUM);
+  tft.setTextColor(COL_LABEL, COL_BG);
+  tft.drawString(etichetta, 20, y, 2);
+  tft.setTextColor(COL_FG, COL_BG);
+  tft.drawString(valore, 210, y, 4);
+}
+
+static void drawMenu(const DisplayData &d) {
+  char sotto[40];
+  drawPageHead("MENU");
+
+  drawButton(MENU_BTN[0], "Naviga",
+             d.navActive ? "percorso attivo" : d.fixValid ? "velocita' e viaggio"
+                                                          : "in attesa del fix", COL_CYAN);
+
+  if (d.navTotal) snprintf(sotto, sizeof(sotto), "%.1f km, %u svolte", d.routeKm, d.routeTurns);
+  else            snprintf(sotto, sizeof(sotto), "nessun percorso");
+  drawButton(MENU_BTN[1], "Percorso", sotto, COL_WARN);
+
+  if (d.portal)            snprintf(sotto, sizeof(sotto), "%s", d.apName ? d.apName : "rete del tracker");
+  else if (d.ipText && *d.ipText) snprintf(sotto, sizeof(sotto), "%s", d.ipText);
+  else                     snprintf(sotto, sizeof(sotto), "non connesso");
+  drawButton(MENU_BTN[2], "Telefono", sotto, COL_CYAN);
+
+  snprintf(sotto, sizeof(sotto), "%.1f km in questo viaggio", d.tripKm);
+  drawButton(MENU_BTN[3], "Viaggio", sotto, COL_OK);
+}
+
+static void drawRoutePage(const DisplayData &d) {
+  char buf[40];
+  drawPageHead("PERCORSO");
+
+  if (d.navTotal) {
+    snprintf(buf, sizeof(buf), "%.1f km", d.routeKm);         drawRiga("lunghezza", buf, 70);
+    snprintf(buf, sizeof(buf), "%u", d.navTotal);             drawRiga("punti", buf, 110);
+    snprintf(buf, sizeof(buf), "%u", d.routeTurns);           drawRiga("svolte", buf, 150);
+    snprintf(buf, sizeof(buf), "%u", d.navStops);             drawRiga("tappe", buf, 190);
+  } else {
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextColor(COL_LABEL, COL_BG);
+    tft.drawString("nessun percorso in memoria", 240, 120, 4);
+  }
+
+  tft.setTextDatum(MC_DATUM);
+  tft.setTextColor(COL_LABEL, COL_BG);
+  tft.drawString("per caricarne uno nuovo usa il telefono", 240, 228, 2);
+
+  drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
+  if (d.navTotal) drawButton(PAGE_BTN[2], "Cancella", "", COL_BAD);
+}
+
+static void drawPhonePage(const DisplayData &d) {
+  uiPortalOn = d.portal;
+  drawPageHead("TELEFONO");
+
+  tft.setTextDatum(MC_DATUM);
+  if (d.portal) {
+    tft.setTextColor(COL_LABEL, COL_BG);
+    tft.drawString("collega il telefono a questa rete", 240, 72, 2);
+    tft.setTextColor(COL_FG, COL_BG);
+    tft.drawString(d.apName ? d.apName : "GPS-Tracker", 240, 108, 4);
+    tft.setTextColor(COL_LABEL, COL_BG);
+    tft.drawString("password: " AP_PASSWORD, 240, 144, 2);
+    tft.setTextColor(COL_OK, COL_BG);
+    tft.drawString("http://192.168.4.1", 240, 186, 4);
+    drawButton(PAGE_BTN[2], "Spegni", "", COL_WARN);
+  } else if (d.ipText && *d.ipText) {
+    tft.setTextColor(COL_LABEL, COL_BG);
+    tft.drawString("stessa rete del telefono:", 240, 72, 2);
+    tft.setTextColor(COL_FG, COL_BG);
+    tft.drawString(d.netName ? d.netName : "--", 240, 106, 4);
+    tft.setTextColor(COL_OK, COL_BG);
+    tft.drawString(d.ipText, 240, 152, 4);
+    tft.setTextColor(COL_LABEL, COL_BG);
+    tft.drawString("oppure http://gps-tracker.local/", 240, 190, 2);
+    drawButton(PAGE_BTN[2], "Rete mia", "", COL_CYAN);
+  } else {
+    tft.setTextColor(COL_BAD, COL_BG);
+    tft.drawString("nessuna rete", 240, 100, 4);
+    tft.setTextColor(COL_LABEL, COL_BG);
+    tft.drawString("accendi la rete del tracker e collegati a quella", 240, 150, 2);
+    drawButton(PAGE_BTN[2], "Accendi", "", COL_OK);
+  }
+
+  drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
+}
+
+static void drawTripPage(const DisplayData &d) {
+  char buf[40];
+  drawPageHead("VIAGGIO");
+
+  snprintf(buf, sizeof(buf), "%.1f km", d.tripKm);            drawRiga("percorsi", buf, 70);
+  snprintf(buf, sizeof(buf), "%.0f km/h", d.maxKmh);          drawRiga("velocita' max", buf, 110);
+  displayDuration(d.movingS, buf, sizeof(buf));               drawRiga("in movimento", buf, 150);
+  snprintf(buf, sizeof(buf), "%lu", (unsigned long)d.trackPoints);
+  drawRiga("punti registrati", buf, 190);
+
+  drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
+  drawButton(PAGE_BTN[1], "Azzera", "", COL_WARN);
+  drawButton(PAGE_BTN[2], "Canc. traccia", "", COL_BAD);
+}
+
+static void drawConfirmPage() {
+  drawPageHead("CONFERMA");
+  tft.setTextDatum(MC_DATUM);
+  tft.setTextColor(COL_FG, COL_BG);
+  tft.drawString(uiQuestion, 240, 130, 4);
+  tft.setTextColor(COL_LABEL, COL_BG);
+  tft.drawString("non si torna indietro", 240, 172, 2);
+  drawButton(PAGE_BTN[0], "No", "", COL_LINE);
+  drawButton(PAGE_BTN[2], "Si'", "", COL_BAD);
+}
+
+// Il tocco cambia pagina da solo; quello che tocca il resto del firmware
+// (cancellare, azzerare, accendere la rete) torna indietro come azione.
+static UiAction uiTouch(int16_t x, int16_t y) {
+  uiTouchMs = millis();
+
+  switch (uiPage) {
+    case PAGE_LIVE:
+      if (rectHit(BARRA_MENU, x, y)) uiGoto(PAGE_MENU);
+      return UI_NONE;
+
+    case PAGE_MENU:
+      if (rectHit(MENU_BTN[0], x, y)) uiGoto(PAGE_LIVE);
+      else if (rectHit(MENU_BTN[1], x, y)) uiGoto(PAGE_ROUTE);
+      else if (rectHit(MENU_BTN[2], x, y)) uiGoto(PAGE_PHONE);
+      else if (rectHit(MENU_BTN[3], x, y)) uiGoto(PAGE_TRIP);
+      return UI_NONE;
+
+    case PAGE_CONFIRM:
+      if (rectHit(PAGE_BTN[0], x, y)) { uiGoto(uiBack); return UI_NONE; }
+      if (rectHit(PAGE_BTN[2], x, y)) {
+        const UiAction fatto = uiPending;
+        uiPending = UI_NONE;
+        uiGoto(uiBack);
+        return fatto;
+      }
+      return UI_NONE;
+
+    case PAGE_ROUTE:
+      if (rectHit(PAGE_BTN[0], x, y)) uiGoto(PAGE_MENU);
+      else if (rectHit(PAGE_BTN[2], x, y)) uiAsk(UI_ROUTE_CLEAR, "Cancellare il percorso?");
+      return UI_NONE;
+
+    case PAGE_TRIP:
+      if (rectHit(PAGE_BTN[0], x, y)) { uiGoto(PAGE_MENU); return UI_NONE; }
+      if (rectHit(PAGE_BTN[1], x, y)) { uiDirty = true;  return UI_TRIP_RESET; }
+      if (rectHit(PAGE_BTN[2], x, y)) uiAsk(UI_TRACK_CLEAR, "Cancellare la traccia?");
+      return UI_NONE;
+
+    case PAGE_PHONE:
+      if (rectHit(PAGE_BTN[0], x, y)) { uiGoto(PAGE_MENU); return UI_NONE; }
+      if (rectHit(PAGE_BTN[2], x, y)) { uiDirty = true; return uiPortalOn ? UI_PORTAL_OFF : UI_PORTAL_ON; }
+      return UI_NONE;
+  }
+  return UI_NONE;
+}
+
+// ---------------------------------------------------------------------------
 static void displayBegin() {
   tft.init();
   tft.setRotation(DISPLAY_ROTATION);
@@ -425,9 +692,33 @@ static void displayBegin() {
   tft.drawString("ESP32 GPS Tracker", 240, 150, 4);
   tft.setTextColor(COL_LABEL, COL_BG);
   tft.drawString("avvio...", 240, 190, 2);
+
+#if ENABLE_TOUCH
+  touchBegin();            // la prima accensione chiede la taratura
+#endif
+  uiTouchMs = millis();    // da qui parte il conto del menu
+  uiGoto(PAGE_MENU);
 }
 
 static void displayUpdate(const DisplayData &d) {
+  // Se non tocchi niente il menu si fa da parte: senza touch collegato il
+  // tracker si comporta come prima, dopo MENU_TIMEOUT_MS e' in navigazione.
+  if (uiPage == PAGE_MENU && millis() - uiTouchMs > MENU_TIMEOUT_MS) uiGoto(PAGE_LIVE);
+
+  if (uiPage != PAGE_LIVE) {
+    if (!uiDirty) return;             // le pagine sono ferme: si disegnano una volta
+    uiDirty = false;
+    switch (uiPage) {
+      case PAGE_MENU:    drawMenu(d);       break;
+      case PAGE_ROUTE:   drawRoutePage(d);  break;
+      case PAGE_PHONE:   drawPhonePage(d);  break;
+      case PAGE_TRIP:    drawTripPage(d);   break;
+      case PAGE_CONFIRM: drawConfirmPage(); break;
+      default: break;
+    }
+    return;
+  }
+
   const DisplayScreen wanted = !d.fixValid          ? SCREEN_WAIT
                              : d.navActive          ? SCREEN_NAV
                                                     : SCREEN_DRIVE;
