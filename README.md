@@ -206,43 +206,61 @@ velocita' grande al centro, direzione, distanza dalla base, chilometri del viagg
 velocita' massima, tempo in movimento, quota e orologio sincronizzato dal GPS. Finche' il
 fix non arriva mostra satelliti e frasi NMEA, cosi' si capisce a che punto e'.
 
-| Pin del display | ESP32 |
-|---|---|
-| `VCC` | `3V3` (vedi nota) |
-| `GND` | `GND` |
-| `CS` | `D15` |
-| `RESET` | `D4` |
-| `DC/RS` | `D2` |
-| `SDI (MOSI)` | `D23` |
-| `SCK` | `D18` |
-| `LED` | `3V3` |
-| `SDO (MISO)` | `D19` |
-| `T_CLK` `T_CS` `T_DIN` `T_DO` `T_IRQ` | **non collegati**: il touch non serve |
+![Collegamento del display](docs/wiring-display.svg)
 
-Poi in `config.h`:
+**Abbina le sigle stampate sulla scheda, non la posizione dei pin**: l'ordine del connettore
+cambia da un modulo all'altro, i nomi no.
 
-```c
-#define ENABLE_DISPLAY  1
-#define PIN_LED        32   // GPIO2 ora e' il DC del display
-#define PIN_GPS_PPS    -1   // GPIO4 ora e' il RESET del display
-```
+| Pin del display | ESP32 | |
+|---|---|---|
+| `VCC` | `3V3` | alimentazione del pannello (vedi nota) |
+| `GND` | `GND` | massa in comune con tutto il resto |
+| `CS` | `D5` | selezione del pannello |
+| `RESET` | `D22` | azzeramento |
+| `DC` o `RS` | `D21` | dato o comando |
+| `SDI (MOSI)` | `D23` | dati verso il display |
+| `SCK` | `D18` | clock |
+| `LED` | `3V3` | retroilluminazione, sempre accesa |
+| `SDO (MISO)` | `D19` | dati di ritorno, si puo' anche omettere |
+| `T_CLK` `T_CS` `T_DIN` `T_DO` `T_IRQ` | — | **non collegati**: il touch non serve |
+| `SD_CS` `SD_MOSI` `SD_MISO` `SD_SCK` | — | **non collegati**: la microSD non e' usata |
 
-Se dimentichi gli ultimi due la compilazione si ferma con un messaggio che dice cosa
-cambiare: meglio un errore subito che un display che non parte e mezza giornata persa.
+In `config.h` c'e' solo `ENABLE_DISPLAY 1`, che e' il valore di partenza: **nient'altro da
+cambiare.** Il LED di bordo resta su GPIO2 e il PPS del GPS su GPIO4, perche' i pin del
+pannello sono stati scelti fra quelli liberi. Se ne sposti uno su una funzione gia' occupata
+la compilazione si ferma con un messaggio che dice quale: meglio un errore subito che mezza
+giornata a chiedersi perche' il GPS non parla piu'.
+
+I pin del pannello si cambiano in un posto solo, i `build_flags` di `platformio.ini`
+(`TFT_CS`, `TFT_DC`, `TFT_RST`, `TFT_SCLK`, `TFT_MOSI`, `TFT_MISO`).
 
 **Alimentazione**: parti sempre da `3V3`. Queste basette sono progettate per 3,3 V; i 5 V
 li regge solo chi ha il regolatore a bordo (un SOT-23 a 5 piedini vicino al `VCC`, di solito
 `AMS1117`) e senza di quello il pannello si brucia. Il pin `LED` va a `3V3` e non a un GPIO:
 la retroilluminazione di un 4" assorbe piu' di quanto un pin possa erogare.
 
+Pannello e retroilluminazione insieme chiedono 150-200 mA: il regolatore della DevKit li
+regge, alimentando la scheda dalla USB del PC o da un alimentatore da 1 A in su. Se invece
+la scheda si riavvia da sola appena si accende lo schermo (`Brownout detector was
+triggered` nel log), la corrente non basta: cambia cavo, usa una presa piu' generosa, o
+alimenta il `3V3` del display da una fonte separata tenendo la massa in comune.
+
 **Nell'Arduino IDE** copia [`tools/TFT_eSPI_User_Setup_ST7796.h`](tools/TFT_eSPI_User_Setup_ST7796.h)
 dentro la cartella della libreria TFT_eSPI, sovrascrivendo `User_Setup.h` (va rifatto dopo
 ogni aggiornamento della libreria). Con PlatformIO non serve: la configurazione e' gia' nei
 `build_flags` di `platformio.ini`.
 
-**Caricamento del firmware**: GPIO2 e GPIO15 sono anche pin di strapping dell'ESP32. Di norma
-non danno fastidio, ma se dopo aver collegato il display il caricamento non parte piu'
-(`Failed to connect to ESP32`), stacca i fili `DC` e `CS`, carica, e ricollegali.
+**Se lo schermo resta bianco o pieno di righe**: nove volte su dieci e' un filo. Controlla
+`CS`, `DC` e `RESET`, che sono quelli che decidono se il pannello capisce i comandi. Se
+l'immagine c'e' ma e' sporca o tremolante, il problema e' la velocita' sui cavetti volanti:
+in `platformio.ini` abbassa `SPI_FREQUENCY` da `27000000` a `20000000`. Fili corti aiutano
+piu' di qualsiasi impostazione.
+
+**Immagine girata o specchiata**: `DISPLAY_ROTATION` in `config.h`, valori da 0 a 3.
+
+**Caricamento del firmware**: con questi pin il caricamento via USB non viene disturbato
+(GPIO0, GPIO2, GPIO12 e GPIO15, che sono quelli che decidono come parte la scheda, restano
+liberi). `GPIO5` e' l'unico pin di avvio usato, come `CS`, e sta alto: non da' problemi.
 
 ---
 
@@ -552,5 +570,7 @@ projects/esp32-gps-tracker/
 │   ├── windows/carica-firmware.bat   compila, carica e apre il log su Windows
 │   ├── make_arduino_sketch.sh   genera lo sketch per l'Arduino IDE
 │   └── TFT_eSPI_User_Setup_ST7796.h  configurazione del display per l'Arduino IDE
-└── docs/wiring.svg              schema dei collegamenti
+└── docs/
+    ├── wiring.svg               schema dei collegamenti del GPS
+    └── wiring-display.svg       schema dei collegamenti del display
 ```

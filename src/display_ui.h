@@ -16,18 +16,27 @@
 
 #if ENABLE_DISPLAY
 
-#if PIN_LED == 2
-  #error "Con il display GPIO2 e' il pin DC: in config.h sposta PIN_LED su 32"
-#endif
-#if PIN_GPS_PPS == 4
-  #error "Con il display GPIO4 e' il pin RESET: in config.h metti PIN_GPS_PPS a -1"
-#endif
-
 #include <Arduino.h>
 #include <TFT_eSPI.h>
 #include <time.h>
 
 #include "turns.h"
+
+// I pin del pannello stanno in platformio.ini: qui si controlla solo che non
+// finiscano anche su un'altra funzione. Meglio una compilazione che si ferma
+// con un messaggio chiaro che mezza giornata a chiedersi perche' il GPS non
+// parla piu' da quando c'e' lo schermo.
+#define DISPLAY_USA_PIN(p) ((p) == TFT_CS   || (p) == TFT_DC   || (p) == TFT_RST || \
+                            (p) == TFT_SCLK || (p) == TFT_MOSI || (p) == TFT_MISO)
+#if DISPLAY_USA_PIN(PIN_LED)
+  #error "PIN_LED e' un pin del display: in config.h scegline un altro (32 va bene)"
+#endif
+#if DISPLAY_USA_PIN(PIN_GPS_PPS)
+  #error "PIN_GPS_PPS e' un pin del display: in config.h mettilo a -1"
+#endif
+#if DISPLAY_USA_PIN(PIN_GPS_RX) || DISPLAY_USA_PIN(PIN_GPS_TX)
+  #error "I pin del GPS si sovrappongono al display: controlla config.h"
+#endif
 
 struct DisplayData {
   bool        fixValid;

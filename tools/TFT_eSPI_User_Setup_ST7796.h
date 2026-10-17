@@ -16,10 +16,11 @@
 #define TFT_MISO 19   // SDO
 #define TFT_MOSI 23   // SDI
 #define TFT_SCLK 18   // SCK
-#define TFT_CS   15   // CS
-#define TFT_DC    2   // DC/RS
-#define TFT_RST   4   // RESET
-#define TOUCH_CS 33   // T_CS, solo se colleghi il touch
+#define TFT_CS    5   // CS
+#define TFT_DC   21   // DC/RS
+#define TFT_RST  22   // RESET
+// Il touch non viene usato: lasciando TOUCH_CS fuori, i pin T_* del pannello
+// restano liberi e scollegati.
 
 // Font caricati: il 7 e' quello a sette segmenti usato per la velocita'
 #define LOAD_GLCD
@@ -31,6 +32,5 @@
 #define LOAD_GFXFF
 #define SMOOTH_FONT
 
-#define SPI_FREQUENCY       40000000
+#define SPI_FREQUENCY       27000000   // con i cavetti volanti; 40 MHz su stampato
 #define SPI_READ_FREQUENCY  20000000
-#define SPI_TOUCH_FREQUENCY  2500000

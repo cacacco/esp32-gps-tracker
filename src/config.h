@@ -118,14 +118,21 @@
 // ===========================================================================
 // 6c) Display TFT 4" ST7796 (480x320, SPI) - facoltativo
 //
-//     Collegamenti: VCC->3V3, GND->GND, CS->D15, RESET->D4, DC/RS->D2,
-//     SDI(MOSI)->D23, SCK->D18, LED->3V3, SDO(MISO)->D19.
-//     Il touch non serve: i pin T_* si possono lasciare scollegati.
+//     Collegamenti (cerca la sigla stampata sulla scheda, non la posizione):
 //
-//     ATTENZIONE: con il display, GPIO2 e GPIO4 sono del pannello. Metti
-//     PIN_LED a 32 e PIN_GPS_PPS a -1, altrimenti la compilazione si ferma.
+//       display        ESP32           display        ESP32
+//       -----------------------        -----------------------
+//       VCC         -> 3V3             SCK         -> D18
+//       GND         -> GND             LED         -> 3V3
+//       CS          -> D5              SDO (MISO)  -> D19
+//       RESET       -> D22             T_* (touch) -> scollegati
+//       DC o RS     -> D21             SD_* (microSD) -> scollegati
+//       SDI (MOSI)  -> D23
+//
+//     Niente da cambiare altrove: il LED di bordo resta su GPIO2 e il PPS
+//     del GPS su GPIO4. I pin del pannello si cambiano in platformio.ini.
 // ===========================================================================
-#define ENABLE_DISPLAY             0
+#define ENABLE_DISPLAY             1
 #define DISPLAY_ROTATION           1   // 0-3: gira l'immagine di 90 gradi
 #define DISPLAY_REFRESH_MS       250   // ogni quanto aggiornare i numeri
 #define TIME_UTC_OFFSET_MIN      120   // orologio: 60 in inverno, 120 in estate
