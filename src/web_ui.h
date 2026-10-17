@@ -63,6 +63,20 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
   .mini{padding:7px 10px;font-size:14px;line-height:1}
   .empty{color:var(--muted);font-size:14px;padding:12px 0}
   .btn.on{border-color:var(--accent);color:var(--accent)}
+  .num{background:#35c46a;color:#0f1115;border-radius:50%;width:24px;height:24px;
+       display:flex;align-items:center;justify-content:center;font:700 12px/1 system-ui;
+       border:2px solid #0f1115;box-shadow:0 0 0 1px #35c46a}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .chip{display:flex;align-items:center;gap:6px;background:var(--card);
+        border:1px solid var(--line);border-radius:999px;padding:3px 6px 3px 10px;font-size:13px}
+  .chip b{font-weight:600;color:#35c46a}
+  .chip button{border:0;background:transparent;color:var(--muted);font-size:15px;
+               line-height:1;padding:2px 5px;cursor:pointer;border-radius:999px}
+  .chip button:hover{background:#3a2020;color:#e8534f}
+  .trova{display:flex;gap:8px;flex:1;min-width:220px}
+  .trova input{flex:1;min-width:0}
+  .esiti{display:flex;flex-direction:column;gap:4px;width:100%}
+  .esito{text-align:left;font-size:13px;padding:7px 10px;line-height:1.35}
   footer{color:var(--muted);font-size:12px;border-top:1px solid var(--line);
          padding:12px 16px;text-align:center;line-height:1.7}
 </style>
@@ -134,9 +148,17 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
     <span class="coords" id="snapNote">serve internet solo adesso, non in auto</span>
   </div>
   <div class="row" id="drawBox" hidden>
-    <span class="coords" id="drawInfo">tocca la mappa punto per punto, seguendo la strada</span>
+    <div class="trova">
+      <input type="search" id="cerca" placeholder="cerca un indirizzo o un paese" autocomplete="off">
+      <button id="btnCerca">Cerca</button>
+    </div>
     <button id="btnDrawUndo">Annulla ultimo</button>
     <button id="btnDrawSave">Salva percorso</button>
+  </div>
+  <div class="row esiti" id="esiti" hidden></div>
+  <div class="row" id="puntiBox" hidden>
+    <span class="coords" id="drawInfo">tocca la mappa, o cerca un indirizzo</span>
+    <div class="chips" id="punti"></div>
   </div>
 
   <div class="sep">Tappe</div>
@@ -156,7 +178,7 @@ const $ = id => document.getElementById(id);
 let map = null, marker = null, circle = null, line = null, firstFit = true;
 let routeLine = null, targetMark = null, routePts = [];
 let stopLayer = null, stopsArr = [], stopsNext = 0, stopsDirty = false, addOnMap = false;
-let drawLine = null, drawLayer = null, drawPts = [], drawMode = false;
+let drawLine = null, drawLayer = null, drawPts = [], drawNomi = [], drawMode = false;
 let turnLayer = null, turnsArr = [];
 
 // Il calcolo delle strade lo fa questo servizio pubblico, dal telefono, mentre
@@ -184,11 +206,7 @@ function initMap(){
   drawLayer  = L.layerGroup().addTo(map);
   turnLayer  = L.layerGroup().addTo(map);
   map.on('click', e => {
-    if (drawMode) {
-      drawPts.push([e.latlng.lat, e.latlng.lng]);
-      renderDraw();
-      return;
-    }
+    if (drawMode) { aggiungiPunto(e.latlng.lat, e.latlng.lng, ''); return; }
     if (!addOnMap) return;
     stopsArr.push({lat:e.latlng.lat, lon:e.latlng.lng, name:'Tappa ' + (stopsArr.length + 1)});
     stopsDirty = true;
@@ -469,14 +487,84 @@ async function calcolaStrade(punti, avviso){
 function renderDraw(){
   drawLine.setLatLngs(drawPts);
   drawLayer.clearLayers();
-  drawPts.forEach((p, i) => L.circleMarker(p, {radius:4, color:'#35c46a',
-    fillColor:'#0f1115', fillOpacity:1, weight:2}).addTo(drawLayer)
-    .bindTooltip(String(i + 1), {permanent:false}));
+
+  // Ogni punto ha il suo numero, si trascina per spostarlo e si cancella dal
+  // gettone qui sotto: sulla mappa un tocco di troppo e' sempre in agguato.
+  drawPts.forEach((p, i) => {
+    const icona = L.divIcon({className:'', iconSize:[24,24], iconAnchor:[12,12],
+                             html:`<div class="num">${i + 1}</div>`});
+    L.marker(p, {icon:icona, draggable:true, autoPan:true})
+      .on('drag',    e => { drawPts[i] = [e.latlng.lat, e.latlng.lng]; drawLine.setLatLngs(drawPts); })
+      .on('dragend', () => renderDraw())
+      .addTo(drawLayer);
+  });
+
+  const box = $('punti');
+  box.innerHTML = '';
+  drawPts.forEach((p, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    const n = document.createElement('b');
+    n.textContent = i + 1;
+    const via = document.createElement('span');
+    via.textContent = drawNomi[i] || `${p[0].toFixed(4)}, ${p[1].toFixed(4)}`;
+    const x = document.createElement('button');
+    x.textContent = '\u00D7';
+    x.title = 'togli questo punto';
+    x.onclick = () => { drawPts.splice(i, 1); drawNomi.splice(i, 1); renderDraw(); };
+    chip.append(n, via, x);
+    box.appendChild(chip);
+  });
+
   let km = 0;
   for (let i = 1; i < drawPts.length; i++) km += metri(drawPts[i-1], drawPts[i]);
   $('drawInfo').textContent = drawPts.length
-    ? `${drawPts.length} punti - ${(km/1000).toFixed(1)} km`
-    : 'tocca la mappa punto per punto, seguendo la strada';
+    ? `${drawPts.length} punti in linea d'aria ${(km/1000).toFixed(1)} km`
+    : 'tocca la mappa, o cerca un indirizzo';
+  $('puntiBox').hidden = !drawMode;
+}
+
+// ---- ricerca degli indirizzi (Nominatim, lo stesso dietro a OpenStreetMap) ----
+const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
+
+function aggiungiPunto(lat, lon, nome){
+  drawPts.push([lat, lon]);
+  drawNomi.push(nome || '');
+  renderDraw();
+}
+
+async function cercaIndirizzo(){
+  const q = $('cerca').value.trim();
+  const box = $('esiti');
+  if (q.length < 3) { box.hidden = true; return; }
+
+  box.hidden = false;
+  box.innerHTML = '<span class="coords">cerco...</span>';
+  try {
+    const url = `${NOMINATIM}?format=jsonv2&limit=5&accept-language=it&q=${encodeURIComponent(q)}`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('il servizio ha risposto ' + r.status);
+    const esiti = await r.json();
+    box.innerHTML = '';
+    if (!esiti.length) { box.innerHTML = '<span class="coords">nessun risultato</span>'; return; }
+
+    esiti.forEach(e => {
+      const b = document.createElement('button');
+      b.className = 'esito';
+      b.textContent = e.display_name;
+      b.onclick = () => {
+        const lat = +e.lat, lon = +e.lon;
+        if (!drawMode) setDrawMode(true);
+        aggiungiPunto(lat, lon, e.name || e.display_name.split(',')[0]);
+        if (map) map.setView([lat, lon], Math.max(map.getZoom(), 14));
+        box.hidden = true;
+        $('cerca').value = '';
+      };
+      box.appendChild(b);
+    });
+  } catch(e){
+    box.innerHTML = `<span class="coords">ricerca non riuscita (${e.message}): serve internet sul telefono</span>`;
+  }
 }
 
 function setDrawMode(on){
@@ -485,14 +573,18 @@ function setDrawMode(on){
   $('btnDraw').classList.toggle('on', on);
   $('btnDraw').textContent = on ? 'Chiudi disegno' : 'Disegna sulla mappa';
   if (on) {
+    renderDraw();                         // l'elenco dei punti parte pulito
     addOnMap = false;
     $('btnStopMap').classList.remove('on');
     $('btnStopMap').textContent = 'Aggiungi toccando la mappa';
     $('follow').checked = false;          // la mappa non deve scappare mentre tocchi
   } else {
     drawPts = [];
+    drawNomi = [];
+    $('esiti').hidden = true;
     renderDraw();
   }
+  $('puntiBox').hidden = !on;
 }
 
 const NOTA_FERMA = 'serve internet solo adesso, non in auto';
@@ -600,7 +692,9 @@ $('btnDraw').onclick = () => {
       !confirm('C\'e\' gia\' un percorso: salvando quello nuovo lo sostituisci. Vado avanti?')) return;
   setDrawMode(!drawMode);
 };
-$('btnDrawUndo').onclick = () => { drawPts.pop(); renderDraw(); };
+$('btnDrawUndo').onclick = () => { drawPts.pop(); drawNomi.pop(); renderDraw(); };
+$('btnCerca').onclick = cercaIndirizzo;
+$('cerca').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); cercaIndirizzo(); } };
 $('btnDrawSave').onclick = async () => { if (await inviaPercorso(drawPts)) setDrawMode(false); };
 $('btnFromStops').onclick = async () => {
   if (stopsArr.length < 2) { alert('Servono almeno due tappe: aggiungile qui sotto e salvale.'); return; }

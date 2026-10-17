@@ -376,11 +376,19 @@ Non serve avere gia' un GPX ne' un computer: basta la dashboard.
 
 1. Premi **Disegna sulla mappa**. Il pulsante resta acceso e il *segui* si spegne da solo,
    cosi' la mappa non scappa mentre tocchi.
-2. **Tocca la mappa dove vuoi passare.** Con *segui le strade* attivo (vedi sotto) bastano
-   pochi tocchi: partenza, i bivi dove il percorso sarebbe ambiguo, arrivo. A ogni tocco la
-   linea verde si allunga e sotto leggi quanti punti e quanti km. *Annulla ultimo* toglie
-   l'ultimo tocco.
-3. Premi **Salva percorso**.
+2. **Metti i punti dove vuoi passare**, in due modi che si mescolano come ti comoda:
+   * **toccando la mappa**, oppure
+   * **cercando un indirizzo**: scrivi "Montecchio" o "Via Roma 12, Urbino" nella casella e
+     premi Cerca. Scegli dall'elenco e il punto si aggiunge da solo, con il suo nome.
+     La ricerca e' quella di OpenStreetMap e serve internet sul telefono, come la mappa.
+
+   Con *segui le strade* attivo bastano pochi punti: partenza, i bivi dove il percorso sarebbe
+   ambiguo, arrivo.
+3. **I punti sono numerati** sulla mappa e ripetuti nell'elenco qui sotto. Puoi:
+   * **trascinarli** sulla mappa per spostarli;
+   * **cancellarne uno qualsiasi** con la "&times;" del suo gettone - non solo l'ultimo;
+   * togliere l'ultimo con *Annulla ultimo*.
+4. Premi **Salva percorso**.
 
 C'e' anche la scorciatoia **Crea dalle tappe**: se hai gia' messo le tappe, costruisce il
 percorso unendole in ordine, senza toccare altro.
