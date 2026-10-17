@@ -308,11 +308,22 @@ percorso. *Azzera viaggio* no, quello e' innocuo.
 [TOUCH] taratura caricata: 320 3810 405 3700 (rot 1)
 ```
 
-Se invece leggi `z fra 0 e 0` o `z fra 4095 e 4095` seguito da *non risponde*, il controller
-non sta parlando: controlla `T_CS` su `D27` e che i tre ponti (`T_CLK`, `T_DIN`, `T_DO`) siano
-davvero sulla stessa riga della breadboard di `SCK`, `SDI` e `SDO`. Se i numeri della taratura
-sono tutti uguali o a zero, era nata da letture spurie: il firmware se ne accorge da solo e la
-rifa'. Per vedere cosa legge il controller mentre premi, metti `TOUCH_DEBUG` a 1 in `config.h`:
+Le due righe dicono due cose diverse:
+
+* **`z fra 0 e 0` o `z fra 4095 e 4095`** seguito da *non risponde*: il controller non parla.
+  Controlla `T_CS` su `D27` e che i tre ponti (`T_CLK`, `T_DIN`, `T_DO`) siano davvero sulla
+  stessa riga della breadboard di `SCK`, `SDI` e `SDO` - sulla breadboard la riga si interrompe
+  al canale centrale, e un filo dall'altra parte non e' collegato.
+* **valori bassi che ballano** (tipo `z fra 4 e 91`): il controller c'e' e risponde. Se nonostante
+  questo il tocco non va, guarda il **secondo e il quarto numero della taratura**: non sono
+  estremi, sono ampiezze, e su un pannello sano valgono qualche migliaio. Se leggi `675 1 755 4`
+  significa che i quattro angoli hanno dato tutti la stessa lettura, cioe' che il pannello non
+  sente il dito: il problema e' il **connettore del vetro touch sulla basetta**, non i fili
+  verso l'ESP32. Il firmware scarta da solo una taratura cosi'.
+
+Quando manca una taratura valida il display chiede di toccare lo schermo per cominciare: se in
+15 secondi non sente niente, **non si blocca** - lo dice nel log e prosegue senza tocco, cosi'
+GPS, registrazione e dashboard restano in piedi. Per vedere cosa legge il controller mentre premi, metti `TOUCH_DEBUG` a 1 in `config.h`:
 il log stampa due volte al secondo le coordinate grezze.
 
 **La prima accensione chiede la taratura del tocco**: tocca la punta della freccia nei quattro

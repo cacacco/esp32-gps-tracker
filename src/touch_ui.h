@@ -21,6 +21,7 @@
 #define STRINGA(x)  STRINGA2(x)
 
 static uint16_t touchCal[5]  = {0, 0, 0, 0, 0};
+static uint16_t touchZRiposo = 0;       // quanto legge il controller non premuto
 static bool     touchReady   = false;
 static bool     touchDown    = false;   // dito gia' appoggiato al giro prima
 static uint32_t touchLastMs  = 0;
@@ -43,15 +44,39 @@ static bool touchLoadCal() {
   return ok;
 }
 
-// Una taratura nata da letture spurie (controller che non risponde, filo del
-// T_CS staccato) e' fatta di numeri senza senso: meglio accorgersene qui che
-// ritrovarsi un menu che non risponde e non capire perche'.
+// Nei parametri di TFT_eSPI il secondo e il quarto numero non sono estremi ma
+// AMPIEZZE: quanto si sposta la lettura grezza da un bordo all'altro. Su un
+// pannello sano valgono qualche migliaio. Se valgono 1 o 4 vuol dire che i
+// quattro angoli hanno dato tutti la stessa lettura, cioe' che la taratura e'
+// nata dal rumore e non dal dito.
 static bool touchCalSensata() {
-  for (uint8_t i = 0; i < 4; i++)
-    if (touchCal[i] == 0 || touchCal[i] == 0xFFFF) return false;
-  const int32_t dx = (int32_t)touchCal[1] - (int32_t)touchCal[0];
-  const int32_t dy = (int32_t)touchCal[3] - (int32_t)touchCal[2];
-  return abs(dx) > 100 && abs(dy) > 100;
+  const bool ok = touchCal[1] > 500 && touchCal[1] < 4096 &&
+                  touchCal[3] > 500 && touchCal[3] < 4096;
+  if (!ok)
+    Serial.printf("[TOUCH] taratura da buttare (%u %u %u %u): le ampiezze %u e %u sono "
+                  "troppo piccole, i quattro angoli hanno letto lo stesso punto\r\n",
+                  touchCal[0], touchCal[1], touchCal[2], touchCal[3],
+                  touchCal[1], touchCal[3]);
+  return ok;
+}
+
+// Soglia oltre la quale una lettura e' un dito e non rumore di fondo.
+static uint16_t touchSogliaDito() {
+  const uint32_t tripla = (uint32_t)touchZRiposo * 3 + 150;
+  return tripla > 300 ? (uint16_t)tripla : 300;
+}
+
+// Aspetta una pressione vera. Senza questa attesa, calibrateTouch resterebbe
+// fermo per sempre sul primo angolo se il pannello non registra il dito, e
+// con lui tutto il tracker: niente GPS, niente WiFi, niente di niente.
+static bool touchAttendiDito(uint32_t msMax) {
+  const uint16_t soglia = touchSogliaDito();
+  const uint32_t fine   = millis() + msMax;
+  while (millis() < fine) {
+    if (tft.getTouchRawZ() > soglia) return true;
+    delay(20);
+  }
+  return false;
 }
 
 // Chiede al controller la pressione, senza taratura di mezzo: serve solo a
@@ -64,6 +89,7 @@ static void touchProbe() {
     if (z > maxZ) maxZ = z;
     delay(5);
   }
+  touchZRiposo = maxZ;
   const bool morto = (minZ == maxZ) && (minZ == 0 || minZ >= 4000);
   Serial.printf("[TOUCH] controller a riposo: z fra %u e %u%s\r\n", minZ, maxZ,
                 morto ? "  -- non risponde: controlla T_CS su D"
@@ -99,9 +125,27 @@ static void touchBegin() {
     touchReady = true;
     Serial.printf("[TOUCH] taratura caricata: %u %u %u %u (rot %u)\r\n",
                   touchCal[0], touchCal[1], touchCal[2], touchCal[3], touchCal[4]);
-  } else {
-    Serial.println(F("[TOUCH] taratura assente o senza senso: la rifaccio"));
+    return;
+  }
+
+  // Prima di iniziare la taratura mi assicuro che il pannello senta il dito:
+  // se non lo sente, tararlo e' impossibile e bloccherebbe l'avvio.
+  tft.fillScreen(COL_BG);
+  tft.setTextDatum(MC_DATUM);
+  tft.setTextColor(COL_FG, COL_BG);
+  tft.drawString("Taratura del tocco", 240, 120, 4);
+  tft.setTextColor(COL_LABEL, COL_BG);
+  tft.drawString("tocca lo schermo per cominciare", 240, 160, 2);
+
+  if (touchAttendiDito(15000)) {
     touchRunCalibration();
+  } else {
+    touchReady = false;
+    Serial.printf("[TOUCH] nessuna pressione in 15 secondi (soglia %u, riposo %u): il "
+                  "controller risponde ma il pannello non sente il dito. Guarda il "
+                  "connettore del vetro touch sulla basetta, non i fili verso l'ESP32. "
+                  "Il tracker prosegue senza tocco.\r\n",
+                  touchSogliaDito(), touchZRiposo);
   }
 }
 
