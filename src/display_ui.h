@@ -131,6 +131,16 @@ static void displayDuration(uint32_t seconds, char *out, size_t len) {
 // ---------------------------------------------------------------------------
 // Barra superiore: stato dell'area, satelliti, qualita', orologio
 // ---------------------------------------------------------------------------
+#if ENABLE_TOUCH
+// Le tre righette del menu, disegnate a mano: nel font non c'e' il simbolo.
+static void drawMenuHint(int16_t x) {
+  for (uint8_t i = 0; i < 3; i++) tft.drawFastHLine(x, 13 + i * 5, 14, COL_LABEL);
+  tft.setTextDatum(ML_DATUM);
+  tft.setTextColor(COL_LABEL, COL_BG);
+  tft.drawString("menu", x + 20, 19, 2);
+}
+#endif
+
 static void drawTopBar(const DisplayData &d, bool force) {
   static int32_t pSat = -1, pHdop = -1;
   static char    pClock[8] = "";
@@ -174,6 +184,9 @@ static void drawWaitChrome() {
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
   tft.drawString("ESP32 GPS Tracker", 240, 19, 2);
+#if ENABLE_TOUCH
+  drawMenuHint(40);
+#endif
 }
 
 static void drawWait(const DisplayData &d, bool force) {
@@ -218,12 +231,13 @@ static void drawDriveChrome() {
 
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
-#if ENABLE_TOUCH
-  tft.drawString("= menu", 240, 19, 2);      // tocca la barra in alto
-#endif
   tft.drawString("km/h", 158, 212, 4);
   tft.drawString("DIREZIONE", 400, 70, 2);
   tft.drawString("DALLA BASE", 400, 162, 2);
+
+#if ENABLE_TOUCH
+  drawMenuHint(260);                      // fra il contasatelliti e l'orologio
+#endif
 
   static const char *labels[4] = { "VIAGGIO", "MAX", "IN MOVIMENTO", "QUOTA" };
   for (uint8_t i = 0; i < 4; i++) tft.drawString(labels[i], 60 + i * 120, 268, 2);
@@ -322,8 +336,9 @@ static void drawNavChrome() {
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
 #if ENABLE_TOUCH
-  tft.drawString("= menu", 150, 19, 2);
+  drawMenuHint(260);                      // fra il contasatelliti e l'orologio
 #endif
+  tft.setTextDatum(MC_DATUM);
   tft.drawString("RESTANO", 385, 70, 2);
   tft.drawString("PROSSIMA TAPPA", 385, 152, 2);
   tft.drawString("VELOCITA'", 385, 240, 2);
