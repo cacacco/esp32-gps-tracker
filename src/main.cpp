@@ -972,6 +972,9 @@ void setup() {
   // Il display e' l'unica cosa che non si vede nel log, e quando non si accende
   // la prima domanda e' sempre "ma il firmware ci sta parlando?". Adesso lo dice.
 #if ENABLE_DISPLAY
+#if PIN_MENU_BUTTON >= 0
+  pinMode(PIN_MENU_BUTTON, INPUT_PULLUP);
+#endif
   displayBegin();
   Serial.printf("[DISPLAY] acceso: CS D%d, DC D%d, RESET D%d, SCK D%d, MOSI D%d\r\n",
                 TFT_CS, TFT_DC, TFT_RST, TFT_SCLK, TFT_MOSI);
@@ -1011,11 +1014,38 @@ void loop() {
 
 #if ENABLE_DISPLAY
   static bool lastDrawForce = false;
+  UiAction azione = UI_NONE;
+
+#if PIN_MENU_BUTTON >= 0
+  // Il tasto BOOT: una via nel menu che non passa dal vetro del touch.
+  {
+    static bool     giuPrima = false;
+    static uint32_t premutoDa = 0;
+    const bool giu = digitalRead(PIN_MENU_BUTTON) == LOW;
+    if (giu && !giuPrima) {
+      giuPrima  = true;
+      premutoDa = millis();
+    } else if (!giu && giuPrima) {
+      giuPrima = false;
+      const uint32_t durata = millis() - premutoDa;
+      if (durata > 40) {                    // sotto i 40 ms e' rimbalzo del tasto
+        azione = (durata >= BUTTON_LONG_MS) ? uiActivate() : uiNext();
+        lastDrawForce = true;
+      }
+    }
+  }
+#endif
 
 #if ENABLE_TOUCH
   int16_t tx = 0, ty = 0;
   if (touchPressed(tx, ty)) {
-    switch (uiTouch(tx, ty)) {
+    azione = uiTouch(tx, ty);
+    lastDrawForce = true;
+  }
+#endif
+
+  if (azione != UI_NONE) {
+    switch (azione) {
       case UI_ROUTE_CLEAR:
         routeClear();
         Serial.println(F("[MENU] percorso cancellato"));
@@ -1040,9 +1070,7 @@ void loop() {
       default:
         break;
     }
-    lastDrawForce = true;             // ridisegna subito, senza aspettare il turno
   }
-#endif
 
   static uint32_t lastDraw = 0;
   if (lastDrawForce || millis() - lastDraw >= DISPLAY_REFRESH_MS) {

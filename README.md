@@ -149,6 +149,8 @@ Le voci che probabilmente vorrai toccare:
 | `TURN_WARN_M` | 400 m | da quanto prima la freccia grande annuncia la svolta |
 | `ENABLE_TOUCH` | 1 | tocco e menu sul display; a 0 se non colleghi i fili `T_*` |
 | `MENU_TIMEOUT_MS` | 15000 | dopo quanto il menu lascia il posto alla navigazione |
+| `PIN_MENU_BUTTON` | 0 | tasto che gira il menu senza toccare lo schermo (0 = BOOT, -1 = nessuno) |
+| `BUTTON_LONG_MS` | 600 | da qui in su la pressione del tasto vale come conferma |
 | `STOP_ARRIVAL_M` | 100 m | entro quale distanza una tappa si considera raggiunta |
 | `ENABLE_SINRICPRO` | 0 | mettilo a 1 per le notifiche push (vedi sotto) |
 | `GPS_AUTO_BAUD` | 1 | all'avvio cerca il baud giusto se il modulo non risponde a 9600 |
@@ -289,6 +291,19 @@ All'accensione compare un menu con quattro pulsanti grandi. Se non lo tocchi ent
 senza touch collegato il tracker parte come sempre. Per tornarci, **tocca la barra in alto**:
 e' l'unica zona che apre il menu, cosi' una manata sullo schermo mentre guidi non ti toglie
 la freccia da davanti.
+
+**Il menu si gira anche col tasto BOOT**, quello che la DevKit ha gia' a bordo: serve quando il
+touch non c'e' o non funziona, e non costa un filo in piu'.
+
+| pressione | cosa fa |
+|---|---|
+| **breve** (meno di `BUTTON_LONG_MS`) | dalle schermate di marcia apre il menu; dentro il menu passa al pulsante successivo |
+| **lunga** (mezzo secondo buono) | preme il pulsante evidenziato, come un dito |
+
+Il pulsante su cui sei si riconosce dalla cornice chiara. Le conferme partono sempre
+evidenziate su **No**, quindi una pressione lunga di troppo annulla e non cancella niente. Con
+`PIN_MENU_BUTTON` puoi usare un tuo pulsante verso massa invece del BOOT, o mettere `-1` per non
+usarlo del tutto.
 
 | Pulsante | Cosa fa |
 |---|---|

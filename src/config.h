@@ -152,6 +152,14 @@
 //     all'avvio e dopo MENU_TIMEOUT_MS entra da solo in navigazione.
 #define ENABLE_TOUCH               1
 #define MENU_TIMEOUT_MS        15000   // quanto resta il menu se non tocchi niente
+
+// Il menu si gira anche con un tasto, senza toccare lo schermo: di serie usa
+// il tasto BOOT che la DevKit ha gia' a bordo. Pressione breve = passa al
+// pulsante dopo, pressione lunga = conferma. Serve quando il touch non c'e'
+// o non funziona. Metti -1 per non usarlo, oppure il pin di un tuo pulsante
+// verso massa.
+#define PIN_MENU_BUTTON            0   // 0 = tasto BOOT della DevKit
+#define BUTTON_LONG_MS           600   // oltre questo tempo la pressione e' lunga
 #define TOUCH_MIN_GAP_MS         250   // due tocchi piu' ravvicinati contano per uno
 #define TOUCH_DEBUG                1   // a 1 stampa nel log le letture grezze del tocco
                                        // (acceso per capire un tocco che non va:

@@ -500,11 +500,20 @@ static UiAction  uiPending  = UI_NONE;            // azione in attesa di conferm
 static UiPage    uiBack     = PAGE_MENU;
 static char      uiQuestion[48] = "";
 static bool      uiPortalOn = false;              // copia per il pulsante del telefono
+static bool      uiHasRoute = false;              // copia per il pulsante Cancella
 static uint32_t  uiTouchMs  = 0;
 
+// Giro fra i pulsanti col tasto: con un tasto solo non si puo' fare di
+// meglio, breve sposta e lungo conferma. Serve quando il touch non c'e'.
+static const Rect *uiSelLista[4];
+static uint8_t     uiSelCount = 0;
+static uint8_t     uiSelIdx   = 0;
+static const Rect *uiSelRect  = nullptr;
+
 static void uiGoto(UiPage p) {
-  uiPage  = p;
-  uiDirty = true;
+  uiPage   = p;
+  uiDirty  = true;
+  uiSelIdx = 0;
   if (p == PAGE_LIVE) displayScreen = SCREEN_NONE;   // forza il ridisegno della cornice
 }
 
@@ -518,6 +527,11 @@ static void uiAsk(UiAction a, const char *domanda) {
 static void drawButton(const Rect &r, const char *titolo, const char *sotto, uint16_t bordo) {
   tft.fillRoundRect(r.x, r.y, r.w, r.h, 10, COL_BTN);
   tft.drawRoundRect(r.x, r.y, r.w, r.h, 10, bordo);
+  // il pulsante scelto col tasto ha una cornice chiara tutt'intorno
+  if (&r == uiSelRect) {
+    tft.drawRoundRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4, 12, COL_FG);
+    tft.drawRoundRect(r.x - 3, r.y - 3, r.w + 6, r.h + 6, 13, COL_FG);
+  }
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_FG, COL_BTN);
   const int16_t cx = r.x + r.w / 2, cy = r.y + r.h / 2;
@@ -548,6 +562,11 @@ static void drawRiga(const char *etichetta, const char *valore, int16_t y) {
 static void drawMenu(const DisplayData &d) {
   char sotto[40];
   drawPageHead("MENU");
+#if PIN_MENU_BUTTON >= 0
+  tft.setTextDatum(MR_DATUM);
+  tft.setTextColor(COL_LABEL, COL_BG);
+  tft.drawString("tasto BOOT: breve sposta, lungo conferma", 466, 19, 2);
+#endif
 
   drawButton(MENU_BTN[0], "Naviga",
              d.navActive ? "percorso attivo" : d.fixValid ? "velocita' e viaggio"
@@ -590,7 +609,6 @@ static void drawRoutePage(const DisplayData &d) {
 }
 
 static void drawPhonePage(const DisplayData &d) {
-  uiPortalOn = d.portal;
   drawPageHead("TELEFONO");
 
   tft.setTextDatum(MC_DATUM);
@@ -697,6 +715,51 @@ static UiAction uiTouch(int16_t x, int16_t y) {
   return UI_NONE;
 }
 
+// Ricostruisce l'elenco dei pulsanti su cui il tasto puo' fermarsi.
+static void uiSelAggiorna() {
+  uiSelCount = 0;
+  switch (uiPage) {
+    case PAGE_MENU:
+      for (uint8_t i = 0; i < 4; i++) uiSelLista[uiSelCount++] = &MENU_BTN[i];
+      break;
+    case PAGE_ROUTE:
+      uiSelLista[uiSelCount++] = &PAGE_BTN[0];
+      if (uiHasRoute) uiSelLista[uiSelCount++] = &PAGE_BTN[2];
+      break;
+    case PAGE_PHONE:
+    case PAGE_CONFIRM:
+      uiSelLista[uiSelCount++] = &PAGE_BTN[0];
+      uiSelLista[uiSelCount++] = &PAGE_BTN[2];
+      break;
+    case PAGE_TRIP:
+      for (uint8_t i = 0; i < 3; i++) uiSelLista[uiSelCount++] = &PAGE_BTN[i];
+      break;
+    default:
+      break;
+  }
+  if (uiSelIdx >= uiSelCount) uiSelIdx = 0;
+  uiSelRect = uiSelCount ? uiSelLista[uiSelIdx] : nullptr;
+}
+
+// Pressione breve: dalle schermate di marcia apre il menu, dentro il menu
+// passa al pulsante successivo.
+static UiAction uiNext() {
+  if (uiPage == PAGE_LIVE) { uiGoto(PAGE_MENU); return UI_NONE; }
+  if (uiSelCount) uiSelIdx = (uint8_t)((uiSelIdx + 1) % uiSelCount);
+  uiSelAggiorna();
+  uiDirty = true;
+  return UI_NONE;
+}
+
+// Pressione lunga: vale come un dito sul pulsante evidenziato, cosi' la
+// logica e' una sola e non puo' divergere da quella del tocco.
+static UiAction uiActivate() {
+  if (uiPage == PAGE_LIVE) { uiGoto(PAGE_MENU); return UI_NONE; }
+  if (!uiSelRect) return UI_NONE;
+  const Rect r = *uiSelRect;
+  return uiTouch((int16_t)(r.x + r.w / 2), (int16_t)(r.y + r.h / 2));
+}
+
 // ---------------------------------------------------------------------------
 static void displayBegin() {
   tft.init();
@@ -720,9 +783,13 @@ static void displayUpdate(const DisplayData &d) {
   // tracker si comporta come prima, dopo MENU_TIMEOUT_MS e' in navigazione.
   if (uiPage == PAGE_MENU && millis() - uiTouchMs > MENU_TIMEOUT_MS) uiGoto(PAGE_LIVE);
 
+  uiHasRoute = d.navTotal > 0;
+  uiPortalOn = d.portal;
+
   if (uiPage != PAGE_LIVE) {
     if (!uiDirty) return;             // le pagine sono ferme: si disegnano una volta
     uiDirty = false;
+    uiSelAggiorna();
     switch (uiPage) {
       case PAGE_MENU:    drawMenu(d);       break;
       case PAGE_ROUTE:   drawRoutePage(d);  break;
