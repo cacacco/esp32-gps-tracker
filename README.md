@@ -329,6 +329,24 @@ disegni il percorso come al solito.
 Le due cancellazioni passano da una conferma: un tocco involontario non ti porta via il
 percorso. *Azzera viaggio* no, quello e' innocuo.
 
+**Se non aggancia il fix.** La riga del log dice ora due numeri diversi, che vanno letti
+insieme:
+
+```
+[GPS] modulo OK (1746 frasi, 12 errori) - in attesa del fix: 9 satelliti in vista, segnale migliore 38 dB
+```
+
+* **satelliti in vista a 0** significa che il modulo non riceve niente: antenna scollegata,
+  rotta, o coperta da qualcosa di metallico. Non e' questione di aspettare.
+* **in vista ma segnale sotto i 25 dB**: li sente ma troppo deboli per usarli. Portala dove
+  vede piu' cielo, lontano dai cavi e dallo schermo.
+* **in vista con segnale buono e ancora nessun fix**: sta solo lavorando, servono i dati
+  dell'orbita. A freddo ci vogliono anche due minuti; il cronometro in fondo alla schermata
+  di attesa dice da quanto cerca.
+
+I satelliti scritti grandi nella dashboard sono invece quelli **usati per calcolare la
+posizione**: senza fix sono zero per definizione, e non dicono se l'antenna funziona.
+
 **Se il tocco non risponde.** Il log all'avvio dice due cose:
 
 ```

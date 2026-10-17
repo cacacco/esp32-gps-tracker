@@ -49,7 +49,9 @@ struct DisplayData {
   bool        gpsAlive;
   float       speedKmh;
   const char *cardinal;
-  uint32_t    satellites;
+  uint32_t    satellites;    // quelli usati per la posizione
+  uint8_t     satInVista;    // quelli che si vedono, anche senza fix
+  uint8_t     snr;           // segnale del piu' forte, dB
   float       hdop;
   float       altitude;
   float       distanceHome;
@@ -203,10 +205,14 @@ static void drawWait(const DisplayData &d, bool force) {
     else            displayField("NESSUN DATO DAL GPS", 240, 110, 4, 460, COL_BAD);
   }
 
-  if (force || (int32_t)d.satellites != pSat) {
-    pSat = (int32_t)d.satellites;
-    snprintf(buf, sizeof(buf), "satelliti in vista: %lu", (unsigned long)d.satellites);
-    displayField(buf, 240, 160, 2, 460, COL_LABEL);
+  // Qui serve quello che si VEDE, non quello che entra nel calcolo: senza
+  // fix il secondo e' sempre zero e non distingue un guasto dal maltempo.
+  if (force || (int32_t)d.satInVista != pSat) {
+    pSat = (int32_t)d.satInVista;
+    if (d.satInVista) snprintf(buf, sizeof(buf), "%u satelliti in vista, segnale %u dB",
+                               d.satInVista, d.snr);
+    else              snprintf(buf, sizeof(buf), "nessun satellite in vista");
+    displayField(buf, 240, 160, 2, 460, d.satInVista ? COL_LABEL : COL_WARN);
   }
 
   if (force || (int32_t)d.sentences != pSent) {

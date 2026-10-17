@@ -376,8 +376,44 @@ static bool fixIsUsable() {
 // modifica all'antenna o al modulo serva a qualcosa.
 static uint32_t ttffMs = 0;
 
+// Le frasi GGA dicono quanti satelliti ENTRANO nel calcolo della posizione:
+// senza fix sono zero, e un'antenna staccata e' indistinguibile da un cielo
+// coperto. Le GSV invece elencano quelli che si vedono e con che forza
+// arrivano, ed e' l'unica cosa che separa i due casi.
+static TinyGPSCustom gsvInVista(gps, "GPGSV", 3);
+static TinyGPSCustom gsvSnr1(gps, "GPGSV",  7);
+static TinyGPSCustom gsvSnr2(gps, "GPGSV", 11);
+static TinyGPSCustom gsvSnr3(gps, "GPGSV", 15);
+static TinyGPSCustom gsvSnr4(gps, "GPGSV", 19);
+
+static uint8_t satInVista  = 0;   // quanti se ne vedono, fix o non fix
+static uint8_t snrMigliore = 0;   // il piu' forte, in dB-Hz
+
+static void aggiornaCielo() {
+  static uint8_t  massimo = 0;
+  static uint32_t ultimoGiro = 0;
+
+  if (gsvInVista.isUpdated()) satInVista = (uint8_t)atoi(gsvInVista.value());
+
+  TinyGPSCustom *campi[4] = { &gsvSnr1, &gsvSnr2, &gsvSnr3, &gsvSnr4 };
+  for (uint8_t i = 0; i < 4; i++) {
+    if (!campi[i]->isUpdated()) continue;
+    const uint8_t v = (uint8_t)atoi(campi[i]->value());
+    if (v > massimo) massimo = v;
+  }
+
+  // il massimo vale per il giro appena concluso: ogni GSV elenca quattro
+  // satelliti per volta, e il piu' forte puo' stare nell'ultimo messaggio
+  if (millis() - ultimoGiro >= 5000) {
+    ultimoGiro  = millis();
+    snrMigliore = massimo;
+    massimo     = 0;
+  }
+}
+
 static void readGps() {
   pumpGps();
+  aggiornaCielo();
 
   if (gps.location.isUpdated() && fixIsUsable()) {
     if (!ttffMs) {
@@ -460,6 +496,8 @@ static void handleStatus() {
   doc["course"]     = fix.course;
   doc["cardinal"]   = TinyGPSPlus::cardinal(fix.course);
   doc["sats"]       = gps.satellites.isValid() ? gps.satellites.value() : 0;
+  doc["inview"]     = satInVista;
+  doc["snr"]        = snrMigliore;
   doc["hdop"]       = gps.hdop.isValid() ? gps.hdop.hdop() : 0;
   doc["epoch"]      = fix.epoch;
   doc["distance"]   = fix.distanceHome;
@@ -931,10 +969,13 @@ static void printStatus() {
 
   // Caso 3: il modulo parla, manca solo l'aggancio dei satelliti.
   if (!fix.valid) {
-    Serial.printf("[GPS] modulo OK (%lu frasi valide, %lu errori) - in attesa del fix, "
-                  "satelliti in vista: %lu\r\n",
-                  (unsigned long)frasi, (unsigned long)errori,
-                  (unsigned long)(gps.satellites.isValid() ? gps.satellites.value() : 0));
+    Serial.printf("[GPS] modulo OK (%lu frasi, %lu errori) - in attesa del fix: %u satelliti "
+                  "in vista, segnale migliore %u dB%s\r\n",
+                  (unsigned long)frasi, (unsigned long)errori, satInVista, snrMigliore,
+                  satInVista == 0 ? "  -> il modulo non vede niente: antenna scollegata, "
+                                    "rotta, o schermata dal metallo"
+                  : snrMigliore < 25 ? "  -> segnale debole: portala dove vede piu' cielo"
+                                     : "");
     return;
   }
 
@@ -1107,6 +1148,8 @@ void loop() {
     d.speedKmh     = (float)fix.speedKmh;
     d.cardinal     = TinyGPSPlus::cardinal(fix.course);
     d.satellites   = gps.satellites.isValid() ? gps.satellites.value() : 0;
+    d.satInVista   = satInVista;
+    d.snr          = snrMigliore;
     d.hdop         = gps.hdop.isValid() ? (float)gps.hdop.hdop() : 0.0f;
     d.altitude     = (float)fix.altitude;
     d.distanceHome = (float)fix.distanceHome;

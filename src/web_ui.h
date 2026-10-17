@@ -82,7 +82,8 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
 
   <div class="grid">
     <div class="card"><div class="label">Velocita'</div><div class="value"><span id="speed">--</span><span class="unit">km/h</span></div></div>
-    <div class="card"><div class="label">Satelliti</div><div class="value" id="sats">--</div></div>
+    <div class="card"><div class="label">Satelliti</div><div class="value" id="sats">--</div>
+      <div class="coords" id="cielo">in vista --</div></div>
     <div class="card"><div class="label">HDOP</div><div class="value" id="hdop">--</div></div>
     <div class="card"><div class="label">Altitudine</div><div class="value"><span id="alt">--</span><span class="unit">m</span></div></div>
     <div class="card"><div class="label">Dalla base</div><div class="value"><span id="dist">--</span><span class="unit">m</span></div></div>
@@ -230,6 +231,11 @@ async function refreshStatus(){
 
   $('speed').textContent  = fmt(s.speed);
   $('sats').textContent   = s.sats || 0;
+  // "sats" sono quelli usati per la posizione, "inview" quelli che si vedono:
+  // senza fix il primo e' zero e non direbbe se l'antenna sta ricevendo
+  $('cielo').textContent  = s.inview
+    ? `in vista ${s.inview}, segnale ${s.snr} dB`
+    : 'nessuno in vista';
   $('hdop').textContent   = fmt(s.hdop, 1);
   $('alt').textContent    = fmt(s.alt, 0);
   $('dist').textContent   = s.fix ? fmt(s.distance, 0) : '--';
