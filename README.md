@@ -388,6 +388,9 @@ indicazioni stradali che gia' conosci.
    vedere la mappa.
 2. **+ Aggiungi tappa** mette un passaggio intermedio, quante volte vuoi. Il pulsante tondo in
    basso a destra usa la **posizione del tracker** come partenza, se ha il fix.
+   Le frecce **&uarr;** e **&darr;** su ogni riga spostano la tappa nell'ordine (il percorso si
+   ricalcola subito), la **&times;** la toglie, e **&#8645; inverti** rovescia tutto il giro -
+   comodo per il ritorno.
 3. **Il percorso si calcola da solo** a ogni modifica, seguendo le strade vere: in fondo leggi
    i chilometri, quante svolte sono uscite e quante tappe. Puoi **trascinare i segnalini
    numerati** sulla mappa per correggere, o toccare la mappa per aggiungere un punto.

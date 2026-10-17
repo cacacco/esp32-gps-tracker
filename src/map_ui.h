@@ -39,9 +39,15 @@ static const char MAP_HTML[] PROGMEM = R"MAPUI(<!doctype html>
   .riga input{flex:1;min-width:0;border:1px solid var(--filo);border-radius:7px;
     padding:8px 10px;font-size:14px;font-family:inherit;color:var(--testo)}
   .riga input:focus{outline:2px solid var(--blu);outline-offset:-1px;border-color:var(--blu)}
-  .riga .via{border:0;background:transparent;color:var(--tenue);font-size:18px;
-    line-height:1;padding:4px 7px;cursor:pointer;border-radius:50%;flex:none}
-  .riga .via:hover{background:#f1f3f4;color:#d93025}
+  .riga .via{border:0;background:transparent;color:var(--tenue);font-size:17px;
+    line-height:1;padding:4px 6px;cursor:pointer;border-radius:50%;flex:none}
+  .riga .via:hover{background:#f1f3f4}
+  .riga .tolgo:hover{color:#d93025}
+  .riga .via:disabled{opacity:.25;cursor:default;background:transparent}
+  .inverti{border:0;background:transparent;color:var(--blu);font:500 13px system-ui;
+    cursor:pointer;padding:4px 6px;border-radius:6px}
+  .inverti:hover{background:#f1f3f4}
+  .inverti:disabled{color:#9aa0a6;cursor:default;background:transparent}
 
   .piu{border:0;background:transparent;color:var(--blu);font:500 14px system-ui;
     cursor:pointer;padding:7px 4px;margin-left:31px}
@@ -77,6 +83,7 @@ static const char MAP_HTML[] PROGMEM = R"MAPUI(<!doctype html>
 <div class="pannello">
   <div class="testa">
     <h1>Crea percorso</h1>
+    <button class="inverti" id="inverti" title="percorso al contrario" disabled>&#8645; inverti</button>
     <a href="/">&larr; cruscotto</a>
   </div>
   <div id="righe"></div>
@@ -176,9 +183,26 @@ function disegnaRighe(){
     inp.onblur   = () => setTimeout(() => { $('sugg').hidden = true; }, 180);
 
     r.append(b, inp);
+
+    const su = document.createElement('button');
+    su.className = 'via';
+    su.textContent = '↑';
+    su.title = 'sposta su';
+    su.disabled = i === 0;
+    su.onclick = () => sposta(i, -1);
+
+    const giu = document.createElement('button');
+    giu.className = 'via';
+    giu.textContent = '↓';
+    giu.title = 'sposta giu';
+    giu.disabled = i === righe.length - 1;
+    giu.onclick = () => sposta(i, 1);
+
+    r.append(su, giu);
+
     if (righe.length > 2){
       const x = document.createElement('button');
-      x.className = 'via';
+      x.className = 'via tolgo';
       x.textContent = '×';
       x.title = 'togli questa tappa';
       x.onclick = () => { righe.splice(i, 1); disegnaRighe(); aggiorna(); };
@@ -186,6 +210,16 @@ function disegnaRighe(){
     }
     box.appendChild(r);
   });
+}
+
+// Scambia una tappa con quella sopra o sotto: l'ordine delle righe e' l'ordine
+// in cui si passa, quindi il percorso si rifa' da solo.
+function sposta(i, verso){
+  const j = i + verso;
+  if (j < 0 || j >= righe.length) return;
+  const t = righe[i]; righe[i] = righe[j]; righe[j] = t;
+  disegnaRighe();
+  aggiorna();
 }
 
 // ---- ricerca degli indirizzi ----------------------------------------------
@@ -276,8 +310,10 @@ async function aggiorna(centra){
     $('km').textContent = '--';
     $('nota').textContent = 'cerca un indirizzo, o tocca la mappa';
     $('salva').disabled = true;
+    $('inverti').disabled = true;
     return;
   }
+  $('inverti').disabled = false;
 
   $('nota').textContent = 'calcolo le strade...';
   try {
@@ -329,6 +365,7 @@ $('salva').onclick = async () => {
   $('salva').disabled = false;
 };
 
+$('inverti').onclick = () => { righe.reverse(); disegnaRighe(); aggiorna(true); };
 $('piu').onclick = () => { righe.splice(righe.length - 1, 0, {nome:'', lat:null, lon:null}); disegnaRighe(); };
 
 $('qui').onclick = async () => {
