@@ -1018,6 +1018,25 @@ void setup() {
   Serial.println(F("\r\n\r\n=== ESP32 GPS Tracker ==="));
   Serial.printf("[FW] compilato il %s   commit %s\r\n", FW_BUILD, FW_COMMIT);
 
+  // Perche' siamo (ri)partiti. Se il tracker si riavvia da solo mentre lo usi,
+  // questa riga dice se e' colpa della corrente o di un errore del programma.
+  {
+    const char *perche;
+    switch (esp_reset_reason()) {
+      case ESP_RST_POWERON:  perche = "acceso adesso";                                 break;
+      case ESP_RST_SW:       perche = "riavvio chiesto dal firmware";                  break;
+      case ESP_RST_PANIC:    perche = "ERRORE DEL PROGRAMMA: guarda le righe sopra";   break;
+      case ESP_RST_INT_WDT:
+      case ESP_RST_TASK_WDT:
+      case ESP_RST_WDT:      perche = "BLOCCO: il cane da guardia ha riavviato";       break;
+      case ESP_RST_BROWNOUT: perche = "CORRENTE INSUFFICIENTE: alimentazione debole";  break;
+      case ESP_RST_DEEPSLEEP:perche = "risveglio dal sonno profondo";                  break;
+      case ESP_RST_EXT:      perche = "tasto di reset";                                break;
+      default:               perche = "motivo sconosciuto";                            break;
+    }
+    Serial.printf("[BOOT] %s\r\n", perche);
+  }
+
   setenv("TZ", "UTC0", 1);            // i timestamp del GPS sono UTC
   tzset();
 
