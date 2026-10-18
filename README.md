@@ -34,6 +34,7 @@ Tutto gira sull'ESP32: nessun server esterno, nessuna SD, nessun file da caricar
 | ESP32 DevKit v1 (30 pin, ESP32-WROOM-32) | quella della foto |
 | Modulo GPS u-blox NEO-7M (GY-NEO7M) | con antenna attiva avvitata sull'SMA |
 | 4-5 jumper femmina/femmina | per il banco; per il montaggio definitivo vedi 2b |
+| *(consigliato)* Adattatore a morsetti per ESP32 30 pin | *terminal adapter*: monti tutto a vite, senza saldare |
 | Filo siliconico 24 AWG a trefoli | 6 colori x 7 m, per la millefori |
 | Cavo USB dati | molti cavi da ricarica non hanno i fili dati |
 | *(facoltativo)* TFT 4" ST7796 480x320 SPI | computer di bordo, vedi sotto |
@@ -68,26 +69,80 @@ Tre errori che costano un pomeriggio:
 
 ---
 
-## 2b. Montaggio definitivo su millefori
+## 2b. Montaggio definitivo
 
 Sul banco vanno bene i cavetti dupont. Su una moto no: vibrano e si sfilano. Quando il
-progetto e' finito, tutto va saldato su una basetta millefori.
+progetto e' finito ci sono due strade, e la prima e' molto piu' facile.
 
-**[Video del montaggio passo passo](docs/montaggio-millefori.mp4)** (1 minuto): la basetta,
-le strisce di contatti, i connettori, le due piste di alimentazione e i 19 fili, uno per
-volta, con la lista da spuntare a lato.
+### a) Con l'adattatore a morsetti (consigliata)
 
-**Il filo giusto**: siliconico **24 AWG** a trefoli (quello venduto come *DIY wire and cable*,
-scatole da 6 colori x 7 m). E' flessibile, regge le vibrazioni e la guaina in silicone non si
-ritira quando il saldatore la sfiora. I 19 fili interni sono da 8-15 cm l'uno: 42 m bastano per
-rifare tutto dieci volte.
+Si chiama *terminal adapter for ESP32 30 pin*: una basetta verde dove l'ESP32 si infila, e
+ogni suo pin esce su una vite. **Zero saldature**, e su una moto un morsetto stretto bene
+tiene piu' di una saldatura su un filo che vibra.
 
-> Il filo a trefoli non entra nel foro come quello rigido: **stagna la punta** per 4-5 mm prima
-> di infilarla, diventa rigida quanto basta.
->
+**[Video del montaggio](docs/montaggio-adattatore.mp4)** (1 minuto e un quarto): la scheda,
+l'ESP32 che si infila, le due piste di alimentazione, i 24 fili uno per volta e l'ingresso
+dalla batteria.
+
+| Morsetto | Ci va |
+|---|---|
+| `VIN` | + 5 V dal convertitore |
+| `GND` (ce n'e' uno per lato) | massa |
+| `3V3` | alimentazione del display e del GPS |
+| `RX2` | `TXD` del GPS |
+| `TX2` | `RXD` del GPS |
+| `D4` | `PPS` del GPS *(facoltativo)* |
+| `D5` `D22` `D21` `D23` `D18` `D19` | `CS`, `RESET`, `DC/RS`, `SDI/MOSI`, `SCK`, `SDO/MISO` del display |
+| `D18` `D23` `D19` | `T_CLK`, `T_DIN`, `T_DO` del touch: **seconda vite, stessa del SPI** |
+| `D27` | `T_CS` del touch |
+| `D32` | pulsante (l'altro capo a massa) |
+
+Non toccare `TX0` e `RX0`: sono la seriale della USB, e se ci attacchi qualcosa non riesci
+piu' a caricare il firmware. `D2` e' il LED blu di bordo.
+
+Quattro cose che cambiano la riuscita:
+
+* **Niente stagno sulla punta dei fili.** Vale il contrario della millefori: lo stagno sotto
+  la vite si schiaccia col tempo e il morsetto si allenta da solo. Filo nudo intrecciato fra
+  le dita, o un **puntalino a crimpare** (ferrule) se ne hai.
+* **Una goccia di smalto per unghie** sulla testa di ogni vite stretta, come frenafiletti.
+  E dopo il primo giro ricontrollale tutte: e' li' che si scopre quella stretta male.
+* **Il morsetto `3V3` e' uno solo**, ma a 3,3 V devono arrivare il `VCC` del display, il `LED`
+  della retroilluminazione e il `VCC` del GPS. Serve ancora un pezzetto di millefori da
+  3x4 cm con le due piste e i condensatori, collegato all'adattatore con due fili soli.
+* **Prova a infilare l'ESP32 prima di montare tutto** e controlla che la presa USB resti
+  raggiungibile: alcune schede da 30 pin sono leggermente piu' larghe e non entrano.
+
+Avvitalo al fondo della scatola con i quattro fori agli angoli, cosi' non balla.
+
+### b) Con la millefori saldata
+
+**[Video del montaggio](docs/montaggio-millefori.mp4)** (1 minuto): la basetta, le strisce di
+contatti, i connettori, le due piste di alimentazione e i fili uno per volta.
+
+* **L'ESP32 e il display non si saldano**: si saldano le strisce di contatti femmina, i
+  moduli ci si infilano sopra. Se uno si brucia, lo cambi in trenta secondi.
+* **Due piste di alimentazione** lungo il bordo basso: una a 3,3 V e una a massa. Tutti i
+  `VCC` e i `GND` finiscono li', non sul pin dell'ESP32 uno sull'altro.
+* Qui invece **la punta del filo va stagnata** per 4-5 mm: a trefoli non entra nel foro,
+  stagnata diventa rigida quanto basta.
+
+### Quello che vale per tutte e due
+
+**Il filo**: siliconico **24 AWG** a trefoli (quello venduto come *DIY wire and cable*, scatole
+da 6 colori x 7 m). E' flessibile, regge le vibrazioni e la guaina in silicone non si ritira
+quando il saldatore la sfiora. I fili interni sono da 8-15 cm l'uno: 42 m bastano per rifare
+tutto dieci volte.
+
 > Unica eccezione: il tratto che va **dalla batteria della moto al convertitore 12 V -> 5 V**.
-> Li' ci vuole almeno 0,5 mm2 (20 AWG) e un **fusibile da 2 A** a non piu' di 15 cm dal morsetto
-> positivo. Il 24 AWG ci sta solo dentro la scatola.
+> Li' ci vuole almeno 0,5 mm2 (20 AWG), un **fusibile da 2 A** a non piu' di 15 cm dal morsetto
+> positivo e un **diodo 1N4007** in serie, con la fascetta rivolta verso il convertitore: se un
+> giorno inverti i morsetti non succede niente. Il 24 AWG ci sta solo dentro la scatola.
+
+**I condensatori** fra le due piste, vicino all'ESP32: un **470 uF** (oppure tre da 100 uF in
+parallelo) e un **100 nF**. Nei kit il 100 nF e' marcato `104`, che si legge *10 seguito da
+quattro zeri in picofarad*: non cercare un pezzo diverso. Servono perche' la moto da' picchi
+di corrente quando la centralina lavora.
 
 Colori, uno schema che si legge a colpo d'occhio:
 
@@ -105,11 +160,11 @@ Colori, uno schema che si legge a colpo d'occhio:
 * Deve essere **momentaneo** (NA, "normally open"): torna fuori quando lo lasci. Quelli con
   ritenuta, che restano dentro, non vanno: il firmware distingue pressione breve, lunga e
   da 3 secondi, e con un contatto che resta chiuso vedrebbe una pressione infinita.
-  Si riconosce senza strumenti: premilo: se fa *clic* e resta giu', e' sbagliato.
+  Si riconosce senza strumenti: premilo, se fa *clic* e resta giu' e' sbagliato.
 * Due soli terminali = contatto pulito, quello che serve. Se ne ha quattro c'e' dentro un LED,
   e i due in piu' vogliono 3,3 V con la loro resistenza.
-* Un filo al pin scelto, l'altro alla **pista di massa**. Nessuna resistenza esterna:
-  il firmware accende il pull-up interno dell'ESP32.
+* Un filo al pin scelto, l'altro alla **massa**. Nessuna resistenza esterna: il firmware
+  accende il pull-up interno dell'ESP32.
 * **Non usare il GPIO0** per un pulsante fuori dalla scatola. Il GPIO0 decide come parte
   l'ESP32: se all'accensione quel filo e' a massa (tasto premuto, o un filo che sfrega),
   la scheda entra in modalita' caricamento e il navigatore non parte. Sul pannello usa
@@ -117,18 +172,18 @@ Colori, uno schema che si legge a colpo d'occhio:
 * Se il pulsante sta sul manubrio, lontano dalla scatola, **intreccia i due fili** e metti
   un **100 nF** fra pin e massa vicino all'ESP32: l'accensione della moto e' rumorosa.
 
-Regole che fanno la differenza:
+**Il collaudo, un pezzo per volta:**
 
-* **L'ESP32 e il display non si saldano**: si saldano le strisce di contatti femmina, i
-  moduli ci si infilano sopra. Se uno si brucia, lo cambi in trenta secondi.
-* **Due piste di alimentazione** lungo il bordo basso: una a 3,3 V e una a massa. Tutti i
-  `VCC` e i `GND` finiscono li', non sul pin dell'ESP32 uno sull'altro.
-* **470 uF e 100 nF** fra le due piste, vicino all'ESP32: la moto da' picchi di corrente
-  quando la centralina lavora.
-* **Prima del collaudo, tester in continuita'** fra 3,3 V e massa: se fischia c'e' un
-  corto, e in quel caso non si attacca niente.
-* **Si collauda un pezzo per volta**: prima il solo ESP32 sulla USB, poi il GPS, poi il
-  display. Se sbagli un filo, vuoi scoprirlo con il solo ESP32 attaccato.
+1. tira piano ogni filo appena stretto o saldato: se esce, non era fermo;
+2. tester in continuita' fra 3,3 V e massa: **non deve fischiare**, se fischia c'e' un corto
+   e in quel caso non si attacca niente;
+3. solo l'ESP32 sulla USB: deve comparire il log;
+4. misura 3,2 - 3,3 V sulla pista;
+5. attacca il GPS: *"modulo riconosciuto a 9600 baud"*;
+6. attacca il display: logo e menu;
+7. tieni premuto il tasto 3 secondi: parte la taratura del tocco.
+
+Se sbagli un filo, vuoi scoprirlo con il solo ESP32 attaccato, non con tutto collegato.
 
 ---
 
@@ -803,5 +858,6 @@ projects/esp32-gps-tracker/
 └── docs/
     ├── wiring.svg               schema dei collegamenti del GPS
     ├── wiring-display.svg       schema dei collegamenti del display
+    ├── montaggio-adattatore.mp4 video del montaggio con l'adattatore a morsetti
     └── montaggio-millefori.mp4  video del montaggio su millefori
 ```
