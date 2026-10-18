@@ -534,7 +534,7 @@ enum UiPage : uint8_t {
 enum UiAction : uint8_t {
   UI_NONE = 0, UI_ROUTE_CLEAR, UI_TRACK_CLEAR, UI_TRIP_RESET,
   UI_PORTAL_ON, UI_PORTAL_OFF, UI_NET_SELECT,
-  UI_BL_GIU, UI_BL_SU, UI_BL_AUTO
+  UI_BL_GIU, UI_BL_SU, UI_BL_AUTO, UI_BL_GIORNO, UI_BL_NOTTE
 };
 
 // quale rete e' stata toccata: l'azione da sola non basta a dirlo
@@ -554,7 +554,9 @@ static const Rect MENU_BTN[4] = {
 // la quinta voce del menu: una barra larga sotto i quattro quadrati
 static const Rect MENU_LUCE = {14, 262, 452, 52};
 // i due tasti della pagina Luce: grandi, si centrano col guanto
-static const Rect LUCE_BTN[2] = { {14, 56, 221, 110}, {245, 56, 221, 110} };
+static const Rect LUCE_BTN[2] = { {14, 56, 221, 86}, {245, 56, 221, 86} };
+// automatica, giorno, notte: tre scelte in fila, come sulla dashboard
+static const Rect MODO_BTN[3] = { {14, 200, 140, 48}, {170, 200, 140, 48}, {326, 200, 140, 48} };
 // tre righe larghe per le reti ricordate, sopra la barra dei pulsanti
 static const uint8_t UI_NET_RIGHE = 3;
 static const Rect NET_BTN[UI_NET_RIGHE] = {
@@ -580,11 +582,11 @@ static uint32_t  uiTouchMs  = 0;
 
 // Giro fra i pulsanti col tasto: con un tasto solo non si puo' fare di
 // meglio, breve sposta e lungo conferma. Serve quando il touch non c'e'.
-// La pagina piu' affollata e' il menu: quattro quadrati piu' la barra della
-// luce. Sei posti lasciano margine, e si aggiunge solo passando da uiSelAggiungi
+// La pagina piu' affollata e' la Luce: due tasti grandi, tre modi e Indietro.
+// Otto posti lasciano margine, e si aggiunge solo passando da uiSelAggiungi
 // che controlla: scrivere oltre la fine corromperebbe le variabili vicine, e il
 // guasto si vedrebbe altrove, dove nessuno lo cercherebbe.
-static const Rect *uiSelLista[6];
+static const Rect *uiSelLista[8];
 static uint8_t     uiSelCount = 0;
 
 static void uiSelAggiungi(const Rect *r) {
@@ -691,17 +693,16 @@ static void drawLucePage(const DisplayData &d) {
   drawButton(LUCE_BTN[1], "+", "piu' chiara", COL_LABEL);
 
   snprintf(buf, sizeof(buf), "%u%%", d.blPercento);
-  tft.setTextDatum(MC_DATUM);
-  tft.setTextColor(COL_FG, COL_BG);
   tft.setTextSize(2);
-  displayField(buf, 240, 200, 4, 200, COL_FG);
+  displayField(buf, 240, 170, 4, 200, COL_FG);
   tft.setTextSize(1);
 
-  tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString(d.blModo == 3 ? "regolata a mano" : "si regola da sola con l'ora", 240, 240, 2);
+  // il modo attivo si riconosce dal bordo acceso, senza doverlo leggere
+  static const char *NOMI[3] = { "Auto", "Giorno", "Notte" };
+  for (uint8_t i = 0; i < 3; i++)
+    drawButton(MODO_BTN[i], NOMI[i], "", d.blModo == i ? COL_OK : COL_LINE);
 
   drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
-  if (d.blModo == 3) drawButton(PAGE_BTN[2], "Automatica", "", COL_OK);
 }
 #endif
 
@@ -893,7 +894,9 @@ static UiAction uiTouch(int16_t x, int16_t y) {
       if (rectHit(PAGE_BTN[0], x, y)) { uiGoto(PAGE_MENU); return UI_NONE; }
       if (rectHit(LUCE_BTN[0], x, y)) { uiDirty = true; return UI_BL_GIU; }
       if (rectHit(LUCE_BTN[1], x, y)) { uiDirty = true; return UI_BL_SU; }
-      if (rectHit(PAGE_BTN[2], x, y)) { uiDirty = true; return UI_BL_AUTO; }
+      if (rectHit(MODO_BTN[0], x, y)) { uiDirty = true; return UI_BL_AUTO; }
+      if (rectHit(MODO_BTN[1], x, y)) { uiDirty = true; return UI_BL_GIORNO; }
+      if (rectHit(MODO_BTN[2], x, y)) { uiDirty = true; return UI_BL_NOTTE; }
       return UI_NONE;
 #endif
 
@@ -957,8 +960,8 @@ static void uiSelAggiorna() {
     case PAGE_LUCE:
       uiSelAggiungi(&LUCE_BTN[0]);
       uiSelAggiungi(&LUCE_BTN[1]);
+      for (uint8_t i = 0; i < 3; i++) uiSelAggiungi(&MODO_BTN[i]);
       uiSelAggiungi(&PAGE_BTN[0]);
-      if (uiBlManuale) uiSelAggiungi(&PAGE_BTN[2]);
       break;
 #endif
     case PAGE_ROUTE:

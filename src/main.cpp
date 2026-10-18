@@ -1176,7 +1176,9 @@ void loop() {
 #if ENABLE_DISPLAY && PIN_TFT_BL >= 0
       case UI_BL_GIU:  blPasso(-1); break;
       case UI_BL_SU:   blPasso(+1); break;
-      case UI_BL_AUTO: blModo = 0; blAggiorna(fix.epoch); break;
+      case UI_BL_AUTO:   blModo = 0; blAggiorna(fix.epoch); break;
+      case UI_BL_GIORNO: blModo = 1; blAggiorna(fix.epoch); break;
+      case UI_BL_NOTTE:  blModo = 2; blAggiorna(fix.epoch); break;
 #endif
       default:
         break;

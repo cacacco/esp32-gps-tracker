@@ -527,11 +527,15 @@ L'ora e' quella locale, ricavata dall'epoch del GPS piu' `TIME_UTC_OFFSET_MIN`. 
 non arriva la luce resta al massimo, che e' la scelta giusta: se stai montando la scatola in
 garage vuoi vedere lo schermo.
 
-**Dal display**, menu -> la barra **Luce** in fondo: due tasti grandi, `-` e `+`, un gradino
-del 10% per volta, e il numero al centro che dice dove sei. Appena tocchi uno dei due la
-regolazione passa **a mano** e l'orologio smette di comandare; il pulsante **Automatica**
-glielo ridà. Sotto il 10% non si scende, perche' uno schermo nero non si recupera piu': per
-rialzare la luce dovresti vedere i pulsanti.
+**Dal display**, menu -> la barra **Luce** in fondo. La pagina ha tutto:
+
+* i due tasti grandi **`-`** e **`+`**, un gradino del 10% per volta, col numero al centro che
+  dice dove sei. Appena ne tocchi uno la regolazione passa **a mano** e l'orologio smette di
+  comandare. Sotto il 10% non si scende, perche' uno schermo nero non si recupera piu': per
+  rialzare la luce dovresti vedere i pulsanti;
+* i tre modi in fila - **Auto**, **Giorno**, **Notte** - gli stessi della dashboard. Quello
+  attivo ha il bordo verde, cosi' lo riconosci senza leggere. **Auto** rida' il comando
+  all'orologio, gli altri due inchiodano la luce dove vuoi tu.
 
 La regolazione a mano **non si ricorda allo spegnimento**, ed e' voluto: riaccendendo parti
 sempre in automatica, cioe' con la luce giusta per l'ora che e'.
