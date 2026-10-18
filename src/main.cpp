@@ -550,6 +550,10 @@ static void handleStatus() {
 #endif
   diag["fsfree"]    = trackReady ? (LittleFS.totalBytes() - LittleFS.usedBytes()) / 1024 : 0;
   diag["fw"]        = FW_VERSIONE;
+#if ENABLE_DISPLAY && PIN_TFT_BL >= 0
+  diag["bl"]        = blPercento;
+  diag["blmodo"]    = blModo;
+#endif
   diag["uptime"]    = millis() / 1000;
   diag["heap"]      = ESP.getFreeHeap();
   diag["rssi"]      = WiFi.RSSI();
@@ -864,6 +868,18 @@ static void handleTouchReset() {
   ESP.restart();
 }
 
+#if ENABLE_DISPLAY && PIN_TFT_BL >= 0
+// auto / giorno / notte: il telefono decide quando l'orologio non basta
+static void handleBacklight() {
+  const String m = server.arg("plain");
+  if      (m == "giorno") blModo = 1;
+  else if (m == "notte")  blModo = 2;
+  else                    blModo = 0;
+  blAggiorna(fix.epoch);
+  server.send(200, "application/json", "{\"ok\":true}");
+}
+#endif
+
 static void handleRouteClear() {
   routeClear();
   stopsClear();
@@ -921,6 +937,9 @@ static void setupWebServer() {
   server.on("/api/route/steps", HTTP_GET, handleTurnsGet);
   server.on("/api/route/steps", HTTP_POST, handleTurnsPost);
   server.on("/api/touch/reset", HTTP_POST, handleTouchReset);
+#if ENABLE_DISPLAY && PIN_TFT_BL >= 0
+  server.on("/api/backlight", HTTP_POST, handleBacklight);
+#endif
   server.on("/api/route/clear", HTTP_POST, handleRouteClear);
   server.on("/api/stops", HTTP_GET, handleStopsGet);
   server.on("/api/stops", HTTP_POST, handleStopsPost);

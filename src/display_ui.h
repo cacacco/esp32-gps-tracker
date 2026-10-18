@@ -365,15 +365,15 @@ static void drawArrow(float angleDeg, uint16_t color) {
 // Senza svolte caricate il riquadro SVOLTA mostra la prossima tappa: lo
 // spazio non resta vuoto e la freccia grande basta a orientarsi.
 // ---------------------------------------------------------------------------
-static const int SV_X = 330, SV_Y = 100, SV_R = 28;     // freccia della svolta
-static const int PO_X = 330, PO_Y = 212, PO_R = 18;     // freccia del "poi"
+static const int SV_X = 386, SV_Y = 104, SV_R = 30;     // freccia della svolta
+static const int PO_X = 342, PO_Y = 242, PO_R = 15;     // freccia del "dopo"
 
 static void drawNavChrome() {
   tft.fillScreen(COL_BG);
   tft.drawFastHLine(0, 38, 480, COL_LINE);
   tft.drawFastVLine(292, 46, 270, COL_LINE);
-  tft.drawFastHLine(296, 168, 184, COL_LINE);
-  tft.drawFastHLine(296, 242, 184, COL_LINE);
+  tft.drawFastHLine(296, 196, 184, COL_LINE);
+  tft.drawFastHLine(296, 262, 184, COL_LINE);
 
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
@@ -381,14 +381,13 @@ static void drawNavChrome() {
   drawMenuHint(260);
 #endif
   tft.drawString("RESTANO", 144, 238, 2);
-  tft.drawString("km/h", 386, 254, 2);
 }
 
 static void drawNav(const DisplayData &d, bool force) {
   static int32_t pAngle = -9999, pRemain = -1, pSpeed = -1, pTurnM = -1, pPoiM = -1;
   static int8_t  pState = -1, pMode = -1, pVicina = -1;
   static int32_t pTurnA = -9999, pPoiA = -9999;
-  static char    pLinea[40] = "", pStrada[28] = "";
+  static char    pLinea[40] = "";
   char buf[32];
 
   drawTopBar(d, force);
@@ -417,12 +416,7 @@ static void drawNav(const DisplayData &d, bool force) {
   uint16_t coloreLinea = COL_LABEL;
   if (d.navFinished)      { snprintf(linea, sizeof(linea), "ARRIVATO");       coloreLinea = COL_OK; }
   else if (d.navOffRoute) { snprintf(linea, sizeof(linea), "FUORI PERCORSO"); coloreLinea = COL_BAD; }
-  else if (d.navStops)    { snprintf(linea, sizeof(linea), "tappa: %s", d.navStopName ? d.navStopName : "--"); }
   else                    { linea[0] = '\0'; }
-  if (force || strcmp(linea, pLinea) != 0) {
-    snprintf(pLinea, sizeof(pLinea), "%s", linea);
-    displayField(linea, 144, 302, 2, 280, linea[0] ? coloreLinea : COL_BG);
-  }
 
   // ---- riquadro SVOLTA ----------------------------------------------------
   const bool    haSvolta = d.navTurnKind != TURN_NONE && !d.navFinished;
@@ -431,13 +425,13 @@ static void drawNav(const DisplayData &d, bool force) {
 
   if (force || modo != pMode) {
     pMode = modo;
-    displayField(haSvolta ? "SVOLTA" : "PROSSIMA TAPPA", 386, 58, 2, 180, COL_LABEL);
-    pTurnA = -9999; pTurnM = -1; pStrada[0] = '\0';
+    displayField(haSvolta ? "SVOLTA" : "PROSSIMA TAPPA", 386, 54, 2, 180, COL_LABEL);
+    pTurnA = -9999; pTurnM = -1; pLinea[0] = '\0';
   }
 
   // la cornice arancione dice "ci sei quasi" senza bisogno di leggere i numeri
   const bool cambiaVicina = force || (int8_t)vicina != pVicina;
-  if (cambiaVicina) tft.drawRoundRect(296, 44, 180, 122, 8, vicina ? COL_WARN : COL_BG);
+  if (cambiaVicina) tft.drawRoundRect(296, 44, 180, 152, 8, vicina ? COL_WARN : COL_BG);
 
   const int32_t angoloSvolta = haSvolta ? (int32_t)turnAngle(d.navTurnKind) : -9999;
   if (force || angoloSvolta != pTurnA || cambiaVicina) {
@@ -450,10 +444,15 @@ static void drawNav(const DisplayData &d, bool force) {
   const int32_t distTonda  = (int32_t)distSvolta;
   if (force || distTonda != pTurnM || cambiaVicina) {
     pTurnM = distTonda;
-    if (!haSvolta && !d.navStops)   snprintf(buf, sizeof(buf), "--");
-    else if (distSvolta < 1000)     snprintf(buf, sizeof(buf), "%ld m", (long)distSvolta);
-    else                            snprintf(buf, sizeof(buf), "%.1f km", distSvolta / 1000.0f);
-    displayField(buf, 420, 100, 4, 100, vicina ? COL_WARN : COL_FG);
+    // scritto grande il doppio, deve stare in 184 pixel: oltre i 10 km si
+    // perdono i decimali, che a quella distanza non servono a nessuno
+    if (!haSvolta && !d.navStops)    snprintf(buf, sizeof(buf), "--");
+    else if (distSvolta < 1000)      snprintf(buf, sizeof(buf), "%ld m", (long)distSvolta);
+    else if (distSvolta < 10000)     snprintf(buf, sizeof(buf), "%.1f km", distSvolta / 1000.0f);
+    else                             snprintf(buf, sizeof(buf), "%ld km", (long)(distSvolta / 1000.0f));
+    tft.setTextSize(2);
+    displayField(buf, 386, 164, 4, 184, vicina ? COL_WARN : COL_FG);
+    tft.setTextSize(1);
   }
 
   // nome: la strada su cui si prosegue, o la tappa se non ci sono svolte
@@ -464,9 +463,12 @@ static void drawNav(const DisplayData &d, bool force) {
     snprintf(strada, sizeof(strada), "%s %s", turnWord(d.navTurnKind), d.navTurnName ? d.navTurnName : "");
   else
     snprintf(strada, sizeof(strada), "%s", d.navStops ? (d.navStopName ? d.navStopName : "--") : "nessuna");
-  if (force || strcmp(strada, pStrada) != 0) {
-    snprintf(pStrada, sizeof(pStrada), "%s", strada);
-    displayField(strada, 386, 140, 2, 180, COL_LABEL);
+  // La riga larga sotto la freccia: l'avviso se c'e', altrimenti la strada.
+  // Li' ci stanno 280 pixel invece di 180, e i nomi delle vie sono lunghi.
+  const char *basso = linea[0] ? linea : strada;
+  if (force || strcmp(basso, pLinea) != 0) {
+    snprintf(pLinea, sizeof(pLinea), "%s", basso);
+    displayField(basso, 144, 302, 2, 280, linea[0] ? coloreLinea : COL_LABEL);
   }
 
   // ---- riquadro POI -------------------------------------------------------
@@ -474,7 +476,7 @@ static void drawNav(const DisplayData &d, bool force) {
   const int32_t poiA   = haPoi ? (int32_t)turnAngle(d.navTurn2Kind) : -9999;
   if (force || poiA != pPoiA) {
     pPoiA = poiA;
-    displayField(haPoi ? "DOPO" : "", 386, 180, 2, 180, COL_LABEL);
+    displayField(haPoi ? "DOPO" : "", 386, 210, 2, 180, COL_LABEL);
     tft.fillCircle(PO_X, PO_Y, PO_R + 2, COL_BG);
     if (haPoi) drawArrowAt(PO_X, PO_Y, PO_R, (float)poiA, COL_LABEL);
   }
@@ -485,7 +487,7 @@ static void drawNav(const DisplayData &d, bool force) {
     if (!haPoi)                 buf[0] = '\0';
     else if (d.navTurn2M < 1000) snprintf(buf, sizeof(buf), "%ld m", (long)d.navTurn2M);
     else                         snprintf(buf, sizeof(buf), "%.1f km", d.navTurn2M / 1000.0f);
-    displayField(buf, 420, 212, 2, 100, COL_LABEL);
+    displayField(buf, 414, 242, 2, 100, COL_LABEL);
   }
 
   // ---- velocita' ----------------------------------------------------------
@@ -931,7 +933,57 @@ static void drawSplash() {
 #endif
 }
 
+#if PIN_TFT_BL >= 0
+#define BL_CANALE 7                              // canale PWM, sui core Arduino 2.x
+// La luce del pannello: di giorno al massimo, di notte abbassata. L'ora la da'
+// il GPS, quindi non serve nessun orologio a bordo. "auto" si puo' forzare dal
+// telefono quando il cielo non e' d'accordo con l'orologio.
+static uint8_t blPercento = 255;                 // 255 = non ancora impostata
+static uint8_t blModo     = 0;                   // 0 = automatica, 1 = giorno, 2 = notte
+
+static void blApplica(uint8_t percento) {
+  if (percento > 100) percento = 100;
+  blPercento = percento;
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  ledcWrite(PIN_TFT_BL, (uint32_t)percento * 255 / 100);
+#else
+  ledcWrite(BL_CANALE, (uint32_t)percento * 255 / 100);
+#endif
+}
+
+static void blBegin() {
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  ledcAttach(PIN_TFT_BL, 5000, 8);
+#else
+  ledcSetup(BL_CANALE, 5000, 8);
+  ledcAttachPin(PIN_TFT_BL, BL_CANALE);
+#endif
+  blApplica(BL_GIORNO);                          // si accende sempre al massimo
+}
+
+static bool blEnotte(uint32_t epoch) {
+  const time_t t = (time_t)epoch + (time_t)TIME_UTC_OFFSET_MIN * 60;
+  struct tm ora;
+  gmtime_r(&t, &ora);                            // l'offset e' gia' dentro
+  return (BL_NOTTE_DA > BL_NOTTE_A)              // la notte scavalca mezzanotte
+       ? (ora.tm_hour >= BL_NOTTE_DA || ora.tm_hour < BL_NOTTE_A)
+       : (ora.tm_hour >= BL_NOTTE_DA && ora.tm_hour < BL_NOTTE_A);
+}
+
+static void blAggiorna(uint32_t epoch) {
+  uint8_t voluta;
+  if (blModo == 1)      voluta = BL_GIORNO;
+  else if (blModo == 2) voluta = BL_NOTTE;
+  else if (!epoch)      return;                  // senza ora non si indovina
+  else                  voluta = blEnotte(epoch) ? BL_NOTTE : BL_GIORNO;
+  if (voluta != blPercento) blApplica(voluta);
+}
+#endif
+
 static void displayBegin() {
+#if PIN_TFT_BL >= 0
+  blBegin();                                     // prima di tutto: niente buio
+#endif
   tft.init();
   tft.setRotation(DISPLAY_ROTATION);
   drawSplash();
@@ -944,6 +996,9 @@ static void displayBegin() {
 }
 
 static void displayUpdate(const DisplayData &d) {
+#if PIN_TFT_BL >= 0
+  blAggiorna(d.epoch);
+#endif
   // Se non tocchi niente il menu si fa da parte: senza touch collegato il
   // tracker si comporta come prima, dopo MENU_TIMEOUT_MS e' in navigazione.
   if (uiPage == PAGE_MENU && millis() - uiTouchMs > MENU_TIMEOUT_MS) uiGoto(PAGE_LIVE);

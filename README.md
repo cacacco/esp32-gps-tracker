@@ -406,7 +406,7 @@ cambia da un modulo all'altro, i nomi no.
 | `DC` o `RS` | `D21` | dato o comando |
 | `SDI (MOSI)` | `D23` | dati verso il display |
 | `SCK` | `D18` | clock |
-| `LED` | `3V3` | retroilluminazione, sempre accesa |
+| `LED` | `3V3` | retroilluminazione; per regolarla vedi *Abbassare la luce di notte* |
 | `SDO (MISO)` | `D19` | dati di ritorno, si puo' anche omettere |
 | `T_CLK` | `D18` | touch: stesso clock del pannello |
 | `T_DIN` | `D23` | touch: stesso MOSI del pannello |
@@ -435,8 +435,8 @@ I pin del pannello si cambiano in un posto solo, i `build_flags` di `platformio.
 
 **Alimentazione**: parti sempre da `3V3`. Queste basette sono progettate per 3,3 V; i 5 V
 li regge solo chi ha il regolatore a bordo (un SOT-23 a 5 piedini vicino al `VCC`, di solito
-`AMS1117`) e senza di quello il pannello si brucia. Il pin `LED` va a `3V3` e non a un GPIO:
-la retroilluminazione di un 4" assorbe piu' di quanto un pin possa erogare.
+`AMS1117`) e senza di quello il pannello si brucia. Il pin `LED` va a `3V3`: la
+retroilluminazione di un 4" assorbe in genere piu' di quanto un pin possa erogare.
 
 Pannello e retroilluminazione insieme chiedono 150-200 mA: il regolatore della DevKit li
 regge, alimentando la scheda dalla USB del PC o da un alimentatore da 1 A in su. Se invece
@@ -471,6 +471,42 @@ farti ricompilare tutto da capo.
 **Caricamento del firmware**: con questi pin il caricamento via USB non viene disturbato
 (GPIO0, GPIO2, GPIO12 e GPIO15, che sono quelli che decidono come parte la scheda, restano
 liberi). `GPIO5` e' l'unico pin di avvio usato, come `CS`, e sta alto: non da' problemi.
+
+### Abbassare la luce di notte
+
+Di giorno la retroilluminazione al massimo serve. Di notte, su un manubrio, e' una lampada
+che ti rovina la vista periferica. Il firmware sa abbassarla da solo - **usa l'ora del GPS**,
+quindi non serve nessun orologio a bordo - ma per farlo deve poter comandare quel filo.
+
+**Prima si misura, poi si sposta.** Stacca il filo `LED` dalla pista 3,3 V e rimettilo con il
+tester in serie, in posizione amperometro (`mA`). Accendi e leggi:
+
+| Corrente | Cosa vuol dire | Cosa fare |
+|---|---|---|
+| **fino a 20 mA** | il pannello ha il suo driver e il pin `LED` e' solo un comando | collega `LED` a **`D33`** e metti `PIN_TFT_BL 33` in `config.h` |
+| **100 mA o piu'** | il pin `LED` alimenta direttamente i LED | lascia il filo sulla pista e `PIN_TFT_BL -1`: serve un interruttore a transistor sul lato positivo (un PNP o un P-MOSFET, che nei kit base non c'e') |
+
+> Non saltare la misura. Un pin dell'ESP32 regge **20 mA**, e la retroilluminazione di un 4"
+> ne vuole spesso 150: collegarla diretta non fa un botto, fa peggio - il pin si degrada e la
+> scheda comincia a comportarsi in modo strano mesi dopo, quando hai dimenticato cosa hai fatto.
+
+Con `PIN_TFT_BL` impostato, la luce si regola da sola:
+
+| Impostazione | Di serie | Cosa fa |
+|---|---|---|
+| `BL_GIORNO` | 100 | luminosita' di giorno, in percento |
+| `BL_NOTTE` | 25 | e di notte |
+| `BL_NOTTE_DA` | 20 | ora locale in cui passa alla notte |
+| `BL_NOTTE_A` | 7 | e quella in cui torna giorno |
+
+L'ora e' quella locale, ricavata dall'epoch del GPS piu' `TIME_UTC_OFFSET_MIN`. Finche' il fix
+non arriva la luce resta al massimo, che e' la scelta giusta: se stai montando la scatola in
+garage vuoi vedere lo schermo.
+
+Dalla dashboard, nella riga **Luminosita' del display**, puoi forzare **Giorno** o **Notte**
+quando l'orologio non e' d'accordo con il cielo - una galleria lunga, un temporale alle tre del
+pomeriggio - e tornare ad **Automatica** quando vuoi. La riga compare solo se `PIN_TFT_BL` e'
+impostato: senza, non ci sarebbe niente da regolare.
 
 ### Il menu sul display
 
@@ -650,13 +686,17 @@ Sul display la schermata di navigazione e' impaginata come un navigatore da auto
 ![Schermata di navigazione](docs/schermata-navigazione.svg)
 
 * a sinistra la **freccia grande**, che e' la direzione in cui andare adesso, e sotto quanto
-  manca all'arrivo e la prossima tappa;
-* in alto a destra la **svolta in arrivo**: freccia sua, distanza che scende e nome della
-  strada. Sotto i `TURN_WARN_M` (400 m) diventa arancione e si accende la cornice, cosi' la
-  vedi con la coda dell'occhio senza leggere i numeri;
+  manca all'arrivo;
+* in alto a destra la **svolta in arrivo**: la sua freccia e, sotto, **la distanza grande il
+  doppio** - e' il numero che guardi in corsa, e col casco si deve leggere in un colpo d'occhio.
+  Sotto i `TURN_WARN_M` (400 m) diventa arancione e si accende la cornice, cosi' la vedi con la
+  coda dell'occhio senza leggere niente;
 * sotto, **DOPO**: la manovra successiva, per sapere gia' che dopo la rotonda devi stare a
   destra;
-* in basso la velocita'.
+* in basso a destra la velocita';
+* **in fondo, sulla riga larga**, il nome della strada su cui si prosegue - li' ci sono 280
+  pixel invece di 180, e i nomi delle vie sono lunghi. Quando c'e' un avviso (*ARRIVATO*,
+  *FUORI PERCORSO*) quello ha la precedenza e prende la riga.
 
 Senza svolte caricate il riquadro in alto mostra la prossima tappa invece della svolta, e la
 freccia grande basta a orientarsi. Sulla dashboard le svolte sono pallini arancioni sulla

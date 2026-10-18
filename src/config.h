@@ -138,6 +138,23 @@
 #define SPLASH_MS               1300   // durata del logo all'accensione, 0 per saltarlo
 #define TIME_UTC_OFFSET_MIN      120   // orologio: 60 in inverno, 120 in estate
 
+//     Retroilluminazione regolabile. Di serie il filo LED va alla pista 3,3 V
+//     e la luce resta al massimo: di notte, sul manubrio, acceca. Mettendola su
+//     un pin con PWM il firmware l'abbassa da solo quando fa buio, con l'ora
+//     del GPS, e dal telefono la puoi forzare.
+//
+//       NON spostare quel filo su un pin senza aver prima MISURATO quanta
+//       corrente assorbe: la retroilluminazione di un 4" ne vuole 100-150 mA e
+//       un pin dell'ESP32 ne regge 20. Alcuni pannelli hanno un driver a bordo
+//       e il pin LED e' solo un comando da pochi mA: quelli si pilotano diretti.
+//       Gli altri vogliono un transistor. In dubbio lascia -1: funziona come
+//       prima, luce sempre accesa. La procedura e' nel README, sezione 5c.
+#define PIN_TFT_BL                -1   // pin della retroilluminazione, -1 = fissa
+#define BL_GIORNO                100   // luminosita' di giorno, in percento
+#define BL_NOTTE                  25   // e di notte
+#define BL_NOTTE_DA               20   // ora locale in cui si passa alla notte
+#define BL_NOTTE_A                 7   // e quella in cui torna giorno
+
 // ---- tocco e menu --------------------------------------------------------
 //     Il pannello ha gia' il touch a bordo: servono quattro fili in piu'.
 //

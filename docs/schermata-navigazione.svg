@@ -9,20 +9,18 @@
   <text x="472" y="27" font-size="22" fill="#ffffff" text-anchor="end">20:14</text>
   <line x1="0" y1="38" x2="480" y2="38" stroke="#2b3240" stroke-width="1"/>
   <line x1="292" y1="46" x2="292" y2="316" stroke="#2b3240" stroke-width="1"/>
-  <line x1="296" y1="168" x2="480" y2="168" stroke="#2b3240" stroke-width="1"/>
-  <line x1="296" y1="242" x2="480" y2="242" stroke="#2b3240" stroke-width="1"/>
+  <line x1="296" y1="196" x2="480" y2="196" stroke="#2b3240" stroke-width="1"/>
+  <line x1="296" y1="262" x2="480" y2="262" stroke="#2b3240" stroke-width="1"/>
   <polygon points="177.1,83.1 160.5,209.2 136.0,171.3 91.2,176.9" fill="#00e5ff"/>
   <text x="144" y="243" font-size="13" fill="#8b94a7" text-anchor="middle">RESTANO</text>
   <text x="144" y="277" font-size="26" fill="#ffffff" text-anchor="middle">12.4 km</text>
-  <text x="144" y="307" font-size="13" fill="#8b94a7" text-anchor="middle">tappa: Ponte sul Foglia</text>
-  <rect x="296" y="44" width="180" height="122" rx="8" fill="none" stroke="#f0a93b" stroke-width="1"/>
-  <text x="386" y="63" font-size="13" fill="#8b94a7" text-anchor="middle">SVOLTA</text>
-  <polygon points="358.0,100.0 313.3,114.1 322.2,100.0 313.3,85.9" fill="#f0a93b"/>
-  <text x="420" y="110" font-size="26" fill="#f0a93b" text-anchor="middle">250 m</text>
-  <text x="386" y="145" font-size="13" fill="#8b94a7" text-anchor="middle">a destra Via Roma</text>
-  <text x="386" y="185" font-size="13" fill="#8b94a7" text-anchor="middle">DOPO</text>
-  <polygon points="312.0,212.0 340.7,202.9 335.0,212.0 340.7,221.1" fill="#8b94a7"/>
-  <text x="420" y="218" font-size="13" fill="#8b94a7" text-anchor="middle">1.2 km</text>
-  <text x="386" y="259" font-size="13" fill="#8b94a7" text-anchor="middle">km/h</text>
+  <text x="144" y="307" font-size="13" fill="#8b94a7" text-anchor="middle">a destra su Via Roma</text>
+  <rect x="296" y="44" width="180" height="152" rx="8" fill="none" stroke="#f0a93b" stroke-width="1"/>
+  <text x="386" y="59" font-size="13" fill="#8b94a7" text-anchor="middle">SVOLTA</text>
+  <polygon points="416.0,104.0 368.1,119.0 377.6,104.0 368.1,89.0" fill="#f0a93b"/>
+  <text x="386" y="182" font-size="52" fill="#f0a93b" text-anchor="middle">250 m</text>
+    <text x="386" y="215" font-size="13" fill="#8b94a7" text-anchor="middle">DOPO</text>
+  <polygon points="327.0,242.0 351.0,234.5 346.2,242.0 351.0,249.5" fill="#8b94a7"/>
+  <text x="414" y="247" font-size="13" fill="#8b94a7" text-anchor="middle">1.2 km</text>
   <text x="386" y="309" font-size="52" fill="#ffffff" text-anchor="middle">52</text>
 </svg>

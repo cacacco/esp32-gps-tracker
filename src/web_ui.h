@@ -123,6 +123,13 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
     <button id="btnTouch">Ritara il tocco</button>
   </div>
 
+  <div class="row" id="rigaLuce" hidden>
+    <span class="sep" style="margin:0 4px 0 0">Luminosita' del display</span>
+    <button id="blAuto">Automatica</button>
+    <button id="blGiorno">Giorno</button>
+    <button id="blNotte">Notte</button>
+  </div>
+
   <div class="sep">Percorso</div>
   <div class="row">
     <a class="btn primario" id="btnPercorso" href="/percorso">Crea percorso</a>
@@ -248,6 +255,15 @@ async function refreshStatus(){
 
   $('btnOld').hidden = !s.diag.backup;
   $('btnTouch').hidden = !s.diag.touch;      // senza touch il pulsante riavvierebbe e basta
+
+  // la luminosita' si regola solo se il filo LED sta su un pin
+  const luce = s.diag.bl;
+  $('rigaLuce').hidden = (luce === undefined);
+  if (luce !== undefined) {
+    const modi = ['blAuto','blGiorno','blNotte'];
+    modi.forEach((id, i) => $(id).className = (i === s.diag.blmodo) ? 'primario' : '');
+    $('blAuto').textContent = 'Automatica' + (s.diag.blmodo === 0 ? ' (' + luce + '%)' : '');
+  }
 
   const n = s.nav || {};
   $('btnRoute').hidden = !n.active;
@@ -454,6 +470,13 @@ $('btnTouch').onclick = async () => {
   try { await fetch('/api/touch/reset', {method:'POST'}); } catch(e){}
   alert('Il tracker si sta riavviando: segui le istruzioni sul display.');
 };
+const luceModo = async (m) => {
+  try { await fetch('/api/backlight', {method:'POST', body:m}); } catch(e){}
+  refreshStatus();
+};
+$('blAuto').onclick   = () => luceModo('auto');
+$('blGiorno').onclick = () => luceModo('giorno');
+$('blNotte').onclick  = () => luceModo('notte');
 $('btnTrip').onclick = async () => { await fetch('/api/trip/reset', {method:'POST'}); refreshStatus(); };
 $('btnClear').onclick = async () => {
   if (!confirm('Cancellare la traccia salvata nella memoria del tracker?')) return;
