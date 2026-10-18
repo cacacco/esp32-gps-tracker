@@ -60,7 +60,7 @@ FILI = [
         (('conn', 'gps', 0), rail('3V3'), 'VCC  ->  pista 3,3 V', ROSSO),
         (('conn', 'gps', 1), rail('GND'), 'GND  ->  pista massa', INK),
         (('conn', 'gps', 2), ('esp', 'D16'), 'TXD  ->  D16', VERDE),
-        (('conn', 'gps', 3), ('esp', 'D17'), 'RXD  ->  D17', VERDE),
+        (('conn', 'gps', 3), ('esp', 'D17'), 'RXD  ->  D17  (facoltativo)', VERDE),
     ]),
     ('DISPLAY  -  9 fili', [
         (('conn', 'display', 0), rail('3V3'), 'VCC  ->  pista 3,3 V', ROSSO),

@@ -81,16 +81,21 @@ ogni suo pin esce su una vite. **Zero saldature**, e su una moto un morsetto str
 tiene piu' di una saldatura su un filo che vibra.
 
 **[Video del montaggio](docs/montaggio-adattatore.mp4)** (1 minuto e un quarto): la scheda,
-l'ESP32 che si infila, le due piste di alimentazione, i 24 fili uno per volta e l'ingresso
-dalla batteria.
+l'ESP32 che si infila, le due piste di alimentazione, i 22 fili uno per volta (piu' i due
+facoltativi del GPS) e l'ingresso dalla batteria.
+
+> Il GPS **parla e basta**: manda le frasi NMEA sul suo `TXD` e non ascolta nessuno. Per
+> funzionare gli bastano tre fili - `VCC`, `GND` e `TXD` su `RX2`. Il filo verso il suo `RXD`
+> serve solo se metti `GPS_CONFIGURE_UBX` a 1 per riconfigurarlo, e il `PPS` solo se vuoi
+> l'impulso al secondo.
 
 | Morsetto | Ci va |
 |---|---|
 | `VIN` | + 5 V dal convertitore |
 | `GND` (ce n'e' uno per lato) | massa |
 | `3V3` | alimentazione del display e del GPS |
-| `RX2` | `TXD` del GPS |
-| `TX2` | `RXD` del GPS |
+| `RX2` | `TXD` del GPS: **questo e' l'unico filo di segnale che serve** |
+| `TX2` | `RXD` del GPS *(facoltativo: solo con `GPS_CONFIGURE_UBX` a 1)* |
 | `D4` | `PPS` del GPS *(facoltativo)* |
 | `D5` `D22` `D21` `D23` `D18` `D19` | `CS`, `RESET`, `DC/RS`, `SDI/MOSI`, `SCK`, `SDO/MISO` del display |
 | `D18` `D23` `D19` | `T_CLK`, `T_DIN`, `T_DO` del touch: **seconda vite, stessa del SPI** |

@@ -76,8 +76,8 @@ FILI = [
     ]),
     ('GPS', [
         ('dx', 'RX2', 'gps', 'TXD', None,  'TXD del GPS  ->  RX2',  VERDE),
-        ('dx', 'TX2', 'gps', 'RXD', None,  'RXD del GPS  ->  TX2',  VERDE),
-        ('dx', 'D4',  'gps', 'PPS', None,  'PPS  ->  D4',           VERDE),
+        ('dx', 'TX2', 'gps', 'RXD', None,  'RXD del GPS  ->  TX2  (facoltativo)',  VERDE),
+        ('dx', 'D4',  'gps', 'PPS', None,  'PPS  ->  D4  (facoltativo)',           VERDE),
         (None, None,  'gps', 'VCC', '3V3', 'VCC  ->  pista 3,3 V',  ROSSO),
         (None, None,  'gps', 'GND', 'GND', 'GND  ->  pista massa',  INK),
     ]),
@@ -104,6 +104,8 @@ FILI = [
     ]),
 ]
 N_FILI = sum(len(g[1]) for g in FILI)
+N_OPZ  = sum(1 for g in FILI for f in g[1] if 'facoltativo' in f[5])
+N_OBB  = N_FILI - N_OPZ
 
 def percorso(filo):
     """Punti da morsetto (o da modulo) alla destinazione, a segmenti dritti."""
@@ -229,7 +231,7 @@ def sc_titolo(t, dur):
     im = Image.new('RGB', (W, H), BG); d = ImageDraw.Draw(im)
     a = min(1.0, t / 0.8)
     testo(d, (W//2, 296), "Montaggio con l'adattatore", TB[58], tuple(int(c*a) for c in INK), 'mm')
-    testo(d, (W//2, 358), f'ESP32 GPS Tracker  -  {N_FILI} fili a vite, zero saldature',
+    testo(d, (W//2, 358), f'ESP32 GPS Tracker  -  {N_OBB} fili a vite piu {N_OPZ} facoltativi',
           T[26], tuple(int(c*a) for c in TENUE), 'mm')
     if t > 1.4:
         b = min(1.0, (t - 1.4) / 0.6)
@@ -286,7 +288,9 @@ def scena_fili(gruppo):
         for g in range(gruppo):
             prese |= {(x[2], x[3]) for x in FILI[g][1] if x[2]}
         prese |= {(x[2], x[3]) for x in fili[:n] if x[2]}
-        intestazione(d, f'{titolo}  -  {len(fili)} fili', 'uno per volta, stringendo la vite')
+        nota = ('il GPS parla e basta: RXD e PPS servono solo se li usi'
+                if titolo == 'GPS' else 'uno per volta, stringendo la vite')
+        intestazione(d, f'{titolo}  -  {len(fili)} fili', nota)
         barra(d, fatti_prima + min(n, len(fili)), N_FILI, titolo)
         disegna_moduli(d, prese_fatte=prese)
         disegna_piste(d)
@@ -361,7 +365,7 @@ def sc_collaudo(t, dur):
 def sc_fine(t, dur):
     im = Image.new('RGB', (W, H), BG); d = ImageDraw.Draw(im)
     a = min(1.0, t / 0.7)
-    testo(d, (W//2, 268), f'{N_FILI} fili, zero saldature', TB[44], tuple(int(c*a) for c in INK), 'mm')
+    testo(d, (W//2, 268), f'{N_OBB} fili, zero saldature', TB[44], tuple(int(c*a) for c in INK), 'mm')
     testo(d, (W//2, 330), 'un pomeriggio, fatto con calma', T[26], tuple(int(c*a) for c in TENUE), 'mm')
     if t > 1.0:
         b = min(1.0, (t - 1.0) / 0.7)
