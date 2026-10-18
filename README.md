@@ -129,13 +129,17 @@ l'ESP32 che si infila, le due piste di alimentazione, i 20 fili uno per volta (p
 | `VIN` | **niente**: la corrente entra dal micro-USB dell'ESP32 |
 | `GND` (ce n'e' uno per lato) | massa: ne basta uno, l'altro resta libero |
 | `3V3` | alimentazione del display e del GPS |
-| `RX2` | `TXD` del GPS: e' l'unico filo di segnale che il GPS vuole |
-| `TX2` | **niente**: il GPS trasmette e basta, non ascolta nessuno |
+| `RX2` **(= `D16`)** | `TXD` del GPS: e' l'unico filo di segnale che il GPS vuole |
+| `TX2` **(= `D17`)** | **niente**: il GPS trasmette e basta, non ascolta nessuno |
 | `D4` | `PPS` del GPS *(facoltativo)* |
 | `D5` `D22` `D21` `D23` `D18` `D19` | `CS`, `RESET`, `DC/RS`, `SDI/MOSI`, `SCK`, `SDO/MISO` del display |
 | `D18` `D23` `D19` | `T_CLK`, `T_DIN`, `T_DO` del touch: **seconda vite, stessa del SPI** |
 | `D27` | `T_CS` del touch |
 | `D32` | pulsante (l'altro capo a massa) |
+
+> **Attenzione ai nomi.** L'adattatore chiama i due pin della seconda seriale `RX2` e `TX2`,
+> la DevKit li chiama `D16` e `D17`: sono gli stessi pin, GPIO16 e GPIO17. Il firmware non
+> cambia (`PIN_GPS_RX 16`), cambia solo la scritta sulla basetta.
 
 Non toccare `TX0` e `RX0`: sono la seriale della USB, e se ci attacchi qualcosa non riesci
 piu' a caricare il firmware. `D2` e' il LED blu di bordo.

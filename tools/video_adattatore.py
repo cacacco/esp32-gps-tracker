@@ -38,7 +38,7 @@ PIN_DX = ['D23', 'D22', 'TX0', 'RX0', 'D21', 'D19', 'D18', 'D5',
 MOD = {
     'display': (800, 108, 1120, 404, RAME,   'DISPLAY  ST7796'),
     'gps':     (800, 432, 1120, 552, VERDE,  'GPS  NEO-7M'),
-    'tasto':   (150, 240,  340, 320, GRIGIO, 'PULSANTE'),
+    'tasto':   (150, 300,  340, 380, GRIGIO, 'PULSANTE'),
 }
 # quante prese servono su ogni modulo, nell'ordine in cui le useremo
 MOD_PIN = {
@@ -71,7 +71,7 @@ FILI = [
         ('dx', 'GND', None, None, 'GND', 'GND  ->  pista massa', INK),
     ]),
     ('GPS', [
-        ('dx', 'RX2', 'gps', 'TXD', None,  'TXD del GPS  ->  RX2',  VERDE),
+        ('dx', 'RX2', 'gps', 'TXD', None,  'TXD del GPS  ->  RX2   (RX2 e il D16: stesso pin)',  VERDE),
         ('dx', 'D4',  'gps', 'PPS', None,  'PPS  ->  D4  (facoltativo)',           VERDE),
         (None, None,  'gps', 'VCC', '3V3', 'VCC  ->  pista 3,3 V',  ROSSO),
         (None, None,  'gps', 'GND', 'GND', 'GND  ->  pista massa',  INK),
@@ -323,6 +323,11 @@ def scena_fili(gruppo):
         for i, filo in enumerate(fili):
             if i < n:    disegna_filo(d, filo)
             elif i == n: disegna_filo(d, filo, (t - i * per_filo) / per_filo, acceso=True)
+        if titolo == 'GPS':
+            testo(d, (104, 134), 'Sull adattatore la seriale', T[17], TENUE)
+            testo(d, (104, 158), 'ha il nome della UART:', T[17], TENUE)
+            testo(d, (104, 196), 'RX2  =  D16  =  GPIO16', TM[16], VERDE)
+            testo(d, (104, 222), 'TX2  =  D17  (non si usa)', TM[16], (96, 110, 122))
         if n < len(fili):
             didascalia(d, fili[n][5], INK)
         else:
