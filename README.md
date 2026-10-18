@@ -1012,6 +1012,7 @@ lo stesso.
 | l'ESP32 si riavvia quando il GPS aggancia | alimentazione USB debole: usa un cavo corto e un alimentatore vero, non la porta di un hub |
 | il display diventa tutto bianco dopo qualche minuto | la tensione e' calata: vedi *Il display diventa bianco* qui sotto |
 | il tracker si riavvia da solo | guarda la riga `[BOOT]` nel log: dice il motivo |
+| il menu compare e sparisce subito | risolto da `b0a1` in poi: il tasto non riazzerava il conto di `MENU_TIMEOUT_MS` |
 | `gps-tracker.local` non si apre | mDNS assente (tipico su Android): usa l'indirizzo IP stampato sulla seriale |
 | riavvii casuali con WiFi collegato | alimentazione: il picco TX del WiFi arriva a ~300 mA |
 

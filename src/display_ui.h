@@ -580,8 +580,17 @@ static uint32_t  uiTouchMs  = 0;
 
 // Giro fra i pulsanti col tasto: con un tasto solo non si puo' fare di
 // meglio, breve sposta e lungo conferma. Serve quando il touch non c'e'.
-static const Rect *uiSelLista[4];
+// La pagina piu' affollata e' il menu: quattro quadrati piu' la barra della
+// luce. Sei posti lasciano margine, e si aggiunge solo passando da uiSelAggiungi
+// che controlla: scrivere oltre la fine corromperebbe le variabili vicine, e il
+// guasto si vedrebbe altrove, dove nessuno lo cercherebbe.
+static const Rect *uiSelLista[6];
 static uint8_t     uiSelCount = 0;
+
+static void uiSelAggiungi(const Rect *r) {
+  if (uiSelCount < (uint8_t)(sizeof(uiSelLista) / sizeof(uiSelLista[0])))
+    uiSelLista[uiSelCount++] = r;
+}
 static uint8_t     uiSelIdx   = 0;
 static const Rect *uiSelRect  = nullptr;
 
@@ -939,44 +948,44 @@ static void uiSelAggiorna() {
   uiSelCount = 0;
   switch (uiPage) {
     case PAGE_MENU:
-      for (uint8_t i = 0; i < 4; i++) uiSelLista[uiSelCount++] = &MENU_BTN[i];
+      for (uint8_t i = 0; i < 4; i++) uiSelAggiungi(&MENU_BTN[i]);
 #if PIN_TFT_BL >= 0
-      uiSelLista[uiSelCount++] = &MENU_LUCE;
+      uiSelAggiungi(&MENU_LUCE);
 #endif
       break;
 #if PIN_TFT_BL >= 0
     case PAGE_LUCE:
-      uiSelLista[uiSelCount++] = &LUCE_BTN[0];
-      uiSelLista[uiSelCount++] = &LUCE_BTN[1];
-      uiSelLista[uiSelCount++] = &PAGE_BTN[0];
-      if (uiBlManuale) uiSelLista[uiSelCount++] = &PAGE_BTN[2];
+      uiSelAggiungi(&LUCE_BTN[0]);
+      uiSelAggiungi(&LUCE_BTN[1]);
+      uiSelAggiungi(&PAGE_BTN[0]);
+      if (uiBlManuale) uiSelAggiungi(&PAGE_BTN[2]);
       break;
 #endif
     case PAGE_ROUTE:
-      uiSelLista[uiSelCount++] = &PAGE_BTN[0];
-      uiSelLista[uiSelCount++] = &PAGE_BTN[1];
-      if (uiHasRoute) uiSelLista[uiSelCount++] = &PAGE_BTN[2];
+      uiSelAggiungi(&PAGE_BTN[0]);
+      uiSelAggiungi(&PAGE_BTN[1]);
+      if (uiHasRoute) uiSelAggiungi(&PAGE_BTN[2]);
       break;
     case PAGE_NEWROUTE:
-      uiSelLista[uiSelCount++] = &PAGE_BTN[0];
-      if (!uiPortalOn) uiSelLista[uiSelCount++] = &PAGE_BTN[2];
+      uiSelAggiungi(&PAGE_BTN[0]);
+      if (!uiPortalOn) uiSelAggiungi(&PAGE_BTN[2]);
       break;
     case PAGE_PHONE:
-      uiSelLista[uiSelCount++] = &PAGE_BTN[0];
-      if (uiNetCount > 1) uiSelLista[uiSelCount++] = &PAGE_BTN[1];
-      uiSelLista[uiSelCount++] = &PAGE_BTN[2];
+      uiSelAggiungi(&PAGE_BTN[0]);
+      if (uiNetCount > 1) uiSelAggiungi(&PAGE_BTN[1]);
+      uiSelAggiungi(&PAGE_BTN[2]);
       break;
     case PAGE_NETS:
-      uiSelLista[uiSelCount++] = &PAGE_BTN[0];
+      uiSelAggiungi(&PAGE_BTN[0]);
       for (uint8_t i = 0; i < UI_NET_RIGHE && i < uiNetCount; i++)
-        uiSelLista[uiSelCount++] = &NET_BTN[i];
+        uiSelAggiungi(&NET_BTN[i]);
       break;
     case PAGE_CONFIRM:
-      uiSelLista[uiSelCount++] = &PAGE_BTN[0];
-      uiSelLista[uiSelCount++] = &PAGE_BTN[2];
+      uiSelAggiungi(&PAGE_BTN[0]);
+      uiSelAggiungi(&PAGE_BTN[2]);
       break;
     case PAGE_TRIP:
-      for (uint8_t i = 0; i < 3; i++) uiSelLista[uiSelCount++] = &PAGE_BTN[i];
+      for (uint8_t i = 0; i < 3; i++) uiSelAggiungi(&PAGE_BTN[i]);
       break;
     default:
       break;
@@ -988,6 +997,7 @@ static void uiSelAggiorna() {
 // Pressione breve: dalle schermate di marcia apre il menu, dentro il menu
 // passa al pulsante successivo.
 static UiAction uiNext() {
+  uiTouchMs = millis();          // il tasto conta come un tocco: il menu non deve scappare
   if (uiPage == PAGE_LIVE) { uiGoto(PAGE_MENU); return UI_NONE; }
   if (uiSelCount) uiSelIdx = (uint8_t)((uiSelIdx + 1) % uiSelCount);
   uiSelAggiorna();
@@ -998,6 +1008,7 @@ static UiAction uiNext() {
 // Pressione lunga: vale come un dito sul pulsante evidenziato, cosi' la
 // logica e' una sola e non puo' divergere da quella del tocco.
 static UiAction uiActivate() {
+  uiTouchMs = millis();
   if (uiPage == PAGE_LIVE) { uiGoto(PAGE_MENU); return UI_NONE; }
   if (!uiSelRect) return UI_NONE;
   const Rect r = *uiSelRect;
