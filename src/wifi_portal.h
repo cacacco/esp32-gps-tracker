@@ -288,6 +288,25 @@ static bool wifiProvaTutte(uint32_t timeoutMs) {
   return false;
 }
 
+// Scelta a mano, dal display: porta quella rete in cima e ci si attacca subito.
+static bool wifiScegli(uint8_t indice) {
+  if (indice >= wifiCount) return false;
+  const String ssid = wifiReti[indice].ssid;
+  const String pass = wifiReti[indice].pass;
+  wifiAggiungi(ssid, pass);                    // in cima: sara' la prima al riavvio
+  Serial.printf("[WiFi] scelta dal display: %s\r\n", ssid.c_str());
+
+  WiFi.disconnect();
+  if (wifiTryConnect(ssid, pass, 8000)) {
+    wifiSsid = ssid;
+    wifiPass = pass;
+    if (wifiPortalOn) wifiStopPortal();
+    return true;
+  }
+  if (!wifiPortalOn) wifiStartPortal();        // non c'e': resti comunque raggiungibile
+  return false;
+}
+
 // ---------------------------------------------------------------------------
 // Rotte HTTP del portale
 // ---------------------------------------------------------------------------

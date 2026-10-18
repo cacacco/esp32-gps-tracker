@@ -65,6 +65,8 @@ struct DisplayData {
   uint32_t    searchS;       // da quanti secondi cerca il fix
   const char *netName;
   const char *ipText;        // indirizzo della dashboard, "" se non connesso
+  const char *netLista[WIFI_MAX_RETI];   // le reti ricordate, in ordine di prova
+  uint8_t     netCount;
   const char *apName;        // nome della rete creata dal tracker
   bool        portal;
   uint16_t    routeTurns;    // svolte caricate
@@ -521,14 +523,18 @@ enum UiPage : uint8_t {
   PAGE_ROUTE,
   PAGE_NEWROUTE,      // aspetta che il telefono mandi un percorso
   PAGE_PHONE,
+  PAGE_NETS,          // sceglie a quale rete ricordata attaccarsi
   PAGE_TRIP,
   PAGE_CONFIRM
 };
 
 enum UiAction : uint8_t {
   UI_NONE = 0, UI_ROUTE_CLEAR, UI_TRACK_CLEAR, UI_TRIP_RESET,
-  UI_PORTAL_ON, UI_PORTAL_OFF
+  UI_PORTAL_ON, UI_PORTAL_OFF, UI_NET_SELECT
 };
+
+// quale rete e' stata toccata: l'azione da sola non basta a dirlo
+static uint8_t uiNetScelta = 0;
 
 struct Rect { int16_t x, y, w, h; };
 
@@ -541,6 +547,12 @@ static const Rect MENU_BTN[4] = {
   { 14,  50, 221, 123}, {245,  50, 221, 123},
   { 14, 183, 221, 123}, {245, 183, 221, 123}
 };
+// tre righe larghe per le reti ricordate, sopra la barra dei pulsanti
+static const uint8_t UI_NET_RIGHE = 3;
+static const Rect NET_BTN[UI_NET_RIGHE] = {
+  {14, 52, 452, 56}, {14, 116, 452, 56}, {14, 180, 452, 56}
+};
+
 // tre posti in fondo alle pagine: indietro, azione, azione
 static const Rect PAGE_BTN[3] = {
   { 14, 258, 140, 48}, {170, 258, 140, 48}, {326, 258, 140, 48}
@@ -553,6 +565,7 @@ static UiAction  uiPending  = UI_NONE;            // azione in attesa di conferm
 static UiPage    uiBack     = PAGE_MENU;
 static char      uiQuestion[48] = "";
 static bool      uiPortalOn = false;              // copia per il pulsante del telefono
+static uint8_t   uiNetCount = 0;                  // quante reti ricorda: serve al tocco
 static bool      uiHasRoute = false;              // copia per il pulsante Cancella
 static uint32_t  uiTouchMs  = 0;
 
@@ -711,6 +724,33 @@ static void drawNewRoutePage(const DisplayData &d) {
   drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
 }
 
+// Le reti che il tracker ricorda: una per riga, si tocca quella che vuoi.
+static void drawNetsPage(const DisplayData &d) {
+  drawPageHead("RETI");
+
+  if (!d.netCount) {
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextColor(COL_LABEL, COL_BG);
+    tft.drawString("nessuna rete salvata", 240, 120, 4);
+    tft.drawString("salvane una dal telefono, pagina /wifi", 240, 160, 2);
+  }
+
+  const uint8_t quante = d.netCount < UI_NET_RIGHE ? d.netCount : UI_NET_RIGHE;
+  for (uint8_t i = 0; i < quante; i++) {
+    const char *nome = d.netLista[i] ? d.netLista[i] : "--";
+    // quella attiva si riconosce senza leggere: e' l'unica col bordo acceso
+    const bool attiva = d.ipText && *d.ipText && d.netName && strcmp(nome, d.netName) == 0;
+    drawButton(NET_BTN[i], nome, attiva ? "collegato" : "tocca per collegarti",
+               attiva ? COL_OK : COL_LINE);
+  }
+
+  tft.setTextDatum(MC_DATUM);
+  tft.setTextColor(COL_LABEL, COL_BG);
+  tft.drawString("il collegamento puo' chiedere qualche secondo", 240, 248, 2);
+
+  drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
+}
+
 static void drawPhonePage(const DisplayData &d) {
   drawPageHead("TELEFONO");
 
@@ -749,6 +789,7 @@ static void drawPhonePage(const DisplayData &d) {
   tft.drawString("firmware  " FW_VERSIONE, 240, 232, 2);
 
   drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
+  if (d.netCount > 1) drawButton(PAGE_BTN[1], "Reti", "", COL_CYAN);
 }
 
 static void drawTripPage(const DisplayData &d) {
@@ -823,7 +864,18 @@ static UiAction uiTouch(int16_t x, int16_t y) {
 
     case PAGE_PHONE:
       if (rectHit(PAGE_BTN[0], x, y)) { uiGoto(PAGE_MENU); return UI_NONE; }
+      if (rectHit(PAGE_BTN[1], x, y) && uiNetCount > 1) { uiGoto(PAGE_NETS); return UI_NONE; }
       if (rectHit(PAGE_BTN[2], x, y)) { uiDirty = true; return uiPortalOn ? UI_PORTAL_OFF : UI_PORTAL_ON; }
+      return UI_NONE;
+
+    case PAGE_NETS:
+      if (rectHit(PAGE_BTN[0], x, y)) { uiGoto(PAGE_PHONE); return UI_NONE; }
+      for (uint8_t i = 0; i < UI_NET_RIGHE && i < uiNetCount; i++) {
+        if (!rectHit(NET_BTN[i], x, y)) continue;
+        uiNetScelta = i;
+        uiGoto(PAGE_PHONE);                    // al ritorno mostra com'e' andata
+        return UI_NET_SELECT;
+      }
       return UI_NONE;
   }
   return UI_NONE;
@@ -846,6 +898,15 @@ static void uiSelAggiorna() {
       if (!uiPortalOn) uiSelLista[uiSelCount++] = &PAGE_BTN[2];
       break;
     case PAGE_PHONE:
+      uiSelLista[uiSelCount++] = &PAGE_BTN[0];
+      if (uiNetCount > 1) uiSelLista[uiSelCount++] = &PAGE_BTN[1];
+      uiSelLista[uiSelCount++] = &PAGE_BTN[2];
+      break;
+    case PAGE_NETS:
+      uiSelLista[uiSelCount++] = &PAGE_BTN[0];
+      for (uint8_t i = 0; i < UI_NET_RIGHE && i < uiNetCount; i++)
+        uiSelLista[uiSelCount++] = &NET_BTN[i];
+      break;
     case PAGE_CONFIRM:
       uiSelLista[uiSelCount++] = &PAGE_BTN[0];
       uiSelLista[uiSelCount++] = &PAGE_BTN[2];
@@ -1005,6 +1066,7 @@ static void displayUpdate(const DisplayData &d) {
 
   uiHasRoute = d.navTotal > 0;
   uiPortalOn = d.portal;
+  uiNetCount = d.netCount;
 
 #if ENABLE_TOUCH
   // Dopo una taratura lo schermo e' stato riempito dai mirini: ridisegno tutto.
@@ -1032,6 +1094,7 @@ static void displayUpdate(const DisplayData &d) {
       case PAGE_ROUTE:   drawRoutePage(d);  break;
       case PAGE_NEWROUTE: drawNewRoutePage(d); break;
       case PAGE_PHONE:   drawPhonePage(d);  break;
+      case PAGE_NETS:    drawNetsPage(d);   break;
       case PAGE_TRIP:    drawTripPage(d);   break;
       case PAGE_CONFIRM: drawConfirmPage(); break;
       default: break;

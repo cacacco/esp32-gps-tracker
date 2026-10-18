@@ -388,6 +388,13 @@ attacca al WiFi di casa, fuori, appena accendi l'hotspot del telefono, si attacc
 senza che tu debba aprire niente. Aspettare venti secondi una rete che non c'e' sarebbe tempo
 buttato, per questo guarda prima chi c'e'.
 
+**Si sceglie anche dal display**, senza telefono: menu -> **Telefono** -> **Reti**. Le reti
+ricordate sono una per riga, quella a cui sei collegato ha il bordo verde e la scritta
+*collegato*; tocchi un'altra riga e il tracker si stacca e va su quella. Il collegamento puo'
+chiedere qualche secondo, e la rete scelta diventa la prima della lista, quindi al prossimo
+avvio sara' la prima a essere provata. Il pulsante **Reti** compare solo se ne ricorda piu' di
+una: con una sola non ci sarebbe niente da scegliere.
+
 Nella pagina `/wifi` le reti ricordate sono elencate nell'ordine in cui verranno provate, e
 ognuna ha il suo **dimentica**. Salvarne una che c'e' gia' non la duplica: aggiorna la password
 e la porta in cima. La quarta rete spinge fuori la piu' vecchia.
@@ -551,7 +558,7 @@ usarlo del tutto.
 |---|---|
 | **Naviga** | va alle schermate di marcia: velocita', viaggio, freccia e svolte |
 | **Percorso** | quanto e' lungo, quanti punti, svolte e tappe; lo cancella, e con **Nuovo** apre la pagina che aspetta il telefono |
-| **Telefono** | l'indirizzo a cui collegarti, oppure accende la rete del tracker |
+| **Telefono** | l'indirizzo a cui collegarti, accende la rete del tracker, e con **Reti** sceglie a quale rete attaccarsi |
 | **Viaggio** | km, velocita' massima, tempo in movimento, punti registrati; azzera e cancella |
 
 #### Creare un percorso partendo dal display

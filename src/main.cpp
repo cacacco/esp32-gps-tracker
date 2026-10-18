@@ -1150,6 +1150,10 @@ void loop() {
       case UI_PORTAL_OFF:
         if (wifiPortalOn) wifiStopPortal();
         break;
+      case UI_NET_SELECT:
+        wifiScegli(uiNetScelta);
+        lastDrawForce = true;                  // la pagina Telefono deve ridisegnarsi
+        break;
       default:
         break;
     }
@@ -1187,6 +1191,9 @@ void loop() {
     d.ipText       = ipText.c_str();
     d.apName       = wifiApName.c_str();
     d.portal       = wifiPortalOn;
+    d.netCount     = wifiCount;
+    for (uint8_t i = 0; i < WIFI_MAX_RETI; i++)
+      d.netLista[i] = (i < wifiCount) ? wifiReti[i].ssid.c_str() : nullptr;
     d.routeTurns   = turnCount;
     d.routeKm      = routeCount ? (float)(routeCum[0] / 1000.0) : 0.0f;
     d.trackPoints  = trackPoints;
