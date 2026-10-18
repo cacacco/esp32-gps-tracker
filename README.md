@@ -129,6 +129,21 @@ contatti, i connettori, le due piste di alimentazione e i fili uno per volta.
 
 ### Quello che vale per tutte e due
 
+**Le due piste.** Non sono niente di speciale: un **filo rigido nudo** saldato lungo una fila
+intera di piazzole. Da quel momento tutti i fori di quella fila sono collegati fra loro, e
+qualunque filo ci infili e saldi finisce sulla pista.
+
+![Come si fanno le due piste](docs/piste.svg)
+
+1. prendi un filo rigido nudo lungo quanto la fila: va benissimo una **gamba tagliata** di un
+   resistore o di un condensatore;
+2. appoggialo sul **lato rame**, lungo una fila intera, e infila le due estremita' in due fori
+   ai capi: cosi' sta fermo mentre saldi;
+3. salda prima i due capi, controlla che sia dritto, **poi tutte le piazzole una per una**: se
+   ne salti una, quel foro non e' collegato a niente;
+4. ripeti su un'altra fila per la massa, **lasciandone una vuota in mezzo**;
+5. col tester: deve suonare da un capo all'altro di ogni pista, e **non deve suonare fra le due**.
+
 **Il filo**: siliconico **24 AWG** a trefoli (quello venduto come *DIY wire and cable*, scatole
 da 6 colori x 7 m). E' flessibile, regge le vibrazioni e la guaina in silicone non si ritira
 quando il saldatore la sfiora. I fili interni sono da 8-15 cm l'uno: 42 m bastano per rifare
@@ -858,6 +873,7 @@ projects/esp32-gps-tracker/
 └── docs/
     ├── wiring.svg               schema dei collegamenti del GPS
     ├── wiring-display.svg       schema dei collegamenti del display
+    ├── piste.svg                come si fanno le due piste di alimentazione
     ├── montaggio-adattatore.mp4 video del montaggio con l'adattatore a morsetti
     └── montaggio-millefori.mp4  video del montaggio su millefori
 ```
