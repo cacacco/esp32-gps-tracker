@@ -694,6 +694,11 @@ static void drawPhonePage(const DisplayData &d) {
     drawButton(PAGE_BTN[2], "Accendi", "", COL_OK);
   }
 
+  // la carta d'identita' del firmware: qui si legge con calma, lo splash dura un attimo
+  tft.setTextDatum(MC_DATUM);
+  tft.setTextColor(COL_LINE, COL_BG);
+  tft.drawString("firmware  " FW_VERSIONE, 240, 232, 2);
+
   drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
 }
 

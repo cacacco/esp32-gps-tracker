@@ -105,6 +105,10 @@ Tre errori che costano un pomeriggio:
 
 ## 2b. Montaggio definitivo
 
+> **[Guida al montaggio in PDF](docs/guida-montaggio.pdf)** - 16 pagine, tutti i passaggi in
+> ordine dal banco alla moto, con le liste da spuntare. Fatta per essere stampata o tenuta
+> aperta sul telefono mentre monti.
+
 Sul banco vanno bene i cavetti dupont. Su una moto no: vibrano e si sfilano. Quando il
 progetto e' finito ci sono due strade, e la prima e' molto piu' facile.
 
@@ -849,7 +853,9 @@ di git da cui e' stato costruito. Si legge in tre posti, scegli il piu' comodo:
 
 * **nel log appena acceso** (il monitor seriale, o `log-seriale.ps1`):
   `[FW] compilato il Oct 18 2026 10:42:07   commit b590222`
-* **sul display**, in fondo alla schermata di accensione, sotto il logo;
+* **sul display**, in fondo alla pagina **Telefono** del menu: resta li' finche' non esci,
+  quindi si legge con calma. Compare anche sotto il logo all'accensione, ma quello dura
+  poco piu' di un secondo;
 * **dalla dashboard**, nella riga grigia in fondo alla pagina.
 
 Il commit lo confronti con quello che hai sul PC: apri la cartella del progetto
@@ -936,6 +942,7 @@ projects/esp32-gps-tracker/
 └── docs/
     ├── wiring.svg               schema dei collegamenti del GPS
     ├── wiring-display.svg       schema dei collegamenti del display
+    ├── guida-montaggio.pdf      la guida stampabile, tutti i passaggi in ordine
     ├── piste.svg                come si fanno le due piste di alimentazione
     ├── montaggio-adattatore.mp4 video del montaggio con l'adattatore a morsetti
     └── montaggio-millefori.mp4  video del montaggio su millefori

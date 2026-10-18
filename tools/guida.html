@@ -1,0 +1,771 @@
+<!doctype html>
+<html lang="it">
+<meta charset="utf-8">
+<title>Navigatore GPS per moto - guida al montaggio</title>
+<style>
+  @page { size: A4; margin: 17mm 16mm 16mm 16mm; }
+  :root{
+    --ink:#16202b; --tenue:#5d6b7a; --linea:#d8dee6; --sfondo:#f6f8fa;
+    --blu:#1c5f8b; --ambra:#9a6400; --verde:#1d7a4c; --rosso:#b03a30;
+  }
+  *{ box-sizing:border-box; }
+  html{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  body{
+    font-family:"Inter","DejaVu Sans",system-ui,sans-serif;
+    font-size:10.5pt; line-height:1.55; color:var(--ink); margin:0;
+  }
+  code,kbd{ font-family:"DejaVu Sans Mono",monospace; font-size:0.88em;
+    background:var(--sfondo); padding:1px 4px; border-radius:3px; }
+  h1,h2,h3{ font-family:"Inter Display","Inter","DejaVu Sans",sans-serif; margin:0; }
+
+  /* copertina */
+  .copertina{ height:250mm; display:flex; flex-direction:column; justify-content:center;
+    break-after:page; }
+  .copertina h1{ font-size:30pt; font-weight:800; letter-spacing:-0.5pt; line-height:1.15; }
+  .copertina .sotto{ font-size:13pt; color:var(--tenue); margin-top:8pt; }
+  .riga{ height:4px; width:120px; background:var(--blu); margin:18pt 0; border-radius:2px; }
+  .copertina .meta{ margin-top:26pt; font-size:9.5pt; color:var(--tenue); }
+  .copertina .meta b{ color:var(--ink); }
+  .cosa{ margin-top:22pt; border:1px solid var(--linea); border-radius:8px; padding:12pt 14pt;
+    background:var(--sfondo); }
+  .cosa h3{ font-size:10.5pt; margin-bottom:6pt; }
+  .cosa ul{ margin:0; padding-left:16pt; }
+
+  /* struttura */
+  section{ break-before:page; }
+  section.indice{ break-before:auto; }
+  .passo-testa{ display:flex; align-items:baseline; gap:10pt; border-bottom:2px solid var(--blu);
+    padding-bottom:6pt; margin-bottom:12pt; }
+  .num{ font-family:"Inter Display",sans-serif; font-size:22pt; font-weight:800; color:var(--blu);
+    line-height:1; }
+  .passo-testa h2{ font-size:16pt; font-weight:700; letter-spacing:-0.2pt; }
+  .passo-testa .quando{ margin-left:auto; font-size:8.5pt; color:var(--tenue); white-space:nowrap; }
+  h3{ font-size:11.5pt; font-weight:700; margin:14pt 0 5pt; }
+  p{ margin:0 0 8pt; }
+  ol,ul{ margin:0 0 8pt; padding-left:17pt; }
+  li{ margin-bottom:4pt; }
+
+  /* tabelle */
+  table{ width:100%; border-collapse:collapse; margin:6pt 0 10pt; font-size:9.5pt;
+    break-inside:avoid; }
+  th{ text-align:left; background:var(--sfondo); border-bottom:1.5px solid var(--linea);
+    padding:5pt 7pt; font-weight:700; font-size:9pt; }
+  td{ border-bottom:1px solid var(--linea); padding:5pt 7pt; vertical-align:top; }
+  tr{ break-inside:avoid; }
+
+  /* riquadri */
+  .box{ border-left:3px solid var(--linea); background:var(--sfondo); padding:9pt 12pt;
+    margin:10pt 0; border-radius:0 6px 6px 0; break-inside:avoid; font-size:9.8pt; }
+  .box.att{ border-left-color:var(--ambra); background:#fdf7ec; }
+  .box.no{ border-left-color:var(--rosso); background:#fcf2f1; }
+  .box.ok{ border-left-color:var(--verde); background:#f0f8f4; }
+  .box > b:first-child{ display:block; margin-bottom:3pt; }
+  .box.att > b:first-child{ color:var(--ambra); }
+  .box.no > b:first-child{ color:var(--rosso); }
+  .box.ok > b:first-child{ color:var(--verde); }
+
+  /* checklist */
+  .check{ list-style:none; padding-left:0; }
+  .check li{ padding-left:20pt; position:relative; margin-bottom:5pt; break-inside:avoid; }
+  .check li::before{ content:""; position:absolute; left:0; top:2px; width:11pt; height:11pt;
+    border:1.5px solid var(--tenue); border-radius:2px; }
+
+  .due{ display:flex; gap:14pt; }
+  .due > div{ flex:1; }
+  figure{ margin:10pt 0; break-inside:avoid; }
+  figure svg{ width:100%; height:auto; border:1px solid var(--linea); border-radius:6px; }
+  figcaption{ font-size:8.5pt; color:var(--tenue); margin-top:4pt; }
+  .indice ol{ list-style:none; padding-left:0; counter-reset:p; }
+  .indice li{ display:flex; gap:8pt; padding:4pt 0; border-bottom:1px dotted var(--linea); }
+  .indice li b{ color:var(--blu); min-width:26pt; }
+  .fine{ margin-top:14pt; padding-top:8pt; border-top:1px solid var(--linea);
+    font-size:8.5pt; color:var(--tenue); }
+</style>
+
+<div class="copertina">
+  <div style="font-size:9.5pt;letter-spacing:2pt;color:var(--tenue);text-transform:uppercase">Progetto ESP32</div>
+  <h1>Navigatore GPS<br>per moto</h1>
+  <div class="riga"></div>
+  <div class="sotto">Guida al montaggio, dal banco alla BMW S&nbsp;1000&nbsp;XR.<br>
+    Tutti i passaggi in ordine, senza darne per scontato nessuno.</div>
+  <div class="cosa">
+    <h3>Che cosa farà, quando è finito</h3>
+    <ul>
+      <li>registra dove vai e ti restituisce la traccia in formato GPX;</li>
+      <li>ti guida svolta per svolta, con una freccia grande per la manovra e una piccola che anticipa quella dopo;</li>
+      <li>ti avvisa se il mezzo esce da una zona che hai definito (geofence);</li>
+      <li>si comanda dal telefono: dashboard e creazione dei percorsi nel browser.</li>
+    </ul>
+  </div>
+  <div class="meta">
+    <b>Tempo:</b> una sera per il montaggio, un pomeriggio per l'installazione sulla moto.<br>
+    <b>Difficoltà:</b> nessuna saldatura obbligatoria, se usi l'adattatore a morsetti.<br>
+    <b>Firmware di riferimento:</b> commit <code>f1bae04</code> &nbsp;·&nbsp; 18 ottobre 2026
+  </div>
+</div>
+
+<section class="indice">
+  <div class="passo-testa"><h2>I passaggi, in ordine</h2></div>
+  <p>Non saltarne nessuno, e soprattutto non invertire l'ordine: <b>si collauda tutto sul banco
+  prima di saldare o avvitare qualunque cosa</b>. Trovare un filo sbagliato con l'ESP32 in mano
+  è un minuto; trovarlo con tutto chiuso dentro la scatola è un pomeriggio.</p>
+  <ol>
+    <li><b>1</b> Procurati il materiale</li>
+    <li><b>2</b> Prova tutto sul banco, con i cavetti</li>
+    <li><b>3</b> Carica il firmware</li>
+    <li><b>4</b> Configura il WiFi e i pin</li>
+    <li><b>5</b> Primo avvio e taratura del tocco</li>
+    <li><b>6</b> Collegati dal telefono</li>
+    <li><b>7</b> Crea il primo percorso</li>
+    <li><b>8</b> Prepara le due piste di alimentazione</li>
+    <li><b>9</b> Monta tutto sull'adattatore a morsetti</li>
+    <li><b>10</b> Collauda, un pezzo per volta</li>
+    <li><b>11</b> Installa sulla moto</li>
+  </ol>
+  <p style="margin-top:12pt">In fondo trovi tre appendici: la mappa completa dei morsetti, cosa
+  fare se qualcosa non va, e come capire che firmware hai caricato.</p>
+  <div class="box">
+    <b>Una regola che vale per tutta la guida</b>
+    Le sigle stampate sulle schede comandano sempre sul disegno. L'ordine dei pin cambia da un
+    modulo all'altro, e due schede possono chiamare lo stesso pin con nomi diversi: sull'adattatore
+    a morsetti <code>RX2</code> è lo stesso identico pin che la DevKit chiama <code>D16</code>.
+  </div>
+</section>
+
+<section>
+  <div class="passo-testa"><span class="num">1</span><h2>Procurati il materiale</h2>
+    <span class="quando">prima di tutto</span></div>
+  <h3>L'elettronica</h3>
+  <ul class="check">
+    <li>ESP32 DevKit v1, 30 pin (ESP32-WROOM-32)</li>
+    <li>Modulo GPS u-blox NEO-7M con antenna attiva</li>
+    <li>Display TFT 4" ST7796 480×320 SPI con touch</li>
+    <li>Adattatore a morsetti per ESP32 30 pin (<i>terminal adapter</i>)</li>
+    <li>Pulsante metallico momentaneo da 12 mm</li>
+    <li>Condensatori: uno da 470 µF (o tre da 100 µF) e uno da 100 nF</li>
+    <li>Filo siliconico 24 AWG a trefoli, più colori</li>
+    <li>Un pezzetto di millefori, 3×4 cm bastano</li>
+    <li>Cavo USB <b>dati</b> per il PC (molti cavi da ricarica non hanno i fili dati)</li>
+  </ul>
+  <h3>Per l'installazione sulla moto</h3>
+  <ul class="check">
+    <li>Presa USB da manubrio, stagna, almeno 2 A</li>
+    <li>Cavo USB corto (30-50 cm), meglio se col connettore ad angolo</li>
+    <li>Scatola stagna IP65, che ci stiano adattatore e millefori</li>
+    <li>Passacavi in gomma e due fascette</li>
+  </ul>
+  <div class="box att">
+    <b>Il pulsante: controllalo prima di comprarne altri</b>
+    Deve essere <b>momentaneo</b> (NA, <i>normally open</i>): premilo, se fa clic e resta dentro
+    è sbagliato. Il firmware distingue pressione breve, lunga e da 3 secondi, e con un contatto
+    che resta chiuso vedrebbe una pressione infinita. Due soli terminali: se ne ha quattro,
+    dentro c'è un LED.
+  </div>
+  <div class="box">
+    <b>Il condensatore da 100 nF, nei kit, è marcato <code>104</code></b>
+    Non è un errore e non devi cercarne un altro: <code>104</code> si legge <i>10 seguito da
+    quattro zeri in picofarad</i>, cioè 100.000 pF = 100 nF.
+  </div>
+</section>
+
+<section>
+  <div class="passo-testa"><span class="num">2</span><h2>Prova tutto sul banco</h2>
+    <span class="quando">con i cavetti dupont</span></div>
+  <p>Prima di avvitare o saldare qualsiasi cosa, monta tutto volante sul tavolo e verifica che
+  funzioni. In questa fase l'ESP32 si alimenta dalla USB del PC e non serve altro.</p>
+  <h3>Il GPS: tre fili</h3>
+  <table>
+    <tr><th>Modulo GPS</th><th>ESP32</th><th>Perché</th></tr>
+    <tr><td><code>VCC</code></td><td><code>VIN</code> o <code>3V3</code></td><td>il modulo ha il suo regolatore</td></tr>
+    <tr><td><code>GND</code></td><td><code>GND</code></td><td>massa comune, obbligatoria</td></tr>
+    <tr><td><code>TXD</code></td><td><code>D16</code></td><td>le frasi NMEA arrivano all'ESP32</td></tr>
+  </table>
+  <div class="box no">
+    <b>Il GPS trasmette e basta</b>
+    Il suo <code>RXD</code> <b>non si collega</b>. Il modulo manda le frasi NMEA e non ascolta
+    nessuno: servirebbe solo per riconfigurarlo via UBX, che non è il caso normale.
+    E attenzione: <code>TXD</code> del GPS va sul pin di <i>ricezione</i> dell'ESP32. I due si
+    incrociano sempre.
+  </div>
+  <div class="box att">
+    <b>Non usare mai i pin <code>RX0</code> e <code>TX0</code></b>
+    Sono la seriale della USB. Se ci attacchi qualcosa non riesci più a caricare il firmware.
+  </div>
+  <h3>Il display: 13 fili</h3>
+  <p>Collegalo come da tabella dell'<b>Appendice A</b>, usando i nomi <code>D5</code>,
+  <code>D22</code> e compagnia. L'alimentazione del display (<code>VCC</code> e <code>LED</code>)
+  va a <b>3,3 V</b>, mai a 5 V.</p>
+  <div class="box">
+    <b>Il GPS vuole vedere il cielo</b>
+    Dentro casa, lontano da una finestra, il fix non arriva quasi mai. Il primo aggancio a freddo
+    richiede 30-60 secondi all'aperto, anche qualche minuto se il modulo è rimasto spento a lungo.
+    Non è un guasto: è normale.
+  </div>
+</section>
+
+<section>
+  <div class="passo-testa"><span class="num">3</span><h2>Carica il firmware</h2>
+    <span class="quando">dal PC, con il cavo</span></div>
+  <ol>
+    <li>Doppio clic su <code>aggiorna.ps1</code>: scarica l'ultima versione del progetto.</li>
+    <li>Doppio clic su <code>carica-firmware.ps1</code>: compila e scrive sull'ESP32.</li>
+    <li>Apri <code>log-seriale.ps1</code> per leggere che cosa dice la scheda appena accesa.</li>
+  </ol>
+  <div class="box att">
+    <b>«La porta COM è occupata»</b>
+    È l'errore più frequente, e la causa è quasi sempre il <b>log seriale rimasto aperto</b>:
+    tiene la porta e il caricamento non può partire. Chiudi quella finestra e riprova.
+  </div>
+  <h3>Che cosa deve comparire nel log</h3>
+  <p>Appena acceso, il firmware si presenta:</p>
+  <pre style="background:var(--sfondo);padding:8pt 10pt;border-radius:6px;font-size:8.5pt;overflow:hidden"><code>=== ESP32 GPS Tracker ===
+[FW] compilato il ...   commit ...
+[GPS] modulo riconosciuto a 9600 baud
+[DISPLAY] acceso: CS D5, DC D21, RESET D22, SCK D18, MOSI D23</code></pre>
+  <p>Se il GPS non dà segni di vita, il log lo dice chiaramente. Riprendi dal <b>passo 2</b>:
+  nove volte su dieci è un filo che si è sfilato o <code>TXD</code> e <code>RXD</code> non incrociati.</p>
+</section>
+
+<section>
+  <div class="passo-testa"><span class="num">4</span><h2>Configura il WiFi e i pin</h2>
+    <span class="quando">un solo file</span></div>
+  <p>Tutto quello che puoi voler cambiare sta in <code>src/config.h</code>: WiFi, pin, soglie del
+  geofence, tempi del menu. Le due righe da toccare subito sono queste:</p>
+  <pre style="background:var(--sfondo);padding:8pt 10pt;border-radius:6px;font-size:9pt"><code>#define WIFI_SSID  "LA-TUA-RETE-WIFI"
+#define WIFI_PASS  "LA-TUA-PASSWORD"</code></pre>
+  <p>Se metti il pulsante sul pannello invece di usare il tasto <code>BOOT</code> della scheda,
+  cambia anche questa:</p>
+  <pre style="background:var(--sfondo);padding:8pt 10pt;border-radius:6px;font-size:9pt"><code>#define PIN_MENU_BUTTON  32</code></pre>
+  <div class="box no">
+    <b>Il pulsante del pannello non va sul GPIO0</b>
+    Il GPIO0 decide <i>come parte</i> l'ESP32. Se all'accensione quel filo si trova a massa —
+    tasto premuto mentre giri la chiave, o un filo consumato che sfrega — la scheda entra in
+    modalità caricamento e il navigatore non parte. Usa <code>GPIO32</code>.
+  </div>
+  <div class="box ok">
+    <b>Il trucco per non litigare con gli aggiornamenti</b>
+    Copia <code>config_local.h.esempio</code> in <code>config_local.h</code> e metti lì le tue
+    personalizzazioni: quel file non viene mai sovrascritto da <code>aggiorna.ps1</code>, e non
+    finisce su git insieme alla tua password.
+  </div>
+</section>
+
+<section>
+  <div class="passo-testa"><span class="num">5</span><h2>Primo avvio e taratura del tocco</h2>
+    <span class="quando">serve il display</span></div>
+  <ol>
+    <li>All'accensione parte il <b>logo</b>, con la freccia che si orienta e il satellite che gira.</li>
+    <li>Sotto al logo compaiono data di compilazione e commit del firmware: è la sua carta d'identità.</li>
+    <li>Al primo tocco sul vetro parte da sola la <b>taratura</b>: tocca i quattro angoli dove indicato.</li>
+    <li>La taratura si salva nella memoria interna: si fa una volta sola.</li>
+  </ol>
+  <h3>Il menu</h3>
+  <p>Quattro voci: <b>Naviga</b>, <b>Percorso</b>, <b>Telefono</b>, <b>Viaggio</b>. Ci si muove in
+  due modi, e funzionano entrambi sempre:</p>
+  <table>
+    <tr><th>Comando</th><th>Che cosa fa</th></tr>
+    <tr><td>tocco sullo schermo</td><td>seleziona direttamente la voce</td></tr>
+    <tr><td>pressione breve del tasto</td><td>sposta la selezione alla voce dopo</td></tr>
+    <tr><td>pressione lunga (oltre mezzo secondo)</td><td>conferma la voce selezionata</td></tr>
+    <tr><td>tasto tenuto 3 secondi</td><td>rifà la taratura del tocco</td></tr>
+  </table>
+  <div class="box">
+    <b>Se il touch non risponde</b>
+    Tieni premuto il tasto per 3 secondi: riparte la taratura. Il tasto è la via di servizio che
+    non passa dal vetro, ed è il motivo per cui esiste.
+  </div>
+</section>
+
+<section>
+  <div class="passo-testa"><span class="num">6</span><h2>Collegati dal telefono</h2>
+    <span class="quando">dal browser, niente app</span></div>
+  <p>Non serve installare niente: è tutto nel browser del telefono.</p>
+  <h3>Se sei a casa</h3>
+  <p>L'ESP32 si collega alla rete che hai messo in <code>config.h</code>. L'indirizzo lo trovi nel
+  log, oppure nella voce <b>Telefono</b> del menu sul display.</p>
+  <h3>Se sei fuori</h3>
+  <p>Se la rete non c'è, l'ESP32 crea <b>una rete tutta sua</b>. Ti colleghi a quella e apri
+  l'indirizzo che il display ti mostra. La password predefinita è <code>gpstracker</code>.</p>
+  <h3>Le due pagine</h3>
+  <table>
+    <tr><th>Pagina</th><th>A che serve</th></tr>
+    <tr><td><code>/</code> — dashboard</td><td>posizione, satelliti, velocità, stato del percorso,
+      scarico della traccia in GPX, diagnostica in fondo alla pagina</td></tr>
+    <tr><td><code>/percorso</code></td><td>creare e modificare i percorsi, come su una mappa</td></tr>
+  </table>
+</section>
+
+<section>
+  <div class="passo-testa"><span class="num">7</span><h2>Crea il primo percorso</h2>
+    <span class="quando">la parte divertente</span></div>
+  <ol>
+    <li>Dalla dashboard premi <b>Crea percorso</b>.</li>
+    <li>Cerca la prima tappa scrivendo l'indirizzo, come faresti su una mappa.</li>
+    <li>Aggiungi le altre: ogni tappa nuova si mette <b>in fondo</b>, dopo quelle già inserite.</li>
+    <li>Riordinale con le frecce <b>su</b> e <b>giù</b>, cancellale con la <b>×</b>, o usa
+      <b>inverti</b> per fare il percorso al contrario.</li>
+    <li>Scegli se includere o evitare <b>autostrade</b> e <b>pedaggi</b>.</li>
+    <li>Spunta <b>segui le strade</b> e salva.</li>
+  </ol>
+  <div class="box ok">
+    <b>È la casella che cambia tutto</b>
+    Senza <i>segui le strade</i> il percorso resta una linea d'aria fra le tappe: utile come
+    traccia, inutile come navigazione. Con la casella spuntata il percorso viene calcolato sulle
+    strade vere e arrivano le <b>svolte</b>, cioè le due frecce sul display.
+  </div>
+  <div class="box">
+    <b>Un percorso non si perde per sbaglio</b>
+    Se ne esiste già uno, la dashboard ti propone <b>Modifica percorso</b> e non ti lascia
+    crearne un altro senza prima dire che cosa vuoi fare di quello vecchio.
+  </div>
+</section>
+
+<section>
+  <div class="passo-testa"><span class="num">8</span><h2>Prepara le due piste</h2>
+    <span class="quando">qui si salda, poco</span></div>
+  <p>Sull'adattatore il morsetto <code>3V3</code> è uno solo, ma a 3,3 V devono arrivare tre fili
+  più i condensatori. Per questo serve un pezzetto di millefori con due <b>piste</b>: due file di
+  fori collegati fra loro, una per il 3,3 V e una per la massa.</p>
+  <p>Una pista non è niente di speciale: è un <b>filo rigido nudo saldato lungo una fila intera di
+  piazzole</b>. Da quel momento qualunque filo infili in un foro di quella fila e saldi è collegato
+  alla pista, e non devi raggiungere un punto preciso.</p>
+  <figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 748" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+<rect width="880" height="748" fill="#ffffff"/>
+<text x="440" y="38" text-anchor="middle" font-size="20" font-weight="600" fill="#1b2430">Le due piste di alimentazione su un pezzetto di millefori</text>
+<text x="440" y="60" text-anchor="middle" font-size="13" fill="#6b7585">un filo rigido nudo saldato lungo una fila intera di piazzole: da li&#8217; in poi tutta la fila e&#8217; collegata</text>
+<text x="58" y="118" font-size="12" fill="#6b7585">vista dal lato rame (sotto)</text>
+<rect x="58" y="128" width="374" height="254" rx="10" fill="#f3efe4" stroke="#2f3b4d" stroke-width="2"/>
+<circle cx="80" cy="150" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="80" cy="150" r="2.6" fill="#ffffff"/>
+<circle cx="110" cy="150" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="110" cy="150" r="2.6" fill="#ffffff"/>
+<circle cx="140" cy="150" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="140" cy="150" r="2.6" fill="#ffffff"/>
+<circle cx="170" cy="150" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="170" cy="150" r="2.6" fill="#ffffff"/>
+<circle cx="200" cy="150" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="200" cy="150" r="2.6" fill="#ffffff"/>
+<circle cx="230" cy="150" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="230" cy="150" r="2.6" fill="#ffffff"/>
+<circle cx="260" cy="150" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="260" cy="150" r="2.6" fill="#ffffff"/>
+<circle cx="290" cy="150" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="290" cy="150" r="2.6" fill="#ffffff"/>
+<circle cx="320" cy="150" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="320" cy="150" r="2.6" fill="#ffffff"/>
+<circle cx="350" cy="150" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="350" cy="150" r="2.6" fill="#ffffff"/>
+<circle cx="380" cy="150" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="380" cy="150" r="2.6" fill="#ffffff"/>
+<circle cx="410" cy="150" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="410" cy="150" r="2.6" fill="#ffffff"/>
+<circle cx="80" cy="180" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="80" cy="180" r="2.6" fill="#ffffff"/>
+<circle cx="110" cy="180" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="110" cy="180" r="2.6" fill="#ffffff"/>
+<circle cx="140" cy="180" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="140" cy="180" r="2.6" fill="#ffffff"/>
+<circle cx="170" cy="180" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="170" cy="180" r="2.6" fill="#ffffff"/>
+<circle cx="200" cy="180" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="200" cy="180" r="2.6" fill="#ffffff"/>
+<circle cx="230" cy="180" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="230" cy="180" r="2.6" fill="#ffffff"/>
+<circle cx="260" cy="180" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="260" cy="180" r="2.6" fill="#ffffff"/>
+<circle cx="290" cy="180" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="290" cy="180" r="2.6" fill="#ffffff"/>
+<circle cx="320" cy="180" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="320" cy="180" r="2.6" fill="#ffffff"/>
+<circle cx="350" cy="180" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="350" cy="180" r="2.6" fill="#ffffff"/>
+<circle cx="380" cy="180" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="380" cy="180" r="2.6" fill="#ffffff"/>
+<circle cx="410" cy="180" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="410" cy="180" r="2.6" fill="#ffffff"/>
+<circle cx="80" cy="210" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="80" cy="210" r="2.6" fill="#ffffff"/>
+<circle cx="110" cy="210" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="110" cy="210" r="2.6" fill="#ffffff"/>
+<circle cx="140" cy="210" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="140" cy="210" r="2.6" fill="#ffffff"/>
+<circle cx="170" cy="210" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="170" cy="210" r="2.6" fill="#ffffff"/>
+<circle cx="200" cy="210" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="200" cy="210" r="2.6" fill="#ffffff"/>
+<circle cx="230" cy="210" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="230" cy="210" r="2.6" fill="#ffffff"/>
+<circle cx="260" cy="210" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="260" cy="210" r="2.6" fill="#ffffff"/>
+<circle cx="290" cy="210" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="290" cy="210" r="2.6" fill="#ffffff"/>
+<circle cx="320" cy="210" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="320" cy="210" r="2.6" fill="#ffffff"/>
+<circle cx="350" cy="210" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="350" cy="210" r="2.6" fill="#ffffff"/>
+<circle cx="380" cy="210" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="380" cy="210" r="2.6" fill="#ffffff"/>
+<circle cx="410" cy="210" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="410" cy="210" r="2.6" fill="#ffffff"/>
+<circle cx="80" cy="240" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="80" cy="240" r="2.6" fill="#ffffff"/>
+<circle cx="110" cy="240" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="110" cy="240" r="2.6" fill="#ffffff"/>
+<circle cx="140" cy="240" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="140" cy="240" r="2.6" fill="#ffffff"/>
+<circle cx="170" cy="240" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="170" cy="240" r="2.6" fill="#ffffff"/>
+<circle cx="200" cy="240" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="200" cy="240" r="2.6" fill="#ffffff"/>
+<circle cx="230" cy="240" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="230" cy="240" r="2.6" fill="#ffffff"/>
+<circle cx="260" cy="240" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="260" cy="240" r="2.6" fill="#ffffff"/>
+<circle cx="290" cy="240" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="290" cy="240" r="2.6" fill="#ffffff"/>
+<circle cx="320" cy="240" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="320" cy="240" r="2.6" fill="#ffffff"/>
+<circle cx="350" cy="240" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="350" cy="240" r="2.6" fill="#ffffff"/>
+<circle cx="380" cy="240" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="380" cy="240" r="2.6" fill="#ffffff"/>
+<circle cx="410" cy="240" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="410" cy="240" r="2.6" fill="#ffffff"/>
+<circle cx="80" cy="300" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="80" cy="300" r="2.6" fill="#ffffff"/>
+<circle cx="110" cy="300" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="110" cy="300" r="2.6" fill="#ffffff"/>
+<circle cx="140" cy="300" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="140" cy="300" r="2.6" fill="#ffffff"/>
+<circle cx="170" cy="300" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="170" cy="300" r="2.6" fill="#ffffff"/>
+<circle cx="200" cy="300" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="200" cy="300" r="2.6" fill="#ffffff"/>
+<circle cx="230" cy="300" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="230" cy="300" r="2.6" fill="#ffffff"/>
+<circle cx="260" cy="300" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="260" cy="300" r="2.6" fill="#ffffff"/>
+<circle cx="290" cy="300" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="290" cy="300" r="2.6" fill="#ffffff"/>
+<circle cx="320" cy="300" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="320" cy="300" r="2.6" fill="#ffffff"/>
+<circle cx="350" cy="300" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="350" cy="300" r="2.6" fill="#ffffff"/>
+<circle cx="380" cy="300" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="380" cy="300" r="2.6" fill="#ffffff"/>
+<circle cx="410" cy="300" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="410" cy="300" r="2.6" fill="#ffffff"/>
+<circle cx="80" cy="360" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="80" cy="360" r="2.6" fill="#ffffff"/>
+<circle cx="110" cy="360" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="110" cy="360" r="2.6" fill="#ffffff"/>
+<circle cx="140" cy="360" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="140" cy="360" r="2.6" fill="#ffffff"/>
+<circle cx="170" cy="360" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="170" cy="360" r="2.6" fill="#ffffff"/>
+<circle cx="200" cy="360" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="200" cy="360" r="2.6" fill="#ffffff"/>
+<circle cx="230" cy="360" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="230" cy="360" r="2.6" fill="#ffffff"/>
+<circle cx="260" cy="360" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="260" cy="360" r="2.6" fill="#ffffff"/>
+<circle cx="290" cy="360" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="290" cy="360" r="2.6" fill="#ffffff"/>
+<circle cx="320" cy="360" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="320" cy="360" r="2.6" fill="#ffffff"/>
+<circle cx="350" cy="360" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="350" cy="360" r="2.6" fill="#ffffff"/>
+<circle cx="380" cy="360" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="380" cy="360" r="2.6" fill="#ffffff"/>
+<circle cx="410" cy="360" r="7" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="410" cy="360" r="2.6" fill="#ffffff"/>
+<line x1="66" y1="270" x2="424" y2="270" stroke="#b7793a" stroke-width="7" stroke-linecap="round"/>
+<circle cx="80" cy="270" r="9" fill="#9aa4ad"/>
+<circle cx="80" cy="270" r="4" fill="#b7793a"/>
+<circle cx="110" cy="270" r="9" fill="#9aa4ad"/>
+<circle cx="110" cy="270" r="4" fill="#b7793a"/>
+<circle cx="140" cy="270" r="9" fill="#9aa4ad"/>
+<circle cx="140" cy="270" r="4" fill="#b7793a"/>
+<circle cx="170" cy="270" r="9" fill="#9aa4ad"/>
+<circle cx="170" cy="270" r="4" fill="#b7793a"/>
+<circle cx="200" cy="270" r="9" fill="#9aa4ad"/>
+<circle cx="200" cy="270" r="4" fill="#b7793a"/>
+<circle cx="230" cy="270" r="9" fill="#9aa4ad"/>
+<circle cx="230" cy="270" r="4" fill="#b7793a"/>
+<circle cx="260" cy="270" r="9" fill="#9aa4ad"/>
+<circle cx="260" cy="270" r="4" fill="#b7793a"/>
+<circle cx="290" cy="270" r="9" fill="#9aa4ad"/>
+<circle cx="290" cy="270" r="4" fill="#b7793a"/>
+<circle cx="320" cy="270" r="9" fill="#9aa4ad"/>
+<circle cx="320" cy="270" r="4" fill="#b7793a"/>
+<circle cx="350" cy="270" r="9" fill="#9aa4ad"/>
+<circle cx="350" cy="270" r="4" fill="#b7793a"/>
+<circle cx="380" cy="270" r="9" fill="#9aa4ad"/>
+<circle cx="380" cy="270" r="4" fill="#b7793a"/>
+<circle cx="410" cy="270" r="9" fill="#9aa4ad"/>
+<circle cx="410" cy="270" r="4" fill="#b7793a"/>
+<text x="66" y="254" font-size="13" font-weight="600" fill="#c0392b">pista  3,3 V</text>
+<line x1="66" y1="330" x2="424" y2="330" stroke="#b7793a" stroke-width="7" stroke-linecap="round"/>
+<circle cx="80" cy="330" r="9" fill="#9aa4ad"/>
+<circle cx="80" cy="330" r="4" fill="#b7793a"/>
+<circle cx="110" cy="330" r="9" fill="#9aa4ad"/>
+<circle cx="110" cy="330" r="4" fill="#b7793a"/>
+<circle cx="140" cy="330" r="9" fill="#9aa4ad"/>
+<circle cx="140" cy="330" r="4" fill="#b7793a"/>
+<circle cx="170" cy="330" r="9" fill="#9aa4ad"/>
+<circle cx="170" cy="330" r="4" fill="#b7793a"/>
+<circle cx="200" cy="330" r="9" fill="#9aa4ad"/>
+<circle cx="200" cy="330" r="4" fill="#b7793a"/>
+<circle cx="230" cy="330" r="9" fill="#9aa4ad"/>
+<circle cx="230" cy="330" r="4" fill="#b7793a"/>
+<circle cx="260" cy="330" r="9" fill="#9aa4ad"/>
+<circle cx="260" cy="330" r="4" fill="#b7793a"/>
+<circle cx="290" cy="330" r="9" fill="#9aa4ad"/>
+<circle cx="290" cy="330" r="4" fill="#b7793a"/>
+<circle cx="320" cy="330" r="9" fill="#9aa4ad"/>
+<circle cx="320" cy="330" r="4" fill="#b7793a"/>
+<circle cx="350" cy="330" r="9" fill="#9aa4ad"/>
+<circle cx="350" cy="330" r="4" fill="#b7793a"/>
+<circle cx="380" cy="330" r="9" fill="#9aa4ad"/>
+<circle cx="380" cy="330" r="4" fill="#b7793a"/>
+<circle cx="410" cy="330" r="9" fill="#9aa4ad"/>
+<circle cx="410" cy="330" r="4" fill="#b7793a"/>
+<text x="66" y="314" font-size="13" font-weight="600" fill="#7f8c8d">pista  massa</text>
+<rect x="311" y="270" width="18" height="60" rx="4" fill="#8d7f4a"/>
+<text x="320" y="254" text-anchor="middle" font-size="11.5" fill="#6b7585">470 uF</text>
+<rect x="371" y="270" width="18" height="60" rx="4" fill="#8d7f4a"/>
+<text x="380" y="254" text-anchor="middle" font-size="11.5" fill="#6b7585">100 nF</text>
+<path d="M 66 270 L 36 270" stroke="#c0392b" stroke-width="5" fill="none" stroke-linecap="round"/>
+<text x="34" y="258" text-anchor="end" font-size="12" font-weight="600" fill="#c0392b">3V3</text>
+<path d="M 66 330 L 36 330" stroke="#7f8c8d" stroke-width="5" fill="none" stroke-linecap="round"/>
+<text x="34" y="318" text-anchor="end" font-size="12" font-weight="600" fill="#7f8c8d">GND</text>
+<text x="36" y="406" font-size="12" fill="#6b7585">due fili soli verso l&#8217;adattatore</text>
+<text x="470" y="118" font-size="13" font-weight="600" fill="#1b2430">Come viene, da vicino</text>
+<rect x="470" y="150" width="370" height="104" rx="8" fill="#f3efe4" stroke="#2f3b4d" stroke-width="1.5"/>
+<circle cx="525" cy="202" r="22" fill="#9aa4ad"/>
+<circle cx="525" cy="202" r="13" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="610" cy="202" r="22" fill="#9aa4ad"/>
+<circle cx="610" cy="202" r="13" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="695" cy="202" r="22" fill="#9aa4ad"/>
+<circle cx="695" cy="202" r="13" fill="#d8cfb8" stroke="#b8ad92"/>
+<circle cx="780" cy="202" r="22" fill="#9aa4ad"/>
+<circle cx="780" cy="202" r="13" fill="#d8cfb8" stroke="#b8ad92"/>
+<line x1="490" y1="202" x2="820" y2="202" stroke="#b7793a" stroke-width="9" stroke-linecap="round"/>
+<circle cx="525" cy="202" r="20" fill="#9aa4ad" opacity="0.9"/>
+<circle cx="525" cy="202" r="4.5" fill="#b7793a"/>
+<circle cx="610" cy="202" r="20" fill="#9aa4ad" opacity="0.9"/>
+<circle cx="610" cy="202" r="4.5" fill="#b7793a"/>
+<circle cx="695" cy="202" r="20" fill="#9aa4ad" opacity="0.9"/>
+<circle cx="695" cy="202" r="4.5" fill="#b7793a"/>
+<circle cx="780" cy="202" r="20" fill="#9aa4ad" opacity="0.9"/>
+<circle cx="780" cy="202" r="4.5" fill="#b7793a"/>
+<text x="655" y="278" text-anchor="middle" font-size="12" fill="#6b7585">ogni piazzola saldata al filo, non solo le estremita&#8217;</text>
+<rect x="470" y="300" width="370" height="48" rx="7" fill="#f6f7f9" stroke="#dfe3e8"/>
+<rect x="470" y="300" width="5" height="48" rx="2" fill="#c0392b"/>
+<text x="486" y="318" font-size="12.5" font-weight="600" fill="#1b2430">Sulla pista 3,3 V</text>
+<text x="486" y="337" font-size="11.5" fill="#6b7585">VCC e LED del display, VCC del GPS, il + dei condensatori</text>
+<rect x="470" y="358" width="370" height="48" rx="7" fill="#f6f7f9" stroke="#dfe3e8"/>
+<rect x="470" y="358" width="5" height="48" rx="2" fill="#7f8c8d"/>
+<text x="486" y="376" font-size="12.5" font-weight="600" fill="#1b2430">Sulla pista massa</text>
+<text x="486" y="395" font-size="11.5" fill="#6b7585">GND di display e GPS, un capo del pulsante, il - dei condensatori</text>
+<circle cx="76" cy="468" r="14" fill="#2f3b4d"/>
+<text x="76" y="473" text-anchor="middle" font-size="14" font-weight="600" fill="#ffffff">1</text>
+<text x="104" y="466" font-size="13.5" font-weight="600" fill="#1b2430">Prendi un filo rigido NUDO, lungo quanto la fila.</text>
+<text x="104" y="484" font-size="12" fill="#6b7585">Va benissimo una gamba tagliata di un resistore o di un condensatore.</text>
+<circle cx="76" cy="514" r="14" fill="#2f3b4d"/>
+<text x="76" y="519" text-anchor="middle" font-size="14" font-weight="600" fill="#ffffff">2</text>
+<text x="104" y="512" font-size="13.5" font-weight="600" fill="#1b2430">Appoggialo sul lato rame, lungo una fila intera di piazzole.</text>
+<text x="104" y="530" font-size="12" fill="#6b7585">Infila le due estremita&#8217; in due fori ai capi: cosi&#8217; sta fermo mentre saldi.</text>
+<circle cx="76" cy="560" r="14" fill="#2f3b4d"/>
+<text x="76" y="565" text-anchor="middle" font-size="14" font-weight="600" fill="#ffffff">3</text>
+<text x="104" y="558" font-size="13.5" font-weight="600" fill="#1b2430">Salda prima i due capi, controlla che sia dritto, poi tutte le piazzole.</text>
+<text x="104" y="576" font-size="12" fill="#6b7585">Una per una: se ne salti una, quel foro non e&#8217; collegato a niente.</text>
+<circle cx="76" cy="606" r="14" fill="#2f3b4d"/>
+<text x="76" y="611" text-anchor="middle" font-size="14" font-weight="600" fill="#ffffff">4</text>
+<text x="104" y="604" font-size="13.5" font-weight="600" fill="#1b2430">Ripeti su un&#8217;altra fila: quella e&#8217; la massa.</text>
+<text x="104" y="622" font-size="12" fill="#6b7585">Lasciane una vuota in mezzo, cosi&#8217; le due piste non si toccano mai.</text>
+<circle cx="76" cy="652" r="14" fill="#2f3b4d"/>
+<text x="76" y="657" text-anchor="middle" font-size="14" font-weight="600" fill="#ffffff">5</text>
+<text x="104" y="650" font-size="13.5" font-weight="600" fill="#1b2430">Tester, prima di attaccare qualunque cosa.</text>
+<text x="104" y="668" font-size="12" fill="#6b7585">Deve suonare da un capo all&#8217;altro di ogni pista, e NON deve suonare fra le due.</text>
+<rect x="60" y="676" width="760" height="56" rx="8" fill="#f6f7f9" stroke="#2f3b4d" stroke-width="1"/>
+<text x="80" y="700" font-size="13.5" font-weight="600" fill="#1b2430">Da qui in poi non ci pensi piu&#8217;.</text>
+<text x="80" y="720" font-size="12.5" fill="#6b7585">Qualunque filo infili in un foro di quella fila e saldi e&#8217; collegato alla pista: non devi raggiungere un punto preciso.</text>
+</svg></figure>
+  <div class="box att">
+    <b>L'errore da evitare</b>
+    Saldare solo le due estremità del filo. Vanno saldate <b>tutte</b> le piazzole della fila, una
+    per una: se ne salti una, quel foro non è collegato a niente, e te ne accorgi quando il display
+    non si accende.
+  </div>
+</section>
+
+<section>
+  <div class="passo-testa"><span class="num">9</span><h2>Monta sull'adattatore</h2>
+    <span class="quando">20 fili, zero saldature</span></div>
+  <p>L'ESP32 si infila nelle due file di contatti al centro della basetta, e ogni suo pin esce su
+  una vite. Procedi per gruppi, nell'ordine, spuntando man mano:</p>
+  <ul class="check">
+    <li><b>Alimentazione</b> (2 fili): <code>3V3</code> → pista 3,3 V, <code>GND</code> → pista massa</li>
+    <li><b>GPS</b> (3 fili): <code>VCC</code> e <code>GND</code> alle piste, <code>TXD</code> → <code>RX2</code></li>
+    <li><b>Display</b> (9 fili): vedi Appendice A</li>
+    <li><b>Touch</b> (4 fili): tre condividono le viti dello SPI, <code>T_CS</code> va su <code>D27</code></li>
+    <li><b>Pulsante</b> (2 fili): uno su <code>D32</code>, l'altro alla pista massa</li>
+  </ul>
+  <div class="box no">
+    <b>Sui morsetti a vite NON si stagna la punta del filo</b>
+    Vale il contrario della millefori. Lo stagno sotto la vite si schiaccia lentamente e nel giro
+    di qualche mese il morsetto si allenta da solo. Usa filo nudo intrecciato fra le dita, o un
+    puntalino a crimpare.
+  </div>
+  <div class="box att">
+    <b>Contro le vibrazioni</b>
+    Una goccia di smalto per unghie sulla testa di ogni vite stretta, come frenafiletti da poveri.
+    E dopo il primo giro in moto ricontrollale tutte: è lì che si scopre quella stretta male.
+  </div>
+  <p>Avvita l'adattatore al fondo della scatola usando i quattro fori agli angoli, così non balla.</p>
+</section>
+
+<section>
+  <div class="passo-testa"><span class="num">10</span><h2>Collauda, un pezzo per volta</h2>
+    <span class="quando">mai tutto insieme</span></div>
+  <p>Questa è la pagina che ti salva il pomeriggio. Fai le prove <b>in quest'ordine</b> e non
+  passare alla successiva finché la precedente non è andata.</p>
+  <ul class="check">
+    <li>Tira piano ogni filo appena stretto: se esce, la vite non era chiusa</li>
+    <li>Tester in continuità fra 3,3 V e massa: <b>non deve fischiare</b></li>
+    <li>Solo l'ESP32 attaccato, sulla USB del PC: deve comparire il log</li>
+    <li>Misura 3,2 - 3,3 V sulla pista rossa</li>
+    <li>Attacca il GPS: <i>«modulo riconosciuto a 9600 baud»</i></li>
+    <li>Attacca il display: logo e menu</li>
+    <li>Tieni premuto il tasto 3 secondi: parte la taratura del tocco</li>
+    <li>Porta tutto all'aperto e aspetta il fix</li>
+  </ul>
+  <div class="box no">
+    <b>Se il tester fischia fra 3,3 V e massa c'è un corto</b>
+    Non attaccare niente: né USB, né moduli. Trova prima il corto. Nove volte su dieci è una
+    goccia di stagno che ha fatto ponte fra le due piste.
+  </div>
+  <div class="box">
+    <b>Perché un pezzo per volta</b>
+    Se sbagli un filo, vuoi scoprirlo con il solo ESP32 attaccato: a quel punto sai dove guardare.
+    Con tutto collegato insieme, un corto può portarsi via GPS e display in un colpo.
+  </div>
+</section>
+
+<section>
+  <div class="passo-testa"><span class="num">11</span><h2>Installa sulla moto</h2>
+    <span class="quando">l'ultimo miglio</span></div>
+  <h3>La corrente</h3>
+  <p>Arriva da una <b>presa USB da manubrio</b>: la conversione da 12 V a 5 V, il fusibile e la
+  tenuta all'acqua ce li ha già dentro. L'ESP32 si alimenta dal suo micro-USB, come fa sul banco
+  con il PC. Dentro la scatola non entra nessun altro componente di alimentazione.</p>
+  <table>
+    <tr><th>Passaggio</th><th>Attenzione a</th></tr>
+    <tr><td>presa USB della moto</td><td>stagna, almeno 2 A, <b>sotto chiave</b></td></tr>
+    <tr><td>cavo USB</td><td>corto, 30-50 cm, meglio ad angolo</td></tr>
+    <tr><td>micro-USB dell'ESP32</td><td>fermato con una fascetta</td></tr>
+  </table>
+  <div class="box no">
+    <b>La fascetta stringe il cavo, mai il connettore</b>
+    Il micro-USB è un connettore pensato per stare fermo su una scrivania. Non è lui a rompersi:
+    sono le quattro saldature che lo tengono attaccato alla scheda, che si crepano con le
+    vibrazioni. Blocca il <b>cavo</b> cinque o sei centimetri più in là, fissandolo alla scatola:
+    così ogni strappo se lo prende la fascetta.
+  </div>
+  <div class="box att">
+    <b>Sotto chiave, non attaccata alla batteria</b>
+    Molte prese da moto restano alimentate sempre: il navigatore ti resterebbe acceso a moto spenta
+    e in qualche giorno trovi la batteria a terra. Su una moto con CAN-bus come la S 1000 XR non
+    tagliare un filo a caso: usa la presa accessori o il connettore predisposto, o un relè pilotato
+    da un circuito sotto chiave.
+  </div>
+  <div class="box att">
+    <b>Il cavo USB non è un dettaglio</b>
+    L'ESP32 col display acceso e il GPS assorbe circa mezzo ampere. Con un cavetto lungo e sottile
+    i 5 V arrivano come 4,5 V e il regolatore di bordo lavora al limite: il display sfarfalla o la
+    scheda si riavvia, e tu pensi a un bug del firmware.
+  </div>
+  <h3>Il resto</h3>
+  <ul class="check">
+    <li>Scatola stagna fissata dove non prende acqua diretta né il calore del motore</li>
+    <li>Passacavi in gomma su ogni foro da cui esce un cavo</li>
+    <li>Antenna del GPS con vista libera verso l'alto, non sotto al serbatoio o dietro al metallo</li>
+    <li>Display dove lo vedi senza togliere gli occhi dalla strada</li>
+    <li>Pulsante raggiungibile col guanto</li>
+    <li>Una foto di tutto, prima di chiudere la scatola</li>
+  </ul>
+</section>
+
+<section>
+  <div class="passo-testa"><h2>Appendice A — Mappa dei morsetti</h2></div>
+  <p>Sull'adattatore, i due pin della seconda seriale si chiamano <code>RX2</code> e <code>TX2</code>:
+  sono gli stessi che la DevKit chiama <code>D16</code> e <code>D17</code>.</p>
+  <table>
+    <tr><th>Morsetto</th><th>Ci va</th></tr>
+    <tr><td><code>VIN</code></td><td><b>niente</b>: la corrente entra dal micro-USB</td></tr>
+    <tr><td><code>GND</code> (uno per lato)</td><td>massa: ne basta uno, l'altro resta libero</td></tr>
+    <tr><td><code>3V3</code></td><td>pista 3,3 V</td></tr>
+    <tr><td><code>RX2</code> (= <code>D16</code>)</td><td><code>TXD</code> del GPS</td></tr>
+    <tr><td><code>TX2</code> (= <code>D17</code>)</td><td><b>niente</b>: il GPS non ascolta</td></tr>
+    <tr><td><code>D4</code></td><td><code>PPS</code> del GPS — facoltativo</td></tr>
+    <tr><td><code>D5</code></td><td><code>CS</code> del display</td></tr>
+    <tr><td><code>D22</code></td><td><code>RESET</code> del display</td></tr>
+    <tr><td><code>D21</code></td><td><code>DC / RS</code> del display</td></tr>
+    <tr><td><code>D23</code></td><td><code>SDI / MOSI</code> del display, e <code>T_DIN</code> del touch</td></tr>
+    <tr><td><code>D18</code></td><td><code>SCK</code> del display, e <code>T_CLK</code> del touch</td></tr>
+    <tr><td><code>D19</code></td><td><code>SDO / MISO</code> del display, e <code>T_DO</code> del touch</td></tr>
+    <tr><td><code>D27</code></td><td><code>T_CS</code> del touch</td></tr>
+    <tr><td><code>D32</code></td><td>pulsante (l'altro capo alla massa)</td></tr>
+    <tr><td><code>TX0</code> <code>RX0</code></td><td><b>non toccarli</b>: seriale della USB</td></tr>
+    <tr><td><code>D2</code></td><td>LED blu di bordo</td></tr>
+  </table>
+  <p>Alle piste vanno: <code>VCC</code> e <code>LED</code> del display, <code>VCC</code> del GPS e
+  il <b>+</b> dei condensatori sulla pista 3,3 V; i <code>GND</code> di display e GPS, un capo del
+  pulsante e il <b>−</b> dei condensatori sulla pista massa.</p>
+</section>
+
+<section>
+  <div class="passo-testa"><h2>Appendice B — Se qualcosa non va</h2></div>
+  <table>
+    <tr><th>Sintomo</th><th>Causa probabile</th></tr>
+    <tr><td>La porta COM risulta occupata</td><td>il log seriale è rimasto aperto: chiudilo</td></tr>
+    <tr><td><code>[GPS] nessun byte in arrivo</code></td><td>TX e RX non incrociati, massa mancante, o modulo non alimentato</td></tr>
+    <tr><td>Frasi NMEA che arrivano ma errori di checksum che salgono</td><td>baud sbagliato, o cavetti lunghi e ballerini</td></tr>
+    <tr><td>Satelliti in vista ma il fix non arriva</td><td>antenna al chiuso: portalo all'aperto e lascialo fermo qualche minuto</td></tr>
+    <tr><td>L'ESP32 si riavvia quando il GPS aggancia</td><td>alimentazione debole: cavo corto e alimentatore vero, non la porta di un hub</td></tr>
+    <tr><td>Il display non si accende</td><td>alimentato a 5 V invece che a 3,3 V, o un filo SPI invertito</td></tr>
+    <tr><td>Il touch non risponde</td><td>tieni premuto il tasto 3 secondi e rifai la taratura</td></tr>
+    <tr><td>Il display sfarfalla o la scheda si riavvia sulla moto</td><td>cavo USB lungo e sottile: la tensione cala</td></tr>
+    <tr><td>Il percorso è una linea dritta fra le tappe</td><td>non hai spuntato <i>segui le strade</i> quando l'hai creato</td></tr>
+    <tr><td>Il navigatore resta acceso a moto spenta</td><td>la presa USB non è sotto chiave</td></tr>
+  </table>
+</section>
+
+<section>
+  <div class="passo-testa"><h2>Appendice C — Che firmware ho caricato?</h2></div>
+  <p>Ogni firmware porta con sé data, ora e commit di git da cui è stato costruito. Si legge in tre
+  posti, scegli il più comodo:</p>
+  <ul>
+    <li><b>Nel log appena acceso:</b> <code>[FW] compilato il ...  commit ...</code></li>
+    <li><b>Sul display</b>, nella pagina <b>Telefono</b> del menu, in fondo: resta li' finche'
+      non esci, quindi si legge con calma. Compare anche sotto il logo all'accensione, ma
+      quello dura poco piu' di un secondo;</li>
+    <li><b>Dalla dashboard</b>, nella riga grigia in fondo alla pagina.</li>
+  </ul>
+  <p>Per sapere se sei aggiornato, confronta quel commit con quello che hai sul PC: nella cartella
+  del progetto, <code>git log --oneline -1</code>. Se coincidono, sulla scheda c'è esattamente
+  quello che hai scaricato.</p>
+  <div class="box">
+    <b>Due casi particolari</b>
+    Un <b>+</b> dopo il commit (<code>a1b2c3d+</code>) vuol dire che quando hai compilato avevi
+    modifiche non ancora salvate su git: di solito è il tuo <code>config.h</code>, ed è normale.
+    Se invece leggi <code>senza git</code>, quel firmware è stato compilato in un ambiente senza
+    git — per esempio dall'Arduino IDE: la data di compilazione vale lo stesso.
+  </div>
+  <div class="fine">
+    Tutta la documentazione estesa, i due video del montaggio e gli schemi dei collegamenti stanno
+    nel <b>README del progetto</b>. Questa guida copre i passaggi; il README copre i dettagli.
+  </div>
+</section>
+</html>
