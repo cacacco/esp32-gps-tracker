@@ -497,12 +497,27 @@ usarlo del tutto.
 | Pulsante | Cosa fa |
 |---|---|
 | **Naviga** | va alle schermate di marcia: velocita', viaggio, freccia e svolte |
-| **Percorso** | quanto e' lungo, quanti punti, svolte e tappe; e lo cancella |
+| **Percorso** | quanto e' lungo, quanti punti, svolte e tappe; lo cancella, e con **Nuovo** apre la pagina che aspetta il telefono |
 | **Telefono** | l'indirizzo a cui collegarti, oppure accende la rete del tracker |
 | **Viaggio** | km, velocita' massima, tempo in movimento, punti registrati; azzera e cancella |
 
-**Caricare un GPX o disegnare un percorso resta roba da telefono**: sul display non c'e' una
-tastiera e non si sceglie un file. Il menu fa quello che ha senso a bordo - dire cosa c'e' in
+#### Creare un percorso partendo dal display
+
+Dentro **Percorso** c'e' il pulsante **Nuovo**. Non disegna il percorso sul display - sarebbe
+un supplizio su uno schermo da quattro pollici senza tastiera - ma fa l'unica cosa che serve
+davvero: ti mette sotto gli occhi **l'indirizzo esatto da aprire sul telefono**
+(`http://<indirizzo>/percorso`) e poi resta li' a guardare. La riga in basso dice cosa c'e' in
+memoria e **cambia da sola** appena il telefono salva: vedi comparire chilometri e svolte senza
+toccare niente, e sai che e' arrivato.
+
+Se non c'e' nessuna rete, la pagina te lo dice e offre il pulsante per **accendere quella del
+tracker**. E se stai usando proprio quella, ti avvisa di una cosa che altrimenti scopriresti
+tardi: **sulla rete del tracker non c'e' internet**, quindi le strade e le svolte non si
+possono calcolare e il percorso resterebbe una linea d'aria. I percorsi con le svolte si
+preparano dove il telefono ha internet.
+
+**Caricare un GPX resta roba da telefono**: sul display non c'e' una tastiera e non si sceglie
+un file. Il menu fa quello che ha senso a bordo - dire cosa c'e' in
 memoria, buttarlo via, e tirare su la rete per farti collegare. Il pulsante *Telefono* e'
 proprio la scorciatoia per quello: se sei fuori casa, accendi la rete del tracker, ti colleghi
 col telefono alla rete `GPS-Tracker-...` e apri `http://192.168.4.1`, da dove carichi il GPX o
@@ -639,7 +654,7 @@ Sul display la schermata di navigazione e' impaginata come un navigatore da auto
 * in alto a destra la **svolta in arrivo**: freccia sua, distanza che scende e nome della
   strada. Sotto i `TURN_WARN_M` (400 m) diventa arancione e si accende la cornice, cosi' la
   vedi con la coda dell'occhio senza leggere i numeri;
-* sotto, **POI**: la manovra successiva, per sapere gia' che dopo la rotonda devi stare a
+* sotto, **DOPO**: la manovra successiva, per sapere gia' che dopo la rotonda devi stare a
   destra;
 * in basso la velocita'.
 

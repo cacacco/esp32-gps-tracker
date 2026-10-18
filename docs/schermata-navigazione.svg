@@ -20,7 +20,7 @@
   <polygon points="358.0,100.0 313.3,114.1 322.2,100.0 313.3,85.9" fill="#f0a93b"/>
   <text x="420" y="110" font-size="26" fill="#f0a93b" text-anchor="middle">250 m</text>
   <text x="386" y="145" font-size="13" fill="#8b94a7" text-anchor="middle">a destra Via Roma</text>
-  <text x="386" y="185" font-size="13" fill="#8b94a7" text-anchor="middle">POI</text>
+  <text x="386" y="185" font-size="13" fill="#8b94a7" text-anchor="middle">DOPO</text>
   <polygon points="312.0,212.0 340.7,202.9 335.0,212.0 340.7,221.1" fill="#8b94a7"/>
   <text x="420" y="218" font-size="13" fill="#8b94a7" text-anchor="middle">1.2 km</text>
   <text x="386" y="259" font-size="13" fill="#8b94a7" text-anchor="middle">km/h</text>

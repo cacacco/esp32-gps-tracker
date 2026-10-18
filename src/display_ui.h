@@ -474,7 +474,7 @@ static void drawNav(const DisplayData &d, bool force) {
   const int32_t poiA   = haPoi ? (int32_t)turnAngle(d.navTurn2Kind) : -9999;
   if (force || poiA != pPoiA) {
     pPoiA = poiA;
-    displayField(haPoi ? "POI" : "", 386, 180, 2, 180, COL_LABEL);
+    displayField(haPoi ? "DOPO" : "", 386, 180, 2, 180, COL_LABEL);
     tft.fillCircle(PO_X, PO_Y, PO_R + 2, COL_BG);
     if (haPoi) drawArrowAt(PO_X, PO_Y, PO_R, (float)poiA, COL_LABEL);
   }
@@ -517,6 +517,7 @@ enum UiPage : uint8_t {
   PAGE_LIVE = 0,      // le schermate di marcia, scelte dallo stato del fix
   PAGE_MENU,
   PAGE_ROUTE,
+  PAGE_NEWROUTE,      // aspetta che il telefono mandi un percorso
   PAGE_PHONE,
   PAGE_TRIP,
   PAGE_CONFIRM
@@ -654,12 +655,58 @@ static void drawRoutePage(const DisplayData &d) {
     tft.drawString("nessun percorso in memoria", 240, 120, 4);
   }
 
+  drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
+  drawButton(PAGE_BTN[1], "Nuovo", "", COL_CYAN);
+  if (d.navTotal) drawButton(PAGE_BTN[2], "Cancella", "", COL_BAD);
+}
+
+// Il percorso si disegna sul telefono, non qui: lo schermo e' piccolo e senza
+// mappa. Questa pagina fa l'unica cosa che serve davvero - dirti dove andare a
+// scriverlo - e poi resta a guardare finche' il percorso non arriva.
+static void drawNewRoutePage(const DisplayData &d) {
+  char buf[52];
+  drawPageHead("NUOVO PERCORSO");
   tft.setTextDatum(MC_DATUM);
-  tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("per caricarne uno nuovo usa il telefono", 240, 228, 2);
+
+  const bool inRete = d.portal || (d.ipText && *d.ipText);
+
+  if (!inRete) {
+    tft.setTextColor(COL_BAD, COL_BG);
+    tft.drawString("serve il telefono collegato", 240, 100, 4);
+    tft.setTextColor(COL_LABEL, COL_BG);
+    tft.drawString("accendi la rete del tracker, collega il telefono,", 240, 148, 2);
+    tft.drawString("e l'indirizzo compare qui da solo", 240, 172, 2);
+    drawButton(PAGE_BTN[2], "Accendi", "", COL_OK);
+  } else {
+    tft.setTextColor(COL_LABEL, COL_BG);
+    tft.drawString("apri questo indirizzo sul telefono", 240, 72, 2);
+    snprintf(buf, sizeof(buf), "http://%s/percorso",
+             d.portal ? "192.168.4.1" : (d.ipText ? d.ipText : "--"));
+    tft.setTextColor(COL_OK, COL_BG);
+    tft.drawString(buf, 240, 108, 4);
+
+    if (d.portal) {
+      tft.setTextColor(COL_WARN, COL_BG);
+      tft.drawString("sulla rete del tracker non c'e' internet:", 240, 150, 2);
+      tft.drawString("le strade e le svolte non si possono calcolare", 240, 172, 2);
+    } else {
+      tft.setTextColor(COL_LABEL, COL_BG);
+      tft.drawString("spunta \"segui le strade\" per avere le svolte", 240, 152, 2);
+    }
+
+    if (d.navTotal) {
+      snprintf(buf, sizeof(buf), "in memoria: %.1f km, %u svolte", d.routeKm, d.routeTurns);
+      tft.setTextColor(COL_FG, COL_BG);
+    } else {
+      snprintf(buf, sizeof(buf), "nessun percorso in memoria");
+      tft.setTextColor(COL_LABEL, COL_BG);
+    }
+    tft.drawString(buf, 240, 210, 2);
+    tft.setTextColor(COL_LABEL, COL_BG);
+    tft.drawString("questa riga cambia da sola appena salvi", 240, 232, 2);
+  }
 
   drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
-  if (d.navTotal) drawButton(PAGE_BTN[2], "Cancella", "", COL_BAD);
 }
 
 static void drawPhonePage(const DisplayData &d) {
@@ -696,7 +743,7 @@ static void drawPhonePage(const DisplayData &d) {
 
   // la carta d'identita' del firmware: qui si legge con calma, lo splash dura un attimo
   tft.setTextDatum(MC_DATUM);
-  tft.setTextColor(COL_LINE, COL_BG);
+  tft.setTextColor(COL_FG, COL_BG);
   tft.drawString("firmware  " FW_VERSIONE, 240, 232, 2);
 
   drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
@@ -757,7 +804,13 @@ static UiAction uiTouch(int16_t x, int16_t y) {
 
     case PAGE_ROUTE:
       if (rectHit(PAGE_BTN[0], x, y)) uiGoto(PAGE_MENU);
+      else if (rectHit(PAGE_BTN[1], x, y)) uiGoto(PAGE_NEWROUTE);
       else if (rectHit(PAGE_BTN[2], x, y)) uiAsk(UI_ROUTE_CLEAR, "Cancellare il percorso?");
+      return UI_NONE;
+
+    case PAGE_NEWROUTE:
+      if (rectHit(PAGE_BTN[0], x, y)) { uiGoto(PAGE_ROUTE); return UI_NONE; }
+      if (rectHit(PAGE_BTN[2], x, y) && !uiPortalOn) { uiDirty = true; return UI_PORTAL_ON; }
       return UI_NONE;
 
     case PAGE_TRIP:
@@ -783,7 +836,12 @@ static void uiSelAggiorna() {
       break;
     case PAGE_ROUTE:
       uiSelLista[uiSelCount++] = &PAGE_BTN[0];
+      uiSelLista[uiSelCount++] = &PAGE_BTN[1];
       if (uiHasRoute) uiSelLista[uiSelCount++] = &PAGE_BTN[2];
+      break;
+    case PAGE_NEWROUTE:
+      uiSelLista[uiSelCount++] = &PAGE_BTN[0];
+      if (!uiPortalOn) uiSelLista[uiSelCount++] = &PAGE_BTN[2];
       break;
     case PAGE_PHONE:
     case PAGE_CONFIRM:
@@ -903,12 +961,21 @@ static void displayUpdate(const DisplayData &d) {
 #endif
 
   if (uiPage != PAGE_LIVE) {
-    if (!uiDirty) return;             // le pagine sono ferme: si disegnano una volta
+    if (uiPage == PAGE_NEWROUTE) {    // questa invece aspetta: la rete o il percorso
+      static uint16_t ultimiPunti = 0xFFFF;
+      static uint8_t  ultimaRete  = 0xFF;
+      const uint8_t rete = d.portal ? 2 : (d.ipText && *d.ipText) ? 1 : 0;
+      if (d.navTotal != ultimiPunti || rete != ultimaRete) {
+        ultimiPunti = d.navTotal; ultimaRete = rete; uiDirty = true;
+      }
+    }
+    if (!uiDirty) return;             // le altre sono ferme: si disegnano una volta
     uiDirty = false;
     uiSelAggiorna();
     switch (uiPage) {
       case PAGE_MENU:    drawMenu(d);       break;
       case PAGE_ROUTE:   drawRoutePage(d);  break;
+      case PAGE_NEWROUTE: drawNewRoutePage(d); break;
       case PAGE_PHONE:   drawPhonePage(d);  break;
       case PAGE_TRIP:    drawTripPage(d);   break;
       case PAGE_CONFIRM: drawConfirmPage(); break;
