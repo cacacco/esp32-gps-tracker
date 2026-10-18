@@ -39,6 +39,27 @@ Tutto gira sull'ESP32: nessun server esterno, nessuna SD, nessun file da caricar
 | Cavo USB dati | molti cavi da ricarica non hanno i fili dati |
 | *(facoltativo)* TFT 4" ST7796 480x320 SPI | computer di bordo, vedi sotto |
 
+Sul banco l'ESP32 si alimenta dalla USB del PC e non serve altro. **Per montarlo sulla moto**
+servono anche questi, ed e' roba che non c'e' in nessun kit di elettronica:
+
+| Pezzo | Note |
+|---|---|
+| Convertitore step-down 12 V -> 5 V, almeno 2 A | **uscita fissa a 5 V**, ingresso 8-35 V. E' lui che alimenta tutto: va fra la moto e il morsetto `VIN` |
+| Portafusibile stagno + fusibile 2 A | a non piu' di 15 cm dal + della batteria |
+| Diodo 1N4007 | in serie sul +, fascetta verso il convertitore: protegge dall'inversione di polarita' |
+| Scatola stagna (IP65) | che ci stiano adattatore, convertitore e il pezzetto di millefori |
+| Passacavi in gomma | dove i cavi escono dalla scatola, altrimenti la guaina si consuma sul bordo |
+
+> **Se il convertitore e' regolabile** (quelli con il trimmerino blu, tipo LM2596) **mettilo a
+> 5,0 V col tester PRIMA di collegarci l'ESP32**: molti arrivano regolati in modo che l'uscita
+> sia quasi uguale all'ingresso, e 12 V su `VIN` bruciano la scheda all'istante. Se puoi,
+> compra quello a uscita fissa: una cosa in meno da sbagliare.
+
+> **Dove prendere i 12 V**: da un circuito che si spegne con la chiave, non direttamente dalla
+> batteria, altrimenti il navigatore resta acceso e te la scarica. Su una moto con CAN-bus come
+> la S 1000 XR non tagliare un filo a caso: usa la presa accessori o il connettore predisposto,
+> oppure un rele' pilotato da un circuito sotto chiave.
+
 ---
 
 ## 2. Collegamenti
