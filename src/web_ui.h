@@ -279,6 +279,7 @@ async function refreshStatus(){
     : 'in attesa del fix...';
 
   $('diag').textContent =
+    `firmware ${s.diag.fw || '?'} | ` +
     `rete ${s.diag.ssid || '--'} | RSSI ${s.diag.rssi} dBm | caratteri NMEA ${s.diag.chars} | ` +
     `frasi valide ${s.diag.sentences} | checksum errati ${s.diag.errors} | ` +
     `punti salvati ${s.diag.points} | memoria libera ${s.diag.fsfree} kB | heap ${(s.diag.heap/1024).toFixed(0)} kB | ` +

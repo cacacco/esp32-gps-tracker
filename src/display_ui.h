@@ -13,6 +13,7 @@
 #pragma once
 
 #include "config.h"
+#include "version.h"
 
 #if ENABLE_DISPLAY
 
@@ -835,6 +836,8 @@ static void drawSplash() {
   tft.setTextSize(1);
   tft.setTextColor(COL_LABEL, COL_BG);
   tft.drawString("registra i percorsi e ti porta a destinazione", 240, 286, 2);
+  tft.setTextColor(COL_LINE, COL_BG);
+  tft.drawString(FW_VERSIONE, 240, 308, 1);
 
   const uint8_t  fotogrammi = 26;
   const uint32_t pausa = SPLASH_MS / fotogrammi;

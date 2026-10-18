@@ -25,6 +25,7 @@
 #include <sys/time.h>
 
 #include "config.h"
+#include "version.h"
 #include "track_store.h"
 #include "route.h"
 #include "wifi_portal.h"
@@ -548,6 +549,7 @@ static void handleStatus() {
   diag["touch"]     = false;
 #endif
   diag["fsfree"]    = trackReady ? (LittleFS.totalBytes() - LittleFS.usedBytes()) / 1024 : 0;
+  diag["fw"]        = FW_VERSIONE;
   diag["uptime"]    = millis() / 1000;
   diag["heap"]      = ESP.getFreeHeap();
   diag["rssi"]      = WiFi.RSSI();
@@ -995,6 +997,7 @@ void setup() {
   Serial.begin(SERIAL_BAUD);
   delay(200);
   Serial.println(F("\r\n\r\n=== ESP32 GPS Tracker ==="));
+  Serial.printf("[FW] compilato il %s   commit %s\r\n", FW_BUILD, FW_COMMIT);
 
   setenv("TZ", "UTC0", 1);            // i timestamp del GPS sono UTC
   tzset();

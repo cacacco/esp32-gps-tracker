@@ -842,6 +842,26 @@ serve a non farsi bloccare dal server. I cambi di stato del contatto hanno un li
 
 ## 9. Se qualcosa non va
 
+### Che firmware ho caricato?
+
+Il firmware dice sempre da dove viene: data e ora di compilazione, e il commit
+di git da cui e' stato costruito. Si legge in tre posti, scegli il piu' comodo:
+
+* **nel log appena acceso** (il monitor seriale, o `log-seriale.ps1`):
+  `[FW] compilato il Oct 18 2026 10:42:07   commit b590222`
+* **sul display**, in fondo alla schermata di accensione, sotto il logo;
+* **dalla dashboard**, nella riga grigia in fondo alla pagina.
+
+Il commit lo confronti con quello che hai sul PC: apri la cartella del progetto
+e guarda l'ultima riga di `git log --oneline -1`. Se i due coincidono, sull'ESP32
+c'e' esattamente quello che hai scaricato. Un **`+`** dopo il commit (`b590222+`)
+vuol dire che quando hai compilato avevi modifiche non ancora salvate su git -
+di solito e' il tuo `config.h`, ed e' normale.
+
+Se al posto del commit leggi `senza git`, quel firmware e' stato compilato senza
+git disponibile (per esempio dall'Arduino IDE): la data di compilazione vale
+lo stesso.
+
 | Sintomo | Causa probabile |
 |---|---|
 | `[GPS] nessun byte in arrivo` e LED a lampeggio veloce | TX/RX non incrociati, GND mancante, modulo non alimentato |
