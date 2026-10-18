@@ -23,8 +23,15 @@
 static WebServer   *wifiServer   = nullptr;
 static DNSServer    wifiDns;
 static Preferences  wifiPrefs;
-static String       wifiSsid;
+static String       wifiSsid;                 // quella a cui siamo attaccati ora
 static String       wifiPass;
+
+// Il tracker ricorda piu' di una rete: a casa il WiFi di casa, fuori l'hotspot
+// del telefono. All'accensione le prova in ordine e si attacca alla prima che
+// trova, senza che tu debba aprire niente.
+struct WifiRete { String ssid, pass; };
+static WifiRete     wifiReti[WIFI_MAX_RETI];
+static uint8_t      wifiCount = 0;
 static String       wifiApName;
 static bool         wifiPortalOn = false;
 static bool         wifiMdnsOn   = false;
@@ -80,8 +87,15 @@ static const char PORTAL_HTML[] PROGMEM = R"PORTAL(<!doctype html>
       <button type="submit">Salva e riavvia</button>
     </form>
     <form method="POST" action="/wifi/forget">
-      <button class="ghost" type="submit">Dimentica la rete salvata</button>
+      <button class="ghost" type="submit">Dimentica tutte le reti</button>
     </form>
+  </div>
+
+  <div class="card">
+    <label>Reti che il tracker ricorda</label>
+    <div id="salvate" class="state">--</div>
+    <div class="state" style="margin-top:10px">Le prova in quest'ordine a ogni accensione,
+      e si attacca alla prima che trova.</div>
   </div>
 
   <div class="card">
@@ -94,6 +108,22 @@ fetch('/wifi/scan').then(r => r.json()).then(d => {
   document.getElementById('state').innerHTML = d.connected
     ? 'Collegato a <b>' + d.ssid + '</b><br>indirizzo ' + d.ip
     : (d.ssid ? 'Rete salvata: <b>' + d.ssid + '</b>, non raggiungibile' : 'Nessuna rete salvata');
+  const sal = document.getElementById('salvate');
+  if (!d.salvate || !d.salvate.length) sal.textContent = 'nessuna';
+  else {
+    sal.innerHTML = '';
+    d.salvate.forEach((n, i) => {
+      const el = document.createElement('div');
+      el.className = 'net';
+      el.innerHTML = '<span>' + (i + 1) + '. ' + n + '</span>'
+                   + '<span class="rssi" style="cursor:pointer">dimentica</span>';
+      el.lastChild.onclick = async () => {
+        await fetch('/wifi/forget', {method:'POST', body:new URLSearchParams({ssid:n})});
+        location.reload();
+      };
+      sal.appendChild(el);
+    });
+  }
   const box = document.getElementById('nets');
   if (!d.nets || !d.nets.length) { box.textContent = 'nessuna rete trovata'; return; }
   box.innerHTML = '';
@@ -163,9 +193,99 @@ static void wifiStopPortal() {
   Serial.println(F("[WiFi] rete raggiunta: portale chiuso"));
 }
 
-static void wifiSaveCredentials(const String &ssid, const String &pass) {
-  wifiPrefs.putString("ssid", ssid);
-  wifiPrefs.putString("pass", pass);
+static void wifiCarica() {
+  wifiCount = 0;
+  for (uint8_t i = 0; i < WIFI_MAX_RETI; i++) {
+    char chiave[8];
+    snprintf(chiave, sizeof(chiave), "ssid%u", i);
+    const String s = wifiPrefs.getString(chiave, "");
+    if (!s.length()) continue;
+    snprintf(chiave, sizeof(chiave), "pass%u", i);
+    wifiReti[wifiCount].ssid = s;
+    wifiReti[wifiCount].pass = wifiPrefs.getString(chiave, "");
+    wifiCount++;
+  }
+  // chi aggiorna da una versione precedente aveva una coppia sola: diventa la prima
+  if (!wifiCount) {
+    const String s = wifiPrefs.getString("ssid", "");
+    if (s.length()) {
+      wifiReti[0].ssid = s;
+      wifiReti[0].pass = wifiPrefs.getString("pass", "");
+      wifiCount = 1;
+    }
+  }
+}
+
+static void wifiSalvaTutte() {
+  for (uint8_t i = 0; i < WIFI_MAX_RETI; i++) {
+    char chiave[8];
+    snprintf(chiave, sizeof(chiave), "ssid%u", i);
+    if (i < wifiCount) wifiPrefs.putString(chiave, wifiReti[i].ssid);
+    else               wifiPrefs.remove(chiave);
+    snprintf(chiave, sizeof(chiave), "pass%u", i);
+    if (i < wifiCount) wifiPrefs.putString(chiave, wifiReti[i].pass);
+    else               wifiPrefs.remove(chiave);
+  }
+  wifiPrefs.remove("ssid");                    // le chiavi vecchie non servono piu'
+  wifiPrefs.remove("pass");
+}
+
+// La piu' recente va in cima: e' quella che stai usando adesso, ed e' giusto
+// che sia la prima a essere provata.
+static void wifiAggiungi(const String &ssid, const String &pass) {
+  uint8_t dove = WIFI_MAX_RETI;
+  for (uint8_t i = 0; i < wifiCount; i++) if (wifiReti[i].ssid == ssid) { dove = i; break; }
+  if (dove == WIFI_MAX_RETI) {
+    if (wifiCount < WIFI_MAX_RETI) wifiCount++;
+    dove = (uint8_t)(wifiCount - 1);           // la piu' vecchia esce dalla lista
+  }
+  for (uint8_t i = dove; i > 0; i--) wifiReti[i] = wifiReti[i - 1];
+  wifiReti[0].ssid = ssid;
+  wifiReti[0].pass = pass;
+  wifiSalvaTutte();
+}
+
+static void wifiDimentica(const String &ssid) {
+  if (!ssid.length()) { wifiCount = 0; wifiSalvaTutte(); return; }
+  for (uint8_t i = 0; i < wifiCount; i++) {
+    if (wifiReti[i].ssid != ssid) continue;
+    for (uint8_t j = i; j + 1 < wifiCount; j++) wifiReti[j] = wifiReti[j + 1];
+    wifiCount--;
+    break;
+  }
+  wifiSalvaTutte();
+}
+
+// Prova le reti salvate, in ordine, ma solo quelle che si vedono davvero:
+// aspettare venti secondi una rete che non c'e' e' tempo buttato.
+static bool wifiProvaTutte(uint32_t timeoutMs) {
+  if (!wifiCount) return false;
+
+  bool visibile[WIFI_MAX_RETI] = { false };
+  const int trovate = WiFi.scanNetworks();
+  for (int n = 0; n < trovate; n++)
+    for (uint8_t i = 0; i < wifiCount; i++)
+      if (WiFi.SSID(n) == wifiReti[i].ssid) visibile[i] = true;
+  WiFi.scanDelete();
+
+  bool qualcuna = false;
+  for (uint8_t i = 0; i < wifiCount; i++) {
+    if (!visibile[i]) continue;
+    qualcuna = true;
+    if (wifiTryConnect(wifiReti[i].ssid, wifiReti[i].pass, timeoutMs)) {
+      wifiSsid = wifiReti[i].ssid;
+      wifiPass = wifiReti[i].pass;
+      return true;
+    }
+  }
+
+  // nessuna in elenco: puo' essere una rete nascosta, la prima si prova comunque
+  if (!qualcuna && wifiTryConnect(wifiReti[0].ssid, wifiReti[0].pass, timeoutMs)) {
+    wifiSsid = wifiReti[0].ssid;
+    wifiPass = wifiReti[0].pass;
+    return true;
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -185,6 +305,16 @@ static void wifiHandleScan() {
                                                        : WiFi.softAPIP().toString()) + "\"";
   out += ",\"portal\":";
   out += wifiPortalOn ? "true" : "false";
+  out += ",\"salvate\":[";
+  for (uint8_t i = 0; i < wifiCount; i++) {
+    String nome = wifiReti[i].ssid;
+    nome.replace("\\", "\\\\");
+    nome.replace("\"", "\\\"");
+    if (i) out += ',';
+    out += "\"" + nome + "\"";
+  }
+  out += "]";
+
   out += ",\"nets\":[";
 
   for (int i = 0; i < found && i < 20; i++) {
@@ -216,16 +346,22 @@ static void wifiHandleSave() {
   const String pass = wifiServer->arg("pass");
   if (!ssid.length()) { wifiServer->send(400, "text/plain", "serve il nome della rete"); return; }
 
-  wifiSaveCredentials(ssid, pass);
-  Serial.printf("[WiFi] nuova rete salvata: %s\r\n", ssid.c_str());
-  wifiReplyAndRestart("Rete <b>" + ssid + "</b> salvata.<br><br>Il tracker si riavvia e si collega.");
+  wifiAggiungi(ssid, pass);
+  Serial.printf("[WiFi] rete salvata: %s (ne ricorda %u)\r\n", ssid.c_str(), wifiCount);
+  wifiReplyAndRestart("Rete <b>" + ssid + "</b> salvata.<br><br>"
+                      "Il tracker si riavvia e prova le reti che conosce, questa per prima.");
 }
 
 static void wifiHandleForget() {
-  wifiPrefs.remove("ssid");
-  wifiPrefs.remove("pass");
-  Serial.println(F("[WiFi] credenziali cancellate"));
-  wifiReplyAndRestart("Rete dimenticata.<br><br>Al riavvio il tracker apre il proprio access point.");
+  const String ssid = wifiServer->arg("ssid");
+  wifiDimentica(ssid);
+  if (ssid.length()) {                         // una sola: non serve riavviare niente
+    Serial.printf("[WiFi] rete dimenticata: %s\r\n", ssid.c_str());
+    wifiServer->send(200, "application/json", "{\"ok\":true}");
+    return;
+  }
+  Serial.println(F("[WiFi] tutte le reti dimenticate"));
+  wifiReplyAndRestart("Reti dimenticate.<br><br>Al riavvio il tracker apre il proprio access point.");
 }
 
 // Con il portale attivo ogni indirizzo sconosciuto porta alla pagina WiFi:
@@ -250,14 +386,15 @@ static void wifiRegisterRoutes(WebServer &server) {
 // ---------------------------------------------------------------------------
 static void wifiBegin() {
   wifiPrefs.begin("wifi", false);
-  wifiSsid = wifiPrefs.getString("ssid", "");
-  wifiPass = wifiPrefs.getString("pass", "");
+  wifiCarica();
 
   // Primo avvio: valgono le credenziali di config.h, se sono state compilate.
-  if (!wifiSsid.length() && strcmp(WIFI_SSID, "LA-TUA-RETE-WIFI") != 0) {
-    wifiSsid = WIFI_SSID;
-    wifiPass = WIFI_PASS;
+  if (!wifiCount && strcmp(WIFI_SSID, "LA-TUA-RETE-WIFI") != 0) {
+    wifiReti[0].ssid = WIFI_SSID;
+    wifiReti[0].pass = WIFI_PASS;
+    wifiCount = 1;
   }
+  if (wifiCount) wifiSsid = wifiReti[0].ssid;   // da mostrare finche' non si collega
 
   uint8_t mac[6];
   WiFi.macAddress(mac);
@@ -269,7 +406,7 @@ static void wifiBegin() {
   WiFi.setHostname(HOSTNAME);
   WiFi.setSleep(false);
 
-  if (!wifiTryConnect(wifiSsid, wifiPass, WIFI_CONNECT_MS)) wifiStartPortal();
+  if (!wifiProvaTutte(WIFI_CONNECT_MS)) wifiStartPortal();
 }
 
 static void wifiLoop() {
@@ -277,12 +414,12 @@ static void wifiLoop() {
     wifiDns.processNextRequest();
     if (millis() - wifiLastTry < WIFI_RETRY_MS) return;
     wifiLastTry = millis();
-    if (wifiTryConnect(wifiSsid, wifiPass, 8000)) wifiStopPortal();
+    if (wifiProvaTutte(8000)) wifiStopPortal();
     return;
   }
 
   if (WiFi.status() == WL_CONNECTED) return;
   if (millis() - wifiLastTry < 30000) return;
   wifiLastTry = millis();
-  if (!wifiTryConnect(wifiSsid, wifiPass, 8000)) wifiStartPortal();
+  if (!wifiProvaTutte(8000)) wifiStartPortal();
 }

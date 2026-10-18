@@ -86,7 +86,8 @@
 #define AP_SSID_PREFIX     "GPS-Tracker"  // diventa "GPS-Tracker-a3f1"
 #define AP_PASSWORD        "gpstracker"   // min 8 caratteri, "" per rete aperta
 #define WIFI_CONNECT_MS         20000     // quanto aspettare la rete all'avvio
-#define WIFI_RETRY_MS          120000     // ogni quanto riprovarla dal portale
+#define WIFI_RETRY_MS          120000     // ogni quanto riprovarle dal portale
+#define WIFI_MAX_RETI               3     // quante reti ricorda: casa, hotspot, ...
 
 // ===========================================================================
 // 6bis) Navigazione a freccia

@@ -378,10 +378,27 @@ apre un access point chiamato **`GPS-Tracker-xxxx`**, password `gpstracker`.
 
 Le credenziali finiscono nella memoria non volatile: ai riavvii successivi si collega da solo.
 La stessa pagina e' sempre raggiungibile su `http://gps-tracker.local/wifi`, anche a tracker
-gia' collegato, per cambiare rete o dimenticarla.
+gia' collegato, per aggiungere una rete o toglierne una.
+
+### Piu' di una rete: casa e hotspot
+
+Il tracker ricorda fino a **`WIFI_MAX_RETI`** reti (tre di serie). A ogni accensione **fa una
+scansione e prova quelle che vede davvero**, in ordine, dalla piu' recente salvata: a casa si
+attacca al WiFi di casa, fuori, appena accendi l'hotspot del telefono, si attacca a quello -
+senza che tu debba aprire niente. Aspettare venti secondi una rete che non c'e' sarebbe tempo
+buttato, per questo guarda prima chi c'e'.
+
+Nella pagina `/wifi` le reti ricordate sono elencate nell'ordine in cui verranno provate, e
+ognuna ha il suo **dimentica**. Salvarne una che c'e' gia' non la duplica: aggiorna la password
+e la porta in cima. La quarta rete spinge fuori la piu' vecchia.
+
+> **Hotspot dell'iPhone**: attiva **Impostazioni -> Hotspot personale -> Massimizza
+> compatibilita'**. Senza, l'iPhone trasmette a 5 GHz e l'ESP32 - che va solo a 2,4 - non la
+> vede nemmeno nella scansione. E tieni aperta la schermata dell'hotspot mentre si collega:
+> iOS spegne la radio quando nessuno e' connesso.
 
 Mentre il portale e' attivo il tracker **continua a registrare la traccia**, e ogni due minuti
-riprova la rete salvata: quando rientri in casa si ricollega da solo e chiude l'access point.
+riprova le reti salvate: quando rientri in casa si ricollega da solo e chiude l'access point.
 
 ---
 
