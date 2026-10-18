@@ -1173,6 +1173,11 @@ void loop() {
         wifiScegli(uiNetScelta);
         lastDrawForce = true;                  // la pagina Telefono deve ridisegnarsi
         break;
+#if ENABLE_DISPLAY && PIN_TFT_BL >= 0
+      case UI_BL_GIU:  blPasso(-1); break;
+      case UI_BL_SU:   blPasso(+1); break;
+      case UI_BL_AUTO: blModo = 0; blAggiorna(fix.epoch); break;
+#endif
       default:
         break;
     }
@@ -1211,6 +1216,13 @@ void loop() {
     d.apName       = wifiApName.c_str();
     d.portal       = wifiPortalOn;
     d.netCount     = wifiCount;
+#if PIN_TFT_BL >= 0
+    d.blPercento   = blPercento;
+    d.blModo       = blModo;
+#else
+    d.blPercento   = 100;
+    d.blModo       = 0;
+#endif
     for (uint8_t i = 0; i < WIFI_MAX_RETI; i++)
       d.netLista[i] = (i < wifiCount) ? wifiReti[i].ssid.c_str() : nullptr;
     d.routeTurns   = turnCount;

@@ -150,7 +150,7 @@
 //       e il pin LED e' solo un comando da pochi mA: quelli si pilotano diretti.
 //       Gli altri vogliono un transistor. In dubbio lascia -1: funziona come
 //       prima, luce sempre accesa. La procedura e' nel README, sezione 5c.
-#define PIN_TFT_BL                -1   // pin della retroilluminazione, -1 = fissa
+#define PIN_TFT_BL                33   // pin della retroilluminazione, -1 = fissa
 #define BL_GIORNO                100   // luminosita' di giorno, in percento
 #define BL_NOTTE                  25   // e di notte
 #define BL_NOTTE_DA               20   // ora locale in cui si passa alla notte

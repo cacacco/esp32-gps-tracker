@@ -527,6 +527,15 @@ L'ora e' quella locale, ricavata dall'epoch del GPS piu' `TIME_UTC_OFFSET_MIN`. 
 non arriva la luce resta al massimo, che e' la scelta giusta: se stai montando la scatola in
 garage vuoi vedere lo schermo.
 
+**Dal display**, menu -> la barra **Luce** in fondo: due tasti grandi, `-` e `+`, un gradino
+del 10% per volta, e il numero al centro che dice dove sei. Appena tocchi uno dei due la
+regolazione passa **a mano** e l'orologio smette di comandare; il pulsante **Automatica**
+glielo ridà. Sotto il 10% non si scende, perche' uno schermo nero non si recupera piu': per
+rialzare la luce dovresti vedere i pulsanti.
+
+La regolazione a mano **non si ricorda allo spegnimento**, ed e' voluto: riaccendendo parti
+sempre in automatica, cioe' con la luce giusta per l'ora che e'.
+
 Dalla dashboard, nella riga **Luminosita' del display**, puoi forzare **Giorno** o **Notte**
 quando l'orologio non e' d'accordo con il cielo - una galleria lunga, un temporale alle tre del
 pomeriggio - e tornare ad **Automatica** quando vuoi. La riga compare solo se `PIN_TFT_BL` e'
@@ -559,6 +568,7 @@ usarlo del tutto.
 | **Naviga** | va alle schermate di marcia: velocita', viaggio, freccia e svolte |
 | **Percorso** | quanto e' lungo, quanti punti, svolte e tappe; lo cancella, e con **Nuovo** apre la pagina che aspetta il telefono |
 | **Telefono** | l'indirizzo a cui collegarti, accende la rete del tracker, e con **Reti** sceglie a quale rete attaccarsi |
+| **Luce** (la barra in fondo) | regola la luminosita' a mano, con due tasti grandi |
 | **Viaggio** | km, velocita' massima, tempo in movimento, punti registrati; azzera e cancella |
 
 #### Creare un percorso partendo dal display

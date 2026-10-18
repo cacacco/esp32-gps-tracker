@@ -67,6 +67,8 @@ struct DisplayData {
   const char *ipText;        // indirizzo della dashboard, "" se non connesso
   const char *netLista[WIFI_MAX_RETI];   // le reti ricordate, in ordine di prova
   uint8_t     netCount;
+  uint8_t     blPercento;    // luminosita' adesso, in percento
+  uint8_t     blModo;        // 0 automatica, 1 giorno, 2 notte, 3 a mano
   const char *apName;        // nome della rete creata dal tracker
   bool        portal;
   uint16_t    routeTurns;    // svolte caricate
@@ -524,13 +526,15 @@ enum UiPage : uint8_t {
   PAGE_NEWROUTE,      // aspetta che il telefono mandi un percorso
   PAGE_PHONE,
   PAGE_NETS,          // sceglie a quale rete ricordata attaccarsi
+  PAGE_LUCE,          // regola la luminosita' a mano
   PAGE_TRIP,
   PAGE_CONFIRM
 };
 
 enum UiAction : uint8_t {
   UI_NONE = 0, UI_ROUTE_CLEAR, UI_TRACK_CLEAR, UI_TRIP_RESET,
-  UI_PORTAL_ON, UI_PORTAL_OFF, UI_NET_SELECT
+  UI_PORTAL_ON, UI_PORTAL_OFF, UI_NET_SELECT,
+  UI_BL_GIU, UI_BL_SU, UI_BL_AUTO
 };
 
 // quale rete e' stata toccata: l'azione da sola non basta a dirlo
@@ -544,9 +548,13 @@ static bool rectHit(const Rect &r, int16_t x, int16_t y) {
 
 // due colonne per due righe, margini uguali da tutti i lati
 static const Rect MENU_BTN[4] = {
-  { 14,  50, 221, 123}, {245,  50, 221, 123},
-  { 14, 183, 221, 123}, {245, 183, 221, 123}
+  { 14,  50, 221, 100}, {245,  50, 221, 100},
+  { 14, 156, 221, 100}, {245, 156, 221, 100}
 };
+// la quinta voce del menu: una barra larga sotto i quattro quadrati
+static const Rect MENU_LUCE = {14, 262, 452, 52};
+// i due tasti della pagina Luce: grandi, si centrano col guanto
+static const Rect LUCE_BTN[2] = { {14, 56, 221, 110}, {245, 56, 221, 110} };
 // tre righe larghe per le reti ricordate, sopra la barra dei pulsanti
 static const uint8_t UI_NET_RIGHE = 3;
 static const Rect NET_BTN[UI_NET_RIGHE] = {
@@ -566,6 +574,7 @@ static UiPage    uiBack     = PAGE_MENU;
 static char      uiQuestion[48] = "";
 static bool      uiPortalOn = false;              // copia per il pulsante del telefono
 static uint8_t   uiNetCount = 0;                  // quante reti ricorda: serve al tocco
+static bool      uiBlManuale = false;             // luce regolata a mano
 static bool      uiHasRoute = false;              // copia per il pulsante Cancella
 static uint32_t  uiTouchMs  = 0;
 
@@ -653,7 +662,39 @@ static void drawMenu(const DisplayData &d) {
 
   snprintf(sotto, sizeof(sotto), "%.1f km in questo viaggio", d.tripKm);
   drawButton(MENU_BTN[3], "Viaggio", sotto, COL_OK);
+
+#if PIN_TFT_BL >= 0
+  snprintf(sotto, sizeof(sotto), "Luce   %u%%   %s", d.blPercento,
+           d.blModo == 3 ? "a mano" : d.blModo == 1 ? "giorno" : d.blModo == 2 ? "notte"
+                                                                                : "automatica");
+  drawButton(MENU_LUCE, sotto, "", COL_LABEL);
+#endif
 }
+
+#if PIN_TFT_BL >= 0
+// Due pulsanti grandi e niente altro: si usa col guanto, di notte, fermi al
+// semaforo. Il livello si vede anche da come cambia lo schermo mentre premi.
+static void drawLucePage(const DisplayData &d) {
+  char buf[16];
+  drawPageHead("LUCE");
+
+  drawButton(LUCE_BTN[0], "-", "piu' scura", COL_LABEL);
+  drawButton(LUCE_BTN[1], "+", "piu' chiara", COL_LABEL);
+
+  snprintf(buf, sizeof(buf), "%u%%", d.blPercento);
+  tft.setTextDatum(MC_DATUM);
+  tft.setTextColor(COL_FG, COL_BG);
+  tft.setTextSize(2);
+  displayField(buf, 240, 200, 4, 200, COL_FG);
+  tft.setTextSize(1);
+
+  tft.setTextColor(COL_LABEL, COL_BG);
+  tft.drawString(d.blModo == 3 ? "regolata a mano" : "si regola da sola con l'ora", 240, 240, 2);
+
+  drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
+  if (d.blModo == 3) drawButton(PAGE_BTN[2], "Automatica", "", COL_OK);
+}
+#endif
 
 static void drawRoutePage(const DisplayData &d) {
   char buf[40];
@@ -833,7 +874,19 @@ static UiAction uiTouch(int16_t x, int16_t y) {
       else if (rectHit(MENU_BTN[1], x, y)) uiGoto(PAGE_ROUTE);
       else if (rectHit(MENU_BTN[2], x, y)) uiGoto(PAGE_PHONE);
       else if (rectHit(MENU_BTN[3], x, y)) uiGoto(PAGE_TRIP);
+#if PIN_TFT_BL >= 0
+      else if (rectHit(MENU_LUCE, x, y))   uiGoto(PAGE_LUCE);
+#endif
       return UI_NONE;
+
+#if PIN_TFT_BL >= 0
+    case PAGE_LUCE:
+      if (rectHit(PAGE_BTN[0], x, y)) { uiGoto(PAGE_MENU); return UI_NONE; }
+      if (rectHit(LUCE_BTN[0], x, y)) { uiDirty = true; return UI_BL_GIU; }
+      if (rectHit(LUCE_BTN[1], x, y)) { uiDirty = true; return UI_BL_SU; }
+      if (rectHit(PAGE_BTN[2], x, y)) { uiDirty = true; return UI_BL_AUTO; }
+      return UI_NONE;
+#endif
 
     case PAGE_CONFIRM:
       if (rectHit(PAGE_BTN[0], x, y)) { uiGoto(uiBack); return UI_NONE; }
@@ -887,7 +940,18 @@ static void uiSelAggiorna() {
   switch (uiPage) {
     case PAGE_MENU:
       for (uint8_t i = 0; i < 4; i++) uiSelLista[uiSelCount++] = &MENU_BTN[i];
+#if PIN_TFT_BL >= 0
+      uiSelLista[uiSelCount++] = &MENU_LUCE;
+#endif
       break;
+#if PIN_TFT_BL >= 0
+    case PAGE_LUCE:
+      uiSelLista[uiSelCount++] = &LUCE_BTN[0];
+      uiSelLista[uiSelCount++] = &LUCE_BTN[1];
+      uiSelLista[uiSelCount++] = &PAGE_BTN[0];
+      if (uiBlManuale) uiSelLista[uiSelCount++] = &PAGE_BTN[2];
+      break;
+#endif
     case PAGE_ROUTE:
       uiSelLista[uiSelCount++] = &PAGE_BTN[0];
       uiSelLista[uiSelCount++] = &PAGE_BTN[1];
@@ -1000,7 +1064,8 @@ static void drawSplash() {
 // il GPS, quindi non serve nessun orologio a bordo. "auto" si puo' forzare dal
 // telefono quando il cielo non e' d'accordo con l'orologio.
 static uint8_t blPercento = 255;                 // 255 = non ancora impostata
-static uint8_t blModo     = 0;                   // 0 = automatica, 1 = giorno, 2 = notte
+static uint8_t blModo     = 0;      // 0 = automatica, 1 = giorno, 2 = notte, 3 = a mano
+static uint8_t blManuale  = BL_GIORNO;           // il livello scelto col display
 
 static void blApplica(uint8_t percento) {
   if (percento > 100) percento = 100;
@@ -1031,10 +1096,22 @@ static bool blEnotte(uint32_t epoch) {
        : (ora.tm_hour >= BL_NOTTE_DA && ora.tm_hour < BL_NOTTE_A);
 }
 
+// Un gradino per volta, mai sotto il 10%: uno schermo nero non si recupera
+// piu', perche' per rialzare la luce dovresti vedere i pulsanti.
+static void blPasso(int8_t verso) {
+  int16_t v = (int16_t)(blModo == 3 ? blManuale : blPercento) + verso * 10;
+  if (v > 100) v = 100;
+  if (v < 10)  v = 10;
+  blManuale = (uint8_t)v;
+  blModo    = 3;
+  blApplica(blManuale);
+}
+
 static void blAggiorna(uint32_t epoch) {
   uint8_t voluta;
   if (blModo == 1)      voluta = BL_GIORNO;
   else if (blModo == 2) voluta = BL_NOTTE;
+  else if (blModo == 3) voluta = blManuale;
   else if (!epoch)      return;                  // senza ora non si indovina
   else                  voluta = blEnotte(epoch) ? BL_NOTTE : BL_GIORNO;
   if (voluta != blPercento) blApplica(voluta);
@@ -1067,6 +1144,7 @@ static void displayUpdate(const DisplayData &d) {
   uiHasRoute = d.navTotal > 0;
   uiPortalOn = d.portal;
   uiNetCount = d.netCount;
+  uiBlManuale = (d.blModo == 3);
 
 #if ENABLE_TOUCH
   // Dopo una taratura lo schermo e' stato riempito dai mirini: ridisegno tutto.
@@ -1095,6 +1173,9 @@ static void displayUpdate(const DisplayData &d) {
       case PAGE_NEWROUTE: drawNewRoutePage(d); break;
       case PAGE_PHONE:   drawPhonePage(d);  break;
       case PAGE_NETS:    drawNetsPage(d);   break;
+#if PIN_TFT_BL >= 0
+      case PAGE_LUCE:    drawLucePage(d);   break;
+#endif
       case PAGE_TRIP:    drawTripPage(d);   break;
       case PAGE_CONFIRM: drawConfirmPage(); break;
       default: break;

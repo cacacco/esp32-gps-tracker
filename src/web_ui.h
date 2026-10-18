@@ -124,7 +124,7 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
   </div>
 
   <div class="row" id="rigaLuce" hidden>
-    <span class="sep" style="margin:0 4px 0 0">Luminosita' del display</span>
+    <span class="sep" id="etichettaLuce" style="margin:0 4px 0 0">Luminosita' del display</span>
     <button id="blAuto">Automatica</button>
     <button id="blGiorno">Giorno</button>
     <button id="blNotte">Notte</button>
@@ -262,7 +262,9 @@ async function refreshStatus(){
   if (luce !== undefined) {
     const modi = ['blAuto','blGiorno','blNotte'];
     modi.forEach((id, i) => $(id).className = (i === s.diag.blmodo) ? 'primario' : '');
-    $('blAuto').textContent = 'Automatica' + (s.diag.blmodo === 0 ? ' (' + luce + '%)' : '');
+    // il modo 3 e' la regolazione a mano dal display: nessun pulsante acceso
+    $('etichettaLuce').textContent = 'Luminosita\' del display: ' + luce + '%'
+      + (s.diag.blmodo === 3 ? ' (regolata dal display)' : '');
   }
 
   const n = s.nav || {};
