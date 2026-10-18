@@ -33,7 +33,8 @@ Tutto gira sull'ESP32: nessun server esterno, nessuna SD, nessun file da caricar
 |---|---|
 | ESP32 DevKit v1 (30 pin, ESP32-WROOM-32) | quella della foto |
 | Modulo GPS u-blox NEO-7M (GY-NEO7M) | con antenna attiva avvitata sull'SMA |
-| 4-5 jumper femmina/femmina | |
+| 4-5 jumper femmina/femmina | per il banco; per il montaggio definitivo vedi 2b |
+| Filo siliconico 24 AWG a trefoli | 6 colori x 7 m, per la millefori |
 | Cavo USB dati | molti cavi da ricarica non hanno i fili dati |
 | *(facoltativo)* TFT 4" ST7796 480x320 SPI | computer di bordo, vedi sotto |
 
@@ -75,6 +76,29 @@ progetto e' finito, tutto va saldato su una basetta millefori.
 **[Video del montaggio passo passo](docs/montaggio-millefori.mp4)** (1 minuto): la basetta,
 le strisce di contatti, i connettori, le due piste di alimentazione e i 19 fili, uno per
 volta, con la lista da spuntare a lato.
+
+**Il filo giusto**: siliconico **24 AWG** a trefoli (quello venduto come *DIY wire and cable*,
+scatole da 6 colori x 7 m). E' flessibile, regge le vibrazioni e la guaina in silicone non si
+ritira quando il saldatore la sfiora. I 19 fili interni sono da 8-15 cm l'uno: 42 m bastano per
+rifare tutto dieci volte.
+
+> Il filo a trefoli non entra nel foro come quello rigido: **stagna la punta** per 4-5 mm prima
+> di infilarla, diventa rigida quanto basta.
+>
+> Unica eccezione: il tratto che va **dalla batteria della moto al convertitore 12 V -> 5 V**.
+> Li' ci vuole almeno 0,5 mm2 (20 AWG) e un **fusibile da 2 A** a non piu' di 15 cm dal morsetto
+> positivo. Il 24 AWG ci sta solo dentro la scatola.
+
+Colori, uno schema che si legge a colpo d'occhio:
+
+| Colore | Cosa |
+|---|---|
+| rosso | 3,3 V |
+| nero | massa |
+| giallo | 5 V (morsetto e VIN) |
+| blu | SPI del display (CS, SCK, MOSI, MISO, DC, RESET) |
+| verde | GPS (TXD, RXD, PPS) |
+| bianco | tasto e il resto |
 
 Regole che fanno la differenza:
 
