@@ -67,6 +67,30 @@ Tre errori che costano un pomeriggio:
 
 ---
 
+## 2b. Montaggio definitivo su millefori
+
+Sul banco vanno bene i cavetti dupont. Su una moto no: vibrano e si sfilano. Quando il
+progetto e' finito, tutto va saldato su una basetta millefori.
+
+**[Video del montaggio passo passo](docs/montaggio-millefori.mp4)** (1 minuto): la basetta,
+le strisce di contatti, i connettori, le due piste di alimentazione e i 19 fili, uno per
+volta, con la lista da spuntare a lato.
+
+Regole che fanno la differenza:
+
+* **L'ESP32 e il display non si saldano**: si saldano le strisce di contatti femmina, i
+  moduli ci si infilano sopra. Se uno si brucia, lo cambi in trenta secondi.
+* **Due piste di alimentazione** lungo il bordo basso: una a 3,3 V e una a massa. Tutti i
+  `VCC` e i `GND` finiscono li', non sul pin dell'ESP32 uno sull'altro.
+* **470 uF e 100 nF** fra le due piste, vicino all'ESP32: la moto da' picchi di corrente
+  quando la centralina lavora.
+* **Prima del collaudo, tester in continuita'** fra 3,3 V e massa: se fischia c'e' un
+  corto, e in quel caso non si attacca niente.
+* **Si collauda un pezzo per volta**: prima il solo ESP32 sulla USB, poi il GPS, poi il
+  display. Se sbagli un filo, vuoi scoprirlo con il solo ESP32 attaccato.
+
+---
+
 ## 3. Compilazione e caricamento
 
 ### Windows, con un doppio clic
@@ -737,5 +761,6 @@ projects/esp32-gps-tracker/
 │   └── TFT_eSPI_User_Setup_ST7796.h  configurazione del display per l'Arduino IDE
 └── docs/
     ├── wiring.svg               schema dei collegamenti del GPS
-    └── wiring-display.svg       schema dei collegamenti del display
+    ├── wiring-display.svg       schema dei collegamenti del display
+    └── montaggio-millefori.mp4  video del montaggio su millefori
 ```
