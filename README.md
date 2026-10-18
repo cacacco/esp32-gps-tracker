@@ -925,6 +925,39 @@ serve a non farsi bloccare dal server. I cambi di stato del contatto hanno un li
 
 ## 9. Se qualcosa non va
 
+### Il display diventa bianco dopo qualche minuto
+
+Schermo uniforme, retroilluminazione accesa ma nessuna immagine: il controllore del pannello ha
+perso la configurazione, e quasi sempre vuol dire che i **3,3 V sono calati** sotto quello che
+gli serve. La retroilluminazione e' solo un LED e continua a illuminare lo stesso: per questo
+sembra acceso ma vuoto.
+
+**Il sospettato principale e' il regolatore della DevKit.** Quel chippino (`AMS1117`, vicino
+alla presa USB) deve tirare fuori i 3,3 V per l'ESP32, per il GPS **e per la retroilluminazione
+del display**, che da sola vuole 100-150 mA. In tutto si arriva vicino al mezzo ampere, e quel
+regolatore dissipa quasi un watt in un contenitore minuscolo: si scalda e, dopo qualche minuto,
+entra in protezione termica. La tensione cala e il pannello si azzera. **Il "dopo qualche
+minuto" e' la firma del problema termico.**
+
+**Come si conferma, in due mosse:**
+
+1. **Guarda la riga `[BOOT]` nel log.** Dice perche' il tracker e' ripartito: se leggi
+   `CORRENTE INSUFFICIENTE` il caso e' chiuso. Se invece l'ESP32 non si e' nemmeno riavviato -
+   la dashboard dal telefono risponde ancora mentre lo schermo e' bianco - allora l'ESP32 regge
+   e a cedere e' solo il pannello.
+2. **Tocca il regolatore** vicino alla presa USB dopo qualche minuto di lavoro. Se scotta al
+   punto che non ci tieni il dito sopra, e' lui.
+
+**Come si risolve:**
+
+* **alimenta la scheda da una presa vera**, non dalla USB del PC: alimentatore da 1-2 A e cavo
+  corto e grosso. Sulla moto il problema non si pone, ci pensa la presa USB da manubrio;
+* **togli la retroilluminazione dal regolatore della DevKit**: alimentando il tracker a 5 V, il
+  `VCC` del display puo' andare a un **regolatore 3,3 V separato** (un AMS1117 su modulino costa
+  pochi centesimi), tenendo la massa in comune. E' la soluzione definitiva;
+* **controlla i cavetti**, soprattutto `RESET`, `CS` e `DC`: un contatto incerto su quelle tre
+  linee da' lo stesso identico sintomo. Coi dupont capita, coi morsetti a vite molto meno.
+
 ### Che firmware ho caricato?
 
 Il firmware dice sempre da dove viene: data e ora di compilazione, e il commit
@@ -954,6 +987,8 @@ lo stesso.
 | satelliti in vista ma fix che non arriva | antenna al chiuso; portalo all'aperto e lascialo fermo qualche minuto |
 | il fix arriva ma la dashboard dice "ricerca satelliti" | qualita' sotto le soglie: abbassa `MIN_SATELLITES` o alza `MAX_HDOP` |
 | l'ESP32 si riavvia quando il GPS aggancia | alimentazione USB debole: usa un cavo corto e un alimentatore vero, non la porta di un hub |
+| il display diventa tutto bianco dopo qualche minuto | la tensione e' calata: vedi *Il display diventa bianco* qui sotto |
+| il tracker si riavvia da solo | guarda la riga `[BOOT]` nel log: dice il motivo |
 | `gps-tracker.local` non si apre | mDNS assente (tipico su Android): usa l'indirizzo IP stampato sulla seriale |
 | riavvii casuali con WiFi collegato | alimentazione: il picco TX del WiFi arriva a ~300 mA |
 
