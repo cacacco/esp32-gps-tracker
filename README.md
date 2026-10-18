@@ -694,16 +694,29 @@ Il percorso salvato resta in memoria dopo lo spegnimento, esattamente come uno c
 file. La dashboard, intanto, resta quello che deve essere: il posto dove
 si guarda come va il tracker.
 
-### Segui le strade e svolte (la casella sotto i pulsanti)
+### Le strade e le svolte le calcola sempre
 
-Con la casella **segui le strade e calcola le svolte** attiva, il percorso non e' piu' una
-serie di linee dritte fra i tuoi tocchi: il telefono chiede a un servizio di calcolo
-itinerari il tracciato che passa davvero per le strade, e si fa dare anche l'elenco delle
-manovre. Alla ESP32 arrivano gia' pronti sia il tracciato sia le svolte.
+Non c'e' nessuna casella da spuntare: la pagina **Crea percorso** calcola **sempre** il
+tracciato sulle strade vere. Quando salvi, il telefono chiede a un servizio di calcolo
+itinerari il percorso che passa davvero per le strade fra le tue tappe, e si fa dare anche
+l'elenco delle manovre. All'ESP32 arrivano gia' pronti sia il tracciato sia le svolte.
 
 Questo e' l'unico momento in cui serve internet, ed e' lo stesso in cui gia' ti serve per
-vedere la mappa. **In auto sei offline come prima**: il percorso e le svolte sono in
-memoria sul tracker.
+vedere la mappa. **In moto sei offline come prima**: percorso e svolte sono in memoria sul
+tracker, e nessuno li chiede piu' a nessuno.
+
+Ne segue una cosa importante per la freccia grande sul display: **segue le strade perche' segue
+il percorso**, e il percorso e' fatto di punti presi dalla strada vera, uno ogni poche decine
+di metri. La freccia punta sempre al prossimo punto, quindi in curva ruota seguendo la curva.
+
+| Cosa hai in memoria | Cosa fa la freccia grande |
+|---|---|
+| un percorso creato da **Crea percorso** | segue le strade, e sopra compaiono le svolte |
+| un **GPX** caricato | segue il tracciato del file: se il file e' stato registrato su strada, segue la strada (ma senza svolte: un GPX non le contiene) |
+| **nessun percorso** | non c'e' nessuna freccia: il display mostra la schermata di marcia, con velocita', direzione in gradi e distanza dalla base |
+
+Senza un percorso in memoria **non esiste modo di seguire le strade**: a bordo non c'e' nessuna
+mappa, l'ESP32 sa solo dove sei. Le strade le conosce solo il percorso che hai preparato.
 
 Sul display la schermata di navigazione e' impaginata come un navigatore da auto:
 
