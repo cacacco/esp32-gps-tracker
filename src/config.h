@@ -159,7 +159,13 @@
 // pulsante dopo, pressione lunga = conferma. Serve quando il touch non c'e'
 // o non funziona. Metti -1 per non usarlo, oppure il pin di un tuo pulsante
 // verso massa.
-#define PIN_MENU_BUTTON            0   // 0 = tasto BOOT della DevKit
+//
+//     Con un pulsante esterno sul pannello usa GPIO32 o GPIO33, NON lo 0:
+//     il GPIO0 decide come parte l'ESP32, e se il tasto resta premuto o il
+//     filo va in corto all'accensione la scheda entra in modalita' caricamento
+//     invece di partire. Il pulsante vuole un contatto MOMENTANEO (NA), non
+//     uno di quelli che restano dentro.
+#define PIN_MENU_BUTTON            0   // 0 = tasto BOOT della DevKit, 32 = pulsante sul pannello
 #define BUTTON_LONG_MS           600   // oltre questo tempo la pressione e' lunga
 #define BUTTON_CALIB_MS         3000   // tenendolo premuto cosi' a lungo, ritara il tocco
 #define TOUCH_MIN_GAP_MS         250   // due tocchi piu' ravvicinati contano per uno

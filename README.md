@@ -100,6 +100,23 @@ Colori, uno schema che si legge a colpo d'occhio:
 | verde | GPS (TXD, RXD, PPS) |
 | bianco | tasto e il resto |
 
+**Il pulsante sul pannello** (quelli metallici da 12 mm con ghiera, tipici da moto):
+
+* Deve essere **momentaneo** (NA, "normally open"): torna fuori quando lo lasci. Quelli con
+  ritenuta, che restano dentro, non vanno: il firmware distingue pressione breve, lunga e
+  da 3 secondi, e con un contatto che resta chiuso vedrebbe una pressione infinita.
+  Si riconosce senza strumenti: premilo: se fa *clic* e resta giu', e' sbagliato.
+* Due soli terminali = contatto pulito, quello che serve. Se ne ha quattro c'e' dentro un LED,
+  e i due in piu' vogliono 3,3 V con la loro resistenza.
+* Un filo al pin scelto, l'altro alla **pista di massa**. Nessuna resistenza esterna:
+  il firmware accende il pull-up interno dell'ESP32.
+* **Non usare il GPIO0** per un pulsante fuori dalla scatola. Il GPIO0 decide come parte
+  l'ESP32: se all'accensione quel filo e' a massa (tasto premuto, o un filo che sfrega),
+  la scheda entra in modalita' caricamento e il navigatore non parte. Sul pannello usa
+  **GPIO32** (o GPIO33), e in `config.h` metti `#define PIN_MENU_BUTTON 32`.
+* Se il pulsante sta sul manubrio, lontano dalla scatola, **intreccia i due fili** e metti
+  un **100 nF** fra pin e massa vicino all'ESP32: l'accensione della moto e' rumorosa.
+
 Regole che fanno la differenza:
 
 * **L'ESP32 e il display non si saldano**: si saldano le strisce di contatti femmina, i

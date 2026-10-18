@@ -614,7 +614,11 @@ static void drawMenu(const DisplayData &d) {
 #if PIN_MENU_BUTTON >= 0
   tft.setTextDatum(MR_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
+#if PIN_MENU_BUTTON == 0
   tft.drawString("tasto BOOT: breve sposta, lungo conferma", 466, 19, 2);
+#else
+  tft.drawString("tasto: breve sposta, lungo conferma", 466, 19, 2);
+#endif
 #endif
 
   drawButton(MENU_BTN[0], "Naviga",
