@@ -56,11 +56,10 @@ FILI = [
         (('esp', '3V3'), rail('3V3'), '3V3  ->  pista 3,3 V', ROSSO),
         (('esp', 'GND'), rail('GND'), 'GND  ->  pista massa', INK),
     ]),
-    ('GPS  -  4 fili', [
+    ('GPS  -  3 fili', [
         (('conn', 'gps', 0), rail('3V3'), 'VCC  ->  pista 3,3 V', ROSSO),
         (('conn', 'gps', 1), rail('GND'), 'GND  ->  pista massa', INK),
         (('conn', 'gps', 2), ('esp', 'D16'), 'TXD  ->  D16', VERDE),
-        (('conn', 'gps', 3), ('esp', 'D17'), 'RXD  ->  D17  (facoltativo)', VERDE),
     ]),
     ('DISPLAY  -  9 fili', [
         (('conn', 'display', 0), rail('3V3'), 'VCC  ->  pista 3,3 V', ROSSO),
@@ -84,6 +83,7 @@ FILI = [
         (('conn', 'pulsante', 1), rail('GND'), 'altro capo  ->  massa', INK),
     ]),
 ]
+N_FILI = sum(len(g[1]) for g in FILI)
 
 def punto(rif, altro=None):
     if rif[0] == 'esp':  return pin_esp(rif[1])
@@ -211,7 +211,7 @@ def sc_titolo(t, dur):
     a = min(1.0, t / 0.8)
     testo(d, (W//2, 300), 'Montaggio su millefori', TB[58],
           tuple(int(c * a) for c in INK), 'mm')
-    testo(d, (W//2, 362), 'ESP32 GPS Tracker  -  19 fili, uno per volta', T[26],
+    testo(d, (W//2, 362), f'ESP32 GPS Tracker  -  {N_FILI} fili, uno per volta', T[26],
           tuple(int(c * a) for c in TENUE), 'mm')
     if t > 1.4:
         b = min(1.0, (t - 1.4) / 0.6)
@@ -279,7 +279,7 @@ def scena_fili(gruppo):
 
 PROVE = [
     'tester in continuita: 3,3 V e massa NON devono fischiare',
-    'controlla tutti e 19 i fili, uno per uno',
+    'controlla i fili uno per uno',
     'solo ESP32 sulla USB: deve comparire il log',
     'misura 3,2 - 3,3 V sulla pista',
     'attacca il GPS: "modulo riconosciuto a 9600 baud"',
@@ -310,8 +310,8 @@ def sc_collaudo(t, dur):
 def sc_fine(t, dur):
     im = Image.new('RGB', (W, H), BG); d = ImageDraw.Draw(im)
     a = min(1.0, t / 0.7)
-    testo(d, (W//2, 276), '19 fili, 32 saldature', TB[44], tuple(int(c*a) for c in INK), 'mm')
-    testo(d, (W//2, 338), 'una sera di lavoro, fatta con calma', T[26], tuple(int(c*a) for c in TENUE), 'mm')
+    testo(d, (W//2, 276), f'{N_FILI} fili, una sera', TB[44], tuple(int(c*a) for c in INK), 'mm')
+    testo(d, (W//2, 338), 'fatta con calma, senza fretta', T[26], tuple(int(c*a) for c in TENUE), 'mm')
     if t > 1.0:
         b = min(1.0, (t - 1.0) / 0.7)
         testo(d, (W//2, 420), 'scarico di trazione su ogni cavo che esce', T[22],

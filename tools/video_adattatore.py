@@ -44,7 +44,7 @@ MOD = {
 MOD_PIN = {
     'display': ['VCC', 'GND', 'CS', 'RESET', 'DC / RS', 'SDI / MOSI', 'SCK',
                 'LED', 'SDO / MISO', 'T_CLK', 'T_DIN', 'T_DO', 'T_CS'],
-    'gps':     ['VCC', 'GND', 'TXD', 'RXD', 'PPS'],
+    'gps':     ['VCC', 'GND', 'TXD', 'PPS'],
     'tasto':   ['un capo', 'altro capo'],
 }
 
@@ -72,7 +72,6 @@ FILI = [
     ]),
     ('GPS', [
         ('dx', 'RX2', 'gps', 'TXD', None,  'TXD del GPS  ->  RX2',  VERDE),
-        ('dx', 'TX2', 'gps', 'RXD', None,  'RXD del GPS  ->  TX2  (facoltativo)',  VERDE),
         ('dx', 'D4',  'gps', 'PPS', None,  'PPS  ->  D4  (facoltativo)',           VERDE),
         (None, None,  'gps', 'VCC', '3V3', 'VCC  ->  pista 3,3 V',  ROSSO),
         (None, None,  'gps', 'GND', 'GND', 'GND  ->  pista massa',  INK),
@@ -307,9 +306,12 @@ def scena_fili(gruppo):
         for g in range(gruppo):
             prese |= {(x[2], x[3]) for x in FILI[g][1] if x[2]}
         prese |= {(x[2], x[3]) for x in fili[:n] if x[2]}
-        nota = ('il GPS parla e basta: RXD e PPS servono solo se li usi'
+        nota = ('il GPS trasmette e basta: il suo RXD non si collega'
                 if titolo == 'GPS' else 'uno per volta, stringendo la vite')
-        intestazione(d, f'{titolo}  -  {len(fili)} fili', nota)
+        opz = sum(1 for f in fili if 'facoltativo' in f[5])
+        quanti = (f'{len(fili) - opz} fili  +  {opz} facoltativo' if opz
+                  else f'{len(fili)} fili')
+        intestazione(d, f'{titolo}  -  {quanti}', nota)
         barra(d, fatti_prima + min(n, len(fili)), N_FILI, titolo)
         disegna_moduli(d, prese_fatte=prese)
         disegna_piste(d)

@@ -115,21 +115,22 @@ ogni suo pin esce su una vite. **Zero saldature**, e su una moto un morsetto str
 tiene piu' di una saldatura su un filo che vibra.
 
 **[Video del montaggio](docs/montaggio-adattatore.mp4)** (1 minuto e un quarto): la scheda,
-l'ESP32 che si infila, le due piste di alimentazione, i 20 fili uno per volta (piu' i due
-facoltativi del GPS) e la corrente che arriva dalla presa USB della moto.
+l'ESP32 che si infila, le due piste di alimentazione, i 20 fili uno per volta (piu' il
+`PPS` del GPS, facoltativo) e la corrente che arriva dalla presa USB della moto.
 
-> Il GPS **parla e basta**: manda le frasi NMEA sul suo `TXD` e non ascolta nessuno. Per
-> funzionare gli bastano tre fili - `VCC`, `GND` e `TXD` su `RX2`. Il filo verso il suo `RXD`
-> serve solo se metti `GPS_CONFIGURE_UBX` a 1 per riconfigurarlo, e il `PPS` solo se vuoi
-> l'impulso al secondo.
+> Il GPS **parla e basta**: manda le frasi NMEA sul suo `TXD` e non ascolta nessuno. Gli
+> bastano **tre fili** - `VCC`, `GND` e `TXD` su `RX2`. Il suo `RXD` non si collega: il
+> morsetto `TX2` resta libero. Serve solo se un giorno metti `GPS_CONFIGURE_UBX` a 1 per
+> riconfigurare il modulo, ma non e' il caso normale. Il `PPS` su `D4` e' l'unico
+> facoltativo che ha senso aggiungere, se vuoi l'impulso al secondo.
 
 | Morsetto | Ci va |
 |---|---|
 | `VIN` | **niente**: la corrente entra dal micro-USB dell'ESP32 |
 | `GND` (ce n'e' uno per lato) | massa: ne basta uno, l'altro resta libero |
 | `3V3` | alimentazione del display e del GPS |
-| `RX2` | `TXD` del GPS: **questo e' l'unico filo di segnale che serve** |
-| `TX2` | `RXD` del GPS *(facoltativo: solo con `GPS_CONFIGURE_UBX` a 1)* |
+| `RX2` | `TXD` del GPS: e' l'unico filo di segnale che il GPS vuole |
+| `TX2` | **niente**: il GPS trasmette e basta, non ascolta nessuno |
 | `D4` | `PPS` del GPS *(facoltativo)* |
 | `D5` `D22` `D21` `D23` `D18` `D19` | `CS`, `RESET`, `DC/RS`, `SDI/MOSI`, `SCK`, `SDO/MISO` del display |
 | `D18` `D23` `D19` | `T_CLK`, `T_DIN`, `T_DO` del touch: **seconda vite, stessa del SPI** |
@@ -205,7 +206,7 @@ Colori, uno schema che si legge a colpo d'occhio:
 | nero | massa |
 | giallo | `CS` e `RESET` del display |
 | blu | i dati SPI del display (`DC`, `MOSI`, `SCK`, `MISO`) |
-| verde | GPS (`TXD`, e `RXD` / `PPS` se li usi) |
+| verde | GPS (`TXD`, e `PPS` se lo usi) |
 | bianco | touch, pulsante e il resto |
 
 **Il pulsante sul pannello** (quelli metallici da 12 mm con ghiera, tipici da moto):
