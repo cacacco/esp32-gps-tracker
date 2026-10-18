@@ -38,15 +38,13 @@ PIN_DX = ['D23', 'D22', 'TX0', 'RX0', 'D21', 'D19', 'D18', 'D5',
 MOD = {
     'display': (800, 108, 1120, 404, RAME,   'DISPLAY  ST7796'),
     'gps':     (800, 432, 1120, 552, VERDE,  'GPS  NEO-7M'),
-    'conv':    (150, 150,  340, 250, GIALLO, 'CONVERTITORE  5 V'),
-    'tasto':   (150, 300,  340, 380, GRIGIO, 'PULSANTE'),
+    'tasto':   (150, 240,  340, 320, GRIGIO, 'PULSANTE'),
 }
 # quante prese servono su ogni modulo, nell'ordine in cui le useremo
 MOD_PIN = {
     'display': ['VCC', 'GND', 'CS', 'RESET', 'DC / RS', 'SDI / MOSI', 'SCK',
                 'LED', 'SDO / MISO', 'T_CLK', 'T_DIN', 'T_DO', 'T_CS'],
     'gps':     ['VCC', 'GND', 'TXD', 'RXD', 'PPS'],
-    'conv':    ['+ 5 V', 'massa'],
     'tasto':   ['un capo', 'altro capo'],
 }
 
@@ -69,10 +67,8 @@ def presa(nome_mod, pin):
 # da un morsetto a una pista, oppure da un modulo a una pista.
 FILI = [
     ('ALIMENTAZIONE', [
-        ('sx', 'VIN', 'conv', '+ 5 V', None,  'convertitore + 5 V  ->  VIN',  GIALLO),
-        ('sx', 'GND', 'conv', 'massa', None,  'convertitore massa  ->  GND',  INK),
-        ('dx', '3V3', None,   None,    '3V3', '3V3  ->  pista 3,3 V',         ROSSO),
-        ('dx', 'GND', None,   None,    'GND', 'GND  ->  pista massa',         INK),
+        ('dx', '3V3', None, None, '3V3', '3V3  ->  pista 3,3 V', ROSSO),
+        ('dx', 'GND', None, None, 'GND', 'GND  ->  pista massa', INK),
     ]),
     ('GPS', [
         ('dx', 'RX2', 'gps', 'TXD', None,  'TXD del GPS  ->  RX2',  VERDE),
@@ -167,9 +163,31 @@ def disegna_esp(d, giu=1.0):
     dy = int((1 - giu) * -120)
     x0, y0, x1, y1 = 518, 158 + dy, 614, 520 + dy
     d.rounded_rectangle([x0, y0, x1, y1], 8, fill=(47, 59, 77))
-    d.rounded_rectangle([x0 + 22, y0 - 16, x1 - 22, y0 + 6], 4, fill=(120, 128, 136))
+    d.rounded_rectangle([x0 + 22, y1 - 6, x1 - 22, y1 + 16], 4, fill=(120, 128, 136))
     testo(d, ((x0 + x1) // 2, (y0 + y1) // 2 - 10), 'ESP32', TB[17], (225, 235, 245), 'mm')
     testo(d, ((x0 + x1) // 2, (y0 + y1) // 2 + 12), 'DevKit', T[13], (150, 170, 190), 'mm')
+
+USB_BOX = (96, 440, 330, 520)
+USB_ESP = (566, 534)
+
+def disegna_usb(d, cavo=1.0):
+    x0, y0, x1, y1 = USB_BOX
+    d.rounded_rectangle([x0, y0, x1, y1], 10, fill=(26, 32, 38), outline=GIALLO, width=2)
+    testo(d, ((x0 + x1) // 2, y0 + 30), 'PRESA USB', TB[17], GIALLO, 'mm')
+    testo(d, ((x0 + x1) // 2, y0 + 56), 'della moto, sotto chiave', T[13], TENUE, 'mm')
+    via = [(x1, 480), (348, 480), (348, 590), (USB_ESP[0], 590), USB_ESP]
+    tot = sum(math.dist(via[i], via[i+1]) for i in range(len(via) - 1))
+    resta, pts = tot * cavo, [via[0]]
+    for i in range(len(via) - 1):
+        seg = math.dist(via[i], via[i+1])
+        if resta >= seg: pts.append(via[i+1]); resta -= seg
+        else:
+            t = resta / seg if seg else 0
+            pts.append((via[i][0] + (via[i+1][0]-via[i][0]) * t,
+                        via[i][1] + (via[i+1][1]-via[i][1]) * t)); break
+    if len(pts) > 1:
+        d.line(pts, fill=(96, 110, 122), width=9, joint='curve')
+        d.line(pts, fill=(140, 155, 165), width=3, joint='curve')
 
 def disegna_moduli(d, quali=None, prese_fatte=()):
     for nome, (x0, y0, x1, y1, col, tit) in MOD.items():
@@ -258,11 +276,12 @@ def sc_esp(t, dur):
     disegna_strip(d, min(1.0, t / 0.8))
     if t > 1.2: disegna_esp(d, min(1.0, (t - 1.2) / 1.4))
     if t > 3.0:
-        testo(d, (150, 330), 'Controlla pin per pin', T[19], INK)
-        testo(d, (150, 360), 'prima di spingere:', T[19], INK)
-        testo(d, (150, 408), 'VIN con VIN,', T[19], GIALLO)
-        testo(d, (150, 438), '3V3 con 3V3.', T[19], ROSSO)
-    didascalia(d, 'Se entra a fatica non forzare: controlla di non averlo girato di 180 gradi.')
+        testo(d, (110, 200), 'Controlla pin per pin', T[19], INK)
+        testo(d, (110, 230), 'prima di spingere:', T[19], INK)
+        testo(d, (110, 278), 'VIN con VIN,', T[19], GIALLO)
+        testo(d, (110, 308), '3V3 con 3V3.', T[19], ROSSO)
+    if t > 4.2: disegna_usb(d, min(1.0, (t - 4.2) / 1.0))
+    didascalia(d, 'La corrente arriva dalla presa USB della moto: la scatola non ha altri fili di alimentazione.')
     return im
 
 def sc_piste(t, dur):
@@ -295,6 +314,7 @@ def scena_fili(gruppo):
         disegna_moduli(d, prese_fatte=prese)
         disegna_piste(d)
         disegna_scheda(d); disegna_strip(d); disegna_esp(d)
+        disegna_usb(d)          # dopo la scheda: il cavo passa sopra, non sotto
         for g in range(gruppo):
             for filo in FILI[g][1]:
                 disegna_filo(d, filo, spento=True)
@@ -310,33 +330,34 @@ def scena_fili(gruppo):
 
 def sc_ingresso(t, dur):
     im = Image.new('RGB', (W, H), BG); d = ImageDraw.Draw(im)
-    intestazione(d, "4. L'ingresso dalla moto", 'fusibile, diodo, convertitore: in quest\'ordine')
+    intestazione(d, '4. La corrente dalla moto', 'una presa USB da manubrio, e basta')
     tappe = [
-        ('batteria', '+12 V', (210, 100, 100)),
-        ('fusibile 2 A', 'a 15 cm dal +', GIALLO),
-        ('diodo 1N4007', 'fascetta a destra', RAME),
-        ('convertitore', '12 V  ->  5 V', VERDE),
-        ('VIN', "dell'adattatore", BLU),
+        ('presa USB della moto', 'stagna, 2 A, sotto chiave', GIALLO),
+        ('cavo USB corto', 'meglio se ad angolo', BLU),
+        ('micro-USB ESP32', 'fermato con una fascetta', VERDE),
     ]
     for i, (tit, sot, col) in enumerate(tappe):
-        if t < 0.5 + i * 0.9: continue
-        x = 96 + i * 222
-        d.rounded_rectangle([x, 250, x + 182, 360], 10, fill=(26, 32, 38), outline=col, width=2)
-        testo(d, (x + 91, 290), tit, TB[17], col, 'mm')
-        testo(d, (x + 91, 322), sot, T[13], TENUE, 'mm')
-        if i and t > 0.5 + i * 0.9 - 0.3:
-            d.line([x - 38, 305, x - 6, 305], fill=TENUE, width=3)
-            d.polygon([(x - 6, 305), (x - 18, 299), (x - 18, 311)], fill=TENUE)
-    if t > 4.8:
-        testo(d, (96, 430), 'La fascetta del diodo guarda il convertitore.', T[22], INK)
-        testo(d, (96, 466), 'Al contrario non si rompe niente: semplicemente non parte.', T[19], TENUE)
-    didascalia(d, 'Il fusibile protegge il filo, non l\'elettronica: per questo va vicino alla batteria.', GIALLO)
+        if t < 0.4 + i * 0.9: continue
+        x = 96 + i * 370
+        d.rounded_rectangle([x, 230, x + 310, 340], 10, fill=(26, 32, 38), outline=col, width=2)
+        testo(d, (x + 155, 270), tit, TB[19], col, 'mm')
+        testo(d, (x + 155, 304), sot, T[15], TENUE, 'mm')
+        if i and t > 0.4 + i * 0.9 - 0.3:
+            d.line([x - 48, 285, x - 10, 285], fill=TENUE, width=3)
+            d.polygon([(x - 10, 285), (x - 24, 278), (x - 24, 292)], fill=TENUE)
+    if t > 3.2:
+        testo(d, (96, 410), 'Dentro la scatola non entra piu niente: convertitore,', T[22], INK)
+        testo(d, (96, 444), 'fusibile e diodo li ha gia dentro la presa.', T[22], INK)
+    if t > 4.4:
+        testo(d, (96, 510), 'Il micro-USB e il punto debole con le vibrazioni:', T[19], RAME)
+        testo(d, (96, 540), 'la fascetta deve tenere il CAVO, non il connettore.', T[19], RAME)
+    didascalia(d, 'Sotto chiave, non attaccata alla batteria: altrimenti il navigatore resta acceso e te la scarica.', GIALLO)
     return im
 
 PROVE = [
     'viti: tirare ogni filo, uno per uno',
     'tester in continuita fra 3,3 V e massa: NON deve fischiare',
-    'solo ESP32 sulla USB: deve comparire il log',
+    'solo ESP32 sulla USB del PC: deve comparire il log',
     'misura 3,2 - 3,3 V sulla pista',
     'attacca il GPS: "modulo riconosciuto a 9600 baud"',
     'attacca il display: logo e menu',

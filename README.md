@@ -44,16 +44,29 @@ servono anche questi, ed e' roba che non c'e' in nessun kit di elettronica:
 
 | Pezzo | Note |
 |---|---|
-| Convertitore step-down 12 V -> 5 V, almeno 2 A | **uscita fissa a 5 V**, ingresso 8-35 V. E' lui che alimenta tutto: va fra la moto e il morsetto `VIN` |
-| Portafusibile stagno + fusibile 2 A | a non piu' di 15 cm dal + della batteria |
-| Diodo 1N4007 | in serie sul +, fascetta verso il convertitore: protegge dall'inversione di polarita' |
-| Scatola stagna (IP65) | che ci stiano adattatore, convertitore e il pezzetto di millefori |
+| Presa USB da moto stagna, almeno 2 A | fa gia' lei i 12 V -> 5 V, ed e' gia' fusibilata e impermeabile |
+| Cavo USB corto, meglio ad angolo | 30-50 cm: piu' e' lungo e sottile, piu' la tensione cala |
+| Due fascette | una blocca il cavo alla scatola, l'altra lo tiene lontano dal calore |
+| Scatola stagna (IP65) | che ci stiano l'adattatore e il pezzetto di millefori |
 | Passacavi in gomma | dove i cavi escono dalla scatola, altrimenti la guaina si consuma sul bordo |
 
-> **Se il convertitore e' regolabile** (quelli con il trimmerino blu, tipo LM2596) **mettilo a
-> 5,0 V col tester PRIMA di collegarci l'ESP32**: molti arrivano regolati in modo che l'uscita
-> sia quasi uguale all'ingresso, e 12 V su `VIN` bruciano la scheda all'istante. Se puoi,
-> compra quello a uscita fissa: una cosa in meno da sbagliare.
+La presa USB da manubrio e' la strada piu' semplice: la conversione, il fusibile e la tenuta
+all'acqua li ha gia' dentro, e l'ESP32 si alimenta dal suo micro-USB come fa sul banco con il
+PC. Dentro la scatola non entra nessun altro componente di alimentazione.
+
+> **Il micro-USB e' il punto debole con le vibrazioni.** Fermalo: la fascetta deve stringere
+> il **cavo**, a qualche centimetro dalla scheda, non il connettore. Cosi' gli strappi se li
+> prende la fascetta e non le saldature della presina.
+
+> **Cavo corto e possibilmente grosso.** L'ESP32 col display e il GPS assorbe circa mezzo
+> ampere: con un cavetto lungo e sottile i 5 V arrivano a 4,5 V e il regolatore di bordo
+> comincia a fare i capricci. Se il display sfarfalla o la scheda si riavvia, il primo
+> sospettato e' il cavo.
+
+> *(In alternativa* si puo' usare un convertitore step-down 12 V -> 5 V cablato sul morsetto
+> `VIN`, con fusibile da 2 A e diodo 1N4007 in serie sul +. Piu' robusto meccanicamente, ma
+> se e' regolabile va portato a 5,0 V col tester **prima** di collegarci l'ESP32: molti
+> arrivano regolati in passante e 12 V su `VIN` bruciano la scheda all'istante.)
 
 > **Dove prendere i 12 V**: da un circuito che si spegne con la chiave, non direttamente dalla
 > batteria, altrimenti il navigatore resta acceso e te la scarica. Su una moto con CAN-bus come
@@ -102,8 +115,8 @@ ogni suo pin esce su una vite. **Zero saldature**, e su una moto un morsetto str
 tiene piu' di una saldatura su un filo che vibra.
 
 **[Video del montaggio](docs/montaggio-adattatore.mp4)** (1 minuto e un quarto): la scheda,
-l'ESP32 che si infila, le due piste di alimentazione, i 22 fili uno per volta (piu' i due
-facoltativi del GPS) e l'ingresso dalla batteria.
+l'ESP32 che si infila, le due piste di alimentazione, i 20 fili uno per volta (piu' i due
+facoltativi del GPS) e la corrente che arriva dalla presa USB della moto.
 
 > Il GPS **parla e basta**: manda le frasi NMEA sul suo `TXD` e non ascolta nessuno. Per
 > funzionare gli bastano tre fili - `VCC`, `GND` e `TXD` su `RX2`. Il filo verso il suo `RXD`
@@ -112,8 +125,8 @@ facoltativi del GPS) e l'ingresso dalla batteria.
 
 | Morsetto | Ci va |
 |---|---|
-| `VIN` | + 5 V dal convertitore |
-| `GND` (ce n'e' uno per lato) | massa |
+| `VIN` | **niente**: la corrente entra dal micro-USB dell'ESP32 |
+| `GND` (ce n'e' uno per lato) | massa: ne basta uno, l'altro resta libero |
 | `3V3` | alimentazione del display e del GPS |
 | `RX2` | `TXD` del GPS: **questo e' l'unico filo di segnale che serve** |
 | `TX2` | `RXD` del GPS *(facoltativo: solo con `GPS_CONFIGURE_UBX` a 1)* |
@@ -175,10 +188,9 @@ da 6 colori x 7 m). E' flessibile, regge le vibrazioni e la guaina in silicone n
 quando il saldatore la sfiora. I fili interni sono da 8-15 cm l'uno: 42 m bastano per rifare
 tutto dieci volte.
 
-> Unica eccezione: il tratto che va **dalla batteria della moto al convertitore 12 V -> 5 V**.
-> Li' ci vuole almeno 0,5 mm2 (20 AWG), un **fusibile da 2 A** a non piu' di 15 cm dal morsetto
-> positivo e un **diodo 1N4007** in serie, con la fascetta rivolta verso il convertitore: se un
-> giorno inverti i morsetti non succede niente. Il 24 AWG ci sta solo dentro la scatola.
+> Questo vale per i fili **dentro** la scatola. Il tratto che va dalla moto alla presa USB non
+> lo fai tu: la presa arriva gia' col suo cavo e col suo fusibile, e si collega come un
+> qualunque accessorio.
 
 **I condensatori** fra le due piste, vicino all'ESP32: un **470 uF** (oppure tre da 100 uF in
 parallelo) e un **100 nF**. Nei kit il 100 nF e' marcato `104`, che si legge *10 seguito da
@@ -191,10 +203,10 @@ Colori, uno schema che si legge a colpo d'occhio:
 |---|---|
 | rosso | 3,3 V |
 | nero | massa |
-| giallo | 5 V (morsetto e VIN) |
-| blu | SPI del display (CS, SCK, MOSI, MISO, DC, RESET) |
-| verde | GPS (TXD, RXD, PPS) |
-| bianco | tasto e il resto |
+| giallo | `CS` e `RESET` del display |
+| blu | i dati SPI del display (`DC`, `MOSI`, `SCK`, `MISO`) |
+| verde | GPS (`TXD`, e `RXD` / `PPS` se li usi) |
+| bianco | touch, pulsante e il resto |
 
 **Il pulsante sul pannello** (quelli metallici da 12 mm con ghiera, tipici da moto):
 
