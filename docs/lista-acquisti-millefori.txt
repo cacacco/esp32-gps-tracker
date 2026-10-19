@@ -1,0 +1,193 @@
+=======================================================================
+  LISTA ACQUISTI - SCHEDA MILLEFORI
+  Tracker GPS - BMW S 1000 XR
+  19 ottobre 2026
+=======================================================================
+
+Serve per sostituire l'adattatore a morsetti con una scheda millefori
+fatta su misura: piu' compatta, e soprattutto senza connettori che
+possano sfilarsi con le vibrazioni della moto.
+
+Risultato finale: scheda da circa 70 x 50 mm, alta 20 mm con l'ESP32
+montato, e il display collegato con un unico cavo piatto che si stacca
+con un gesto solo.
+
+
+-----------------------------------------------------------------------
+  A - IL CUORE DELLA SCHEDA
+-----------------------------------------------------------------------
+
+[ ] 1. BASETTE MILLEFORI doppia faccia, fori metallizzati, passo 2,54
+       Cerca: "schede millefori doppia faccia foro metallizzato 2,54"
+       Quantita': 1 assortimento (di solito 5x7 / 4x6 / 3x7 / 2x8 cm)
+
+       Ti serve una basetta 5x7 cm per la scheda principale e un
+       ritaglio da circa 40 x 25 mm per la schedina del display.
+
+       >>> DEVONO essere a FORI METALLIZZATI (il rame passa dentro il
+           foro). Quelle monofaccia economiche hanno le piazzole solo
+           incollate: alla seconda dissaldatura si staccano. Sono 3
+           euro di differenza, pagali.
+
+[ ] 2. STRISCE FEMMINA passo 2,54 mm, da 40 poli
+       Cerca: "header femmina 2,54mm 40 pin"
+       Quantita': 1 confezione da 10 pezzi
+
+       Ti servono: 2 strisce da 15 poli (zoccolo dove infili l'ESP32)
+       e 1 striscia da 14 poli (schedina del display).
+       Si tagliano col tronchesino sacrificando un polo.
+
+
+-----------------------------------------------------------------------
+  B - IL COLLEGAMENTO AL DISPLAY
+-----------------------------------------------------------------------
+
+[ ] 3. CONNETTORI IDC MASCHIO da circuito stampato, 2x8 (16 poli), 2,54
+       Cerca: "box header 16 pin 2,54 PCB"
+            o "connettore IDC maschio 2x8 shrouded"
+       Quantita': servono 2 pezzi (vengono in confezioni da 10)
+
+       Sono quelli col guscio di plastica intorno e la TACCA di
+       riferimento sul fianco. La tacca e' il motivo per cui li usiamo:
+       non lo puoi infilare al contrario.
+
+[ ] 4. CAVO A NASTRO IDC 16 poli, femmina-femmina, 20 o 30 cm
+       Cerca: "cavo piatto IDC 16 pin FC-FC 30cm"
+       Quantita': 1
+
+       >>> NON prendere quello da 10 cm. Col display nel coperchio e la
+           scheda sul fondo, con 10 cm il coperchio si apre di tre dita
+           e ci lavori in bilico. 20-30 cm costano uguale.
+
+
+-----------------------------------------------------------------------
+  C - I COLLEGAMENTI MINORI
+-----------------------------------------------------------------------
+
+[ ] 5. CONNETTORI JST-XH passo 2,54 - kit con crimpatrice
+       Cerca: "kit connettori JST XH 2,54 con pinza crimpatrice"
+       Quantita': 1 kit
+
+       Ne userai due: 3 poli per il GPS (3,3V / GND / TX) e 2 poli per
+       il pulsante. Il kit costa sui 20 euro e te lo ritrovi per sempre.
+
+       ALTERNATIVA ECONOMICA, se non vuoi la crimpatrice:
+       morsettini a vite da circuito stampato passo 3,5 mm,
+       uno da 3 poli e uno da 2 poli. Piu' ingombranti, ma su due soli
+       connettori non cambia la vita.
+
+[ ] 6. FILO RIGIDO UNIPOLARE sottile, 24 o 26 AWG, assortito a colori
+       Cerca: "filo rigido per breadboard kit colori"
+       Quantita': 1 kit
+
+       E' quello per i 14 ponticelli sulla millefori: resta dove lo
+       pieghi, e su una millefori questo conta parecchio.
+
+[ ] 7. FILO DI RAME STAGNATO NUDO, 0,6 - 0,8 mm
+       Cerca: "filo di rame stagnato 0,6mm"
+       Quantita': 1 rotolino
+
+       Serve per le due piste di alimentazione 3,3V e GND: lo infili
+       lungo una fila di fori e lo saldi piazzola per piazzola. Viene
+       una pista vera e propria.
+
+       NOTA: il cavo in silicone 24 AWG che hai gia' NON va bene sulla
+       millefori (troppo morbido). Tienilo per i collegamenti che escono
+       dalla scheda: alimentazione, pulsante sul pannello.
+
+
+-----------------------------------------------------------------------
+  D - MECCANICA
+-----------------------------------------------------------------------
+
+[ ] 8. DISTANZIALI IN NYLON M3 con viti e dadi
+       Cerca: "kit distanziali nylon M3 assortiti"
+       Quantita': 1 kit
+
+       >>> In NYLON, non in ottone: l'ottone sotto la scheda puo'
+           cortocircuitare le saldature.
+
+[ ] 9. FASCETTE STRINGICAVO piccole, larghezza 2,5 mm
+       Cerca: "fascette stringicavo 2,5mm"
+       Quantita': 1 busta
+
+       Per il fermacavo: il fascio di fili legato a un punto fisso a
+       3-4 cm dal connettore. E' quello che impedisce agli strattoni di
+       arrivare alle saldature.
+
+
+-----------------------------------------------------------------------
+  E - ATTREZZI (solo se non li hai gia')
+-----------------------------------------------------------------------
+
+[ ] 10. SALDATORE
+        Cerca: "stazione saldante 60W temperatura regolabile"
+        Prendilo con la PUNTA FINE a matita.
+
+[ ] 11. STAGNO 0,7 mm
+        Cerca: "stagno 0,7mm 60/40 con anima disossidante"
+        >>> Il 60/40 al piombo e' molto piu' facile da lavorare del
+            senza piombo. Per un lavoro fatto in casa, prendi quello.
+
+[ ] 12. TRECCIA DISSALDANTE
+        Cerca: "treccia dissaldante 2mm"
+        Per quando sbagli. E sbaglierai.
+
+[ ] 13. TRONCHESINO
+        Cerca: "tronchesino elettronica taglio raso"
+
+[ ] 14. TERZA MANO
+        Cerca: "terza mano saldatura con lente"
+        Su una millefori vale oro.
+
+[ ] 15. ALCOL ISOPROPILICO
+        Per pulire il flussante a fine lavoro.
+
+
+-----------------------------------------------------------------------
+  COSA HAI GIA' - NON RICOMPRARE
+-----------------------------------------------------------------------
+
+  - ESP32-WROOM-32 DevKit v1 (30 pin)
+  - Display TFT 4" ST7796 480x320 con touch
+  - Modulo GPS NEO-7M + antenna esterna con cavo SMA
+  - Pulsanti metallici da pannello
+  - Cavo in silicone 24 AWG
+  - Cavo USB per la presa della moto
+  - Multimetro A830L
+  - Pistola per colla a caldo
+  - Adattatore a morsetti (tienilo: resta utilissimo per provare
+    modifiche al volo prima di saldarle sulla millefori)
+
+
+-----------------------------------------------------------------------
+  RIEPILOGO SPESA
+-----------------------------------------------------------------------
+
+  Solo materiale (hai gia' gli attrezzi) ......... 15 - 20 euro
+  Materiale + attrezzi da zero .................. 60 - 70 euro
+
+  Gli attrezzi restano tuoi e servono per qualsiasi lavoro futuro.
+
+
+-----------------------------------------------------------------------
+  LE CINQUE COSE DA NON SBAGLIARE
+-----------------------------------------------------------------------
+
+  1. Millefori a FORI METALLIZZATI, non monofaccia.
+  2. Cavo a nastro da 20-30 cm, non da 10.
+  3. Stagno 60/40 con flussante, non senza piombo.
+  4. Box header CON LA TACCA di riferimento.
+  5. Distanziali in NYLON, non in ottone.
+
+
+-----------------------------------------------------------------------
+  PROSSIMO PASSO
+-----------------------------------------------------------------------
+
+  Quando il materiale arriva, chiedimi lo schema delle due schedine:
+  quale foro va dove, la corrispondenza fra i 14 pin del display e i
+  16 del connettore a nastro, e l'ordine in cui saldare (si parte
+  sempre dai componenti piu' bassi).
+
+=======================================================================
