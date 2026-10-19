@@ -1,0 +1,212 @@
+=======================================================================
+  LA SCHEDA MILLEFORI - GUIDA DI MONTAGGIO
+  Tracker GPS - BMW S 1000 XR
+  19 ottobre 2026
+=======================================================================
+
+Video passo passo:  docs/montaggio-scheda.mp4
+Lista acquisti:     docs/lista-acquisti-millefori.txt
+
+Due schedine collegate da un cavo a nastro a 16 poli:
+
+  SCHEDA PRINCIPALE   millefori 5 x 7 cm   27 x 19 fori
+  SCHEDINA DISPLAY    ritaglio 40 x 25 mm  15 x 9 fori
+  CAVO                IDC 16 poli femmina-femmina, 20-30 cm
+
+
+-----------------------------------------------------------------------
+  L'ORDINE DI SALDATURA - dal piu basso al piu alto
+-----------------------------------------------------------------------
+
+[ ] 1. le due strisce femmina dello zoccolo ESP32
+[ ] 2. il connettore a nastro e i due JST
+[ ] 3. le due piste (3,3 V e massa)
+[ ] 4. i venti ponticelli
+[ ] 5. il collaudo, PRIMA di infilare l'ESP32
+
+  >>> Se saldi prima il connettore alto e poi la striscia bassa, la
+      striscia non appoggia piu sul rame e la saldatura resta sospesa.
+
+  >>> Infila l'ESP32 nelle due strisce PRIMA di saldarle: cosi restano
+      allineate fra loro e dopo la scheda entra davvero.
+
+
+-----------------------------------------------------------------------
+  LA SCHEDA PRINCIPALE - dove va cosa
+-----------------------------------------------------------------------
+
+  Le colonne si contano da sinistra (1-27), le file dall'alto (1-19).
+
+  Zoccolo ESP32 ... due strisce da 15 poli
+                    fila 5  (alto)   colonne 3-17
+                    fila 15 (basso)  colonne 3-17
+                    USB verso sinistra
+                    fra le due file ci sono 10 fori = 25,4 mm
+
+  Pista 3,3 V ..... fila 17, colonne 3-26   filo di rame stagnato
+  Pista massa ..... fila 19, colonne 3-26   filo di rame stagnato
+                    fra le due resta la fila 18 vuota: e lo spazio
+                    che impedisce il corto
+
+  Nastro IDC ...... colonne 25-26, file 6-13 (in verticale)
+                    pin 1 in alto a sinistra, dove c'e' la tacca
+
+  JST GPS ......... fila 2, colonne 19-20-21
+  JST pulsante .... fila 2, colonne 23-24
+
+
+  SIGLE DELLO ZOCCOLO, da sinistra a destra (USB a sinistra)
+
+  fila 5  (alto):   VIN  GND  D13  D12  D14  D27  D26  D25
+                    D33  D32  D35  D34  VN   VP   EN
+
+  fila 15 (basso):  3V3  GND  D15  D2   D4   RX2  TX2  D5
+                    D18  D19  D21  RX0  TX0  D22  D23
+
+  >>> RX2 e D16: stesso pin, GPIO16. E' quello del GPS.
+  >>> RX0 e TX0 NON si toccano: sono la seriale della USB.
+
+
+-----------------------------------------------------------------------
+  I 20 PONTICELLI DELLA SCHEDA PRINCIPALE
+-----------------------------------------------------------------------
+
+  Vanno sul RETRO, in filo rigido.
+
+  ALIMENTAZIONE
+  [ ]  1.  3V3 dello zoccolo ....... pista 3,3 V
+  [ ]  2.  GND dello zoccolo ....... pista di massa
+
+  GPS - tre fili e basta
+  [ ]  3.  VIN ..................... JST GPS 1   (VCC, 5 V)
+  [ ]  4.  pista di massa .......... JST GPS 2   (GND)
+  [ ]  5.  RX2 / D16 ............... JST GPS 3   (TXD del GPS)
+
+  PULSANTE DEL MENU
+  [ ]  6.  D32 ..................... JST pulsante 1
+  [ ]  7.  pista di massa .......... JST pulsante 2
+
+  DISPLAY - al connettore a nastro
+  [ ]  8.  pista 3,3 V ............. nastro 1    VCC del display
+  [ ]  9.  pista di massa .......... nastro 2    GND
+  [ ] 10.  D5 ...................... nastro 3    CS
+  [ ] 11.  D22 ..................... nastro 4    RESET
+  [ ] 12.  D21 ..................... nastro 5    DC / RS
+  [ ] 13.  D23 ..................... nastro 6    MOSI
+  [ ] 14.  pista di massa .......... nastro 7    massa
+  [ ] 15.  D18 ..................... nastro 8    SCK
+  [ ] 16.  pista di massa .......... nastro 9    massa
+  [ ] 17.  D19 ..................... nastro 10   MISO
+  [ ] 18.  D27 ..................... nastro 11   T_CS del touch
+  [ ] 19.  D33 ..................... nastro 12   LED (la luce)
+  [ ] 20.  pista di massa .......... nastro 16   massa
+
+  Il VCC del GPS va su VIN (5 V), non sulla pista 3,3 V: cosi il
+  regolatore dell'ESP32 non deve reggere anche lui. E' lo stesso
+  regolatore che, sovraccarico, faceva diventare bianco il display.
+
+
+-----------------------------------------------------------------------
+  LA SCHEDINA DEL DISPLAY
+-----------------------------------------------------------------------
+
+  Striscia femmina da 14 poli sulla fila 1 (ci si infila il display).
+  Connettore a nastro sulle file 7-8, colonne 4-11.
+  Pin 1 del nastro: fila 7, colonna 4 - dalla parte della tacca.
+
+  >>> LEGGI LE SIGLE STAMPATE SUL DISPLAY, non la posizione dei pin:
+      l'ordine cambia da un modulo all'altro. La tabella qui sotto
+      segue l'ordine piu comune.
+
+  COLLEGAMENTI DIRETTI
+  [ ]  1.  VCC ..................... nastro 1
+  [ ]  2.  GND ..................... nastro 2
+  [ ]  3.  CS ...................... nastro 3
+  [ ]  4.  RESET ................... nastro 4
+  [ ]  5.  DC / RS ................. nastro 5
+  [ ]  6.  SDI / MOSI .............. nastro 6
+  [ ]  7.  SCK ..................... nastro 8
+  [ ]  8.  SDO / MISO .............. nastro 10
+  [ ]  9.  T_CS .................... nastro 11
+  [ ] 10.  LED ..................... nastro 12
+
+  I TRE PONTICELLI DEL TOUCH
+  [ ] 11.  T_CLK ................... stesso foro di SCK
+  [ ] 12.  T_DIN ................... stesso foro di MOSI
+  [ ] 13.  T_DO .................... stesso foro di MISO
+
+       Questi tre vanno sugli stessi pin dell'ESP32 del display.
+       Facendo il ponte qui invece che sulla scheda principale,
+       risparmi tre fili sul nastro e tre saldature in tutto.
+
+  LE MASSE IN PIU'
+  [ ] 14.  nastro 2 ................ nastro 7
+  [ ] 15.  nastro 2 ................ nastro 9
+  [ ] 16.  nastro 2 ................ nastro 16
+
+  T_IRQ: non si collega.
+  SD_CS, SD_MOSI, SD_MISO, SD_SCK: non si collegano.
+
+
+-----------------------------------------------------------------------
+  LA MAPPA DEL NASTRO
+-----------------------------------------------------------------------
+
+  Stessa numerazione sulle due schedine. Il filo 1 e quello con la
+  riga rossa sul bordo del cavo.
+
+   filo | ESP32 | display            | filo | ESP32 | display
+  ------+-------+--------------------+------+-------+-----------------
+    1   | 3V3   | VCC                |   9  | GND   | massa
+    2   | GND   | GND                |  10  | D19   | SDO / MISO
+    3   | D5    | CS                 |  11  | D27   | T_CS
+    4   | D22   | RESET              |  12  | D33   | LED
+    5   | D21   | DC / RS            |  13  |   -   | riserva
+    6   | D23   | SDI / MOSI         |  14  |   -   | riserva
+    7   | GND   | massa              |  15  |   -   | riserva
+    8   | D18   | SCK                |  16  | GND   | massa
+
+  9 segnali, 4 masse, 3 di riserva.
+
+  Le masse sui fili 7 e 9 stanno ai lati dello SCK: e il filo che
+  commuta piu in fretta, ed e quello che conviene proteggere.
+
+  I tre fili di riserva: uno servira' al cicalino, se lo aggiungi.
+
+
+-----------------------------------------------------------------------
+  IL COLLAUDO - nell'ordine, senza saltare passaggi
+-----------------------------------------------------------------------
+
+  A SCHEDA SPENTA E SENZA ESP32:
+  [ ] 1. tester in continuita fra pista 3,3 V e pista di massa:
+         NON deve fischiare. Se fischia, il corto si cerca adesso.
+  [ ] 2. tester fra ogni foro dello zoccolo e la sua destinazione:
+         deve fischiare. Venti prove, venti conferme.
+
+  POI, UN PEZZO PER VOLTA:
+  [ ] 3. infila l'ESP32, attacca la USB: solo lui, niente altro.
+         Deve comparire il log sulla seriale.
+  [ ] 4. misura 3,2 - 3,3 V sulla pista di alimentazione.
+  [ ] 5. spegni, attacca il GPS:
+         "[GPS] modulo riconosciuto a 9600 baud"
+  [ ] 6. spegni, attacca il nastro e il display: logo e menu.
+  [ ] 7. tieni premuto il tasto 3 secondi: taratura del tocco.
+
+  Un corto si trova col tester, non col fumo.
+
+
+-----------------------------------------------------------------------
+  PRIMA DI CHIUDERE LA SCATOLA
+-----------------------------------------------------------------------
+
+  [ ] fascetta sul fascio di fili, a 3-4 cm dal connettore, ancorata
+      a un foro della scheda: gli strattoni se li prende la fascetta
+      e non le saldature
+  [ ] distanziali di nylon sotto la scheda, mai di ottone
+  [ ] pulisci il flussante con alcol isopropilico e guarda le
+      saldature in controluce: una fredda si vede, e opaca e bombata
+  [ ] l'adattatore a morsetti NON si butta: resta il banco di prova
+      per le modifiche al volo
+
+=======================================================================
