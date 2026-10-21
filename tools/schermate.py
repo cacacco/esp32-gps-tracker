@@ -54,8 +54,10 @@ class Schermo:
     def barra(s, fuori=False):
         L = s.L
         s.d.ellipse([11*K,12*K,25*K,26*K], fill=BAD if fuori else OK)
-        s.txt(34, 19, '8 sat   HDOP 1.1', F2, LABEL, 'lm')
+        s.txt(34, 19, '8 sat  1.1' if L['vert'] else '8 sat   HDOP 1.1', F2, LABEL, 'lm')
         s.txt(L['SW']-8, 19, '14:32', F4, FG, 'rm')
+        for k in range(3): s.hl(L['BAR_HINT'], 13+k*5, 14, LABEL)
+        s.txt(L['BAR_HINT']+20, 19, 'menu', F2, LABEL, 'lm')
         s.hl(0, 38, L['SW'], LINE)
 
 def nav(L):

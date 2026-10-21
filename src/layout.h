@@ -25,6 +25,11 @@ static uint8_t uiRot  = DISPLAY_ROTATION;
 static bool    uiVert = false;                 // in piedi
 static int16_t SW = 480, SH = 320;
 
+// ---- barra in alto ---------------------------------------------------------
+// BAR_SAT_W e' quanto spazio si pulisce scrivendo i satelliti. Deve bastare
+// alla scritta e fermarsi prima del tasto menu, altrimenti lo cancella.
+static int16_t BAR_SAT_W, BAR_HINT;
+
 // ---- schermata di attesa del fix -------------------------------------------
 static int16_t WAIT_X, WAIT_W, WAIT_TY;
 static int16_t WAIT_Y[6];      // titolo, satelliti, frasi, ricerca, antenna, rete
@@ -67,6 +72,7 @@ static int16_t LOGO_X, LOGO_Y, LOGO_R, ORB_RX, ORB_RY;
 static void layoutOrizzontale() {
   SW = 480; SH = 320;
 
+  BAR_SAT_W = 200; BAR_HINT = 260;
   WAIT_X = 240; WAIT_W = 460; WAIT_TY = 19;
   const int16_t wy[6] = {110, 160, 190, 230, 258, 292};
   for (uint8_t i = 0; i < 6; i++) WAIT_Y[i] = wy[i];
@@ -78,7 +84,7 @@ static void layoutOrizzontale() {
   for (uint8_t i = 0; i < 4; i++) {
     DRV_ST_X[i] = (int16_t)(60 + i * 120); DRV_ST_LY[i] = 268; DRV_ST_VY[i] = 294;
   }
-  DRV_ST_W = 110; DRV_HINT = 260;
+  DRV_ST_W = 110; DRV_HINT = BAR_HINT;
 
   ARROW_X = 145; ARROW_Y = 152; ARROW_R = 76;
   SV_X = 386; SV_Y = 104; SV_R = 30;
@@ -92,7 +98,7 @@ static void layoutOrizzontale() {
   NAV_REST_X = 144; NAV_REST_LY = 238; NAV_REST_VY = 268; NAV_REST_W = 270;
   NAV_LINE_X = 144; NAV_LINE_Y = 302; NAV_LINE_W = 280;
   NAV_SPD_X = 386; NAV_SPD_Y = 290; NAV_SPD_W = 170;
-  NAV_MARK_X = 302; NAV_HINT = 260;
+  NAV_MARK_X = 302; NAV_HINT = BAR_HINT;
 
   const Rect mb[4] = {{14,50,221,100},{245,50,221,100},{14,156,221,100},{245,156,221,100}};
   for (uint8_t i = 0; i < 4; i++) MENU_BTN[i] = mb[i];
@@ -121,6 +127,8 @@ static void layoutOrizzontale() {
 static void layoutVerticale() {
   SW = 320; SH = 480;
 
+  // in piedi lo spazio e' poco: scritta corta, e il tasto menu subito dopo
+  BAR_SAT_W = 104; BAR_HINT = 146;
   WAIT_X = 160; WAIT_W = 300; WAIT_TY = 19;
   const int16_t wy[6] = {120, 180, 212, 262, 296, 340};
   for (uint8_t i = 0; i < 6; i++) WAIT_Y[i] = wy[i];
@@ -135,7 +143,7 @@ static void layoutVerticale() {
   const int16_t sl[4] = {374, 374, 428, 428};
   const int16_t sv[4] = {400, 400, 454, 454};
   for (uint8_t i = 0; i < 4; i++) { DRV_ST_X[i] = sx[i]; DRV_ST_LY[i] = sl[i]; DRV_ST_VY[i] = sv[i]; }
-  DRV_ST_W = 140; DRV_HINT = 150;
+  DRV_ST_W = 140; DRV_HINT = BAR_HINT;
 
   ARROW_X = 160; ARROW_Y = 276; ARROW_R = 66;
   SV_X = 78;  SV_Y = 110; SV_R = 32;
@@ -149,7 +157,7 @@ static void layoutVerticale() {
   NAV_REST_X = 80; NAV_REST_LY = 362; NAV_REST_VY = 392; NAV_REST_W = 140;
   NAV_LINE_X = 160; NAV_LINE_Y = 172; NAV_LINE_W = 300;
   NAV_SPD_X = 160; NAV_SPD_Y = 448; NAV_SPD_W = 300;
-  NAV_MARK_X = 20; NAV_HINT = 150;
+  NAV_MARK_X = 20; NAV_HINT = BAR_HINT;
 
   const Rect mb[4] = {{14,52,146,112},{166,52,146,112},{14,176,146,112},{166,176,146,112}};
   for (uint8_t i = 0; i < 4; i++) MENU_BTN[i] = mb[i];

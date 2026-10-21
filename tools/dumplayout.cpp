@@ -12,6 +12,7 @@ int main(int argc, char **argv) {
   layoutCompute(argc > 1 ? (uint8_t)atoi(argv[1]) : 1);
   printf("{");
   i("SW", SW); i("SH", SH); i("vert", uiVert ? 1 : 0);
+  i("BAR_SAT_W", BAR_SAT_W); i("BAR_HINT", BAR_HINT);
   i("WAIT_X", WAIT_X); i("WAIT_W", WAIT_W);
   printf("\"WAIT_Y\":[%d,%d,%d,%d,%d,%d],",
          WAIT_Y[0], WAIT_Y[1], WAIT_Y[2], WAIT_Y[3], WAIT_Y[4], WAIT_Y[5]);

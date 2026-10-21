@@ -166,16 +166,19 @@ static void drawTopBar(const DisplayData &d, bool force) {
   const int8_t fenceNow = d.outside ? 1 : 0;
   if (force || fenceNow != pFence) {
     pFence = fenceNow;
-    tft.fillCircle(18, 19, 7, d.outside ? COL_BAD : COL_OK);
+    tft.fillSmoothCircle(18, 19, 7, d.outside ? COL_BAD : COL_OK, COL_BG);
   }
 
   if (force || (int32_t)d.satellites != pSat || (int32_t)(d.hdop * 10) != pHdop) {
     pSat  = (int32_t)d.satellites;
     pHdop = (int32_t)(d.hdop * 10);
-    snprintf(buf, sizeof(buf), "%lu sat   HDOP %.1f", (unsigned long)d.satellites, d.hdop);
+    // In piedi "HDOP" non ci sta: il numero da solo dice la stessa cosa a chi
+    // lo sa leggere, e lascia il posto al tasto menu.
+    if (uiVert) snprintf(buf, sizeof(buf), "%lu sat  %.1f", (unsigned long)d.satellites, d.hdop);
+    else        snprintf(buf, sizeof(buf), "%lu sat   HDOP %.1f", (unsigned long)d.satellites, d.hdop);
     tft.setTextDatum(ML_DATUM);
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.setTextPadding(200);
+    tft.setTextPadding(BAR_SAT_W);
     tft.drawString(buf, 34, 19, 2);
     tft.setTextPadding(0);
   }
@@ -357,6 +360,16 @@ static void drawArrowAt(int cx, int cy, int r, float angleDeg, uint16_t color) {
 
   tft.fillTriangle(x0, y0, xL, yL, xT, yT, color);
   tft.fillTriangle(x0, y0, xR, yR, xT, yT, color);
+
+  // Un triangolo pieno ha i bordi obliqui a scalini: ogni pixel c'e' o non
+  // c'e'. Ripassando il contorno con le linee sfumate, i pixel di bordo
+  // prendono una via di mezzo fra la freccia e il fondo, e lo scalino
+  // sparisce. Costa quattro linee e cambia completamente l'aspetto.
+  const float sp = 0.9f;
+  tft.drawWedgeLine((float)x0, (float)y0, (float)xL, (float)yL, sp, sp, color, COL_BG);
+  tft.drawWedgeLine((float)xL, (float)yL, (float)xT, (float)yT, sp, sp, color, COL_BG);
+  tft.drawWedgeLine((float)xT, (float)yT, (float)xR, (float)yR, sp, sp, color, COL_BG);
+  tft.drawWedgeLine((float)xR, (float)yR, (float)x0, (float)y0, sp, sp, color, COL_BG);
 }
 
 // Una rotonda non e' una freccia che gira: una freccia a 90 gradi dice "gira
@@ -365,24 +378,26 @@ static void drawArrowAt(int cx, int cy, int r, float angleDeg, uint16_t color) {
 // numero dell'uscita in mezzo - che e' l'unica cosa da leggere.
 static void drawRoundaboutAt(int cx, int cy, int r, uint8_t exit, float exitAng, uint16_t col) {
   const int ra = (int)(r * 0.58f);
-  tft.drawCircle(cx, cy, ra, col);
-  tft.drawCircle(cx, cy, ra - 1, col);
+  // L'anello come arco sfumato: due cerchi affiancati davano una ciambella
+  // dentellata, questo e' un anello pulito di spessore costante.
+  tft.drawSmoothArc(cx, cy, ra, ra - 3, 0, 360, col, COL_BG, true);
+  tft.drawWedgeLine((float)cx, (float)(cy + ra - 1), (float)cx, (float)(cy + r),
+                    1.3f, 1.3f, col, COL_BG);           // da dove entri
 
-  tft.drawFastVLine(cx,     cy + ra, r - ra, col);        // da dove entri
-  tft.drawFastVLine(cx + 1, cy + ra, r - ra, col);
-
-  const float a = exitAng * (float)PI / 180.0f;           // l'uscita da prendere
-  const int x0 = cx + (int)(sinf(a) * ra);
-  const int y0 = cy - (int)(cosf(a) * ra);
-  const int x1 = cx + (int)(sinf(a) * (r + 1));
-  const int y1 = cy - (int)(cosf(a) * (r + 1));
-  tft.drawLine(x0, y0, x1, y1, col);
-  tft.drawLine(x0 + 1, y0, x1 + 1, y1, col);
+  const float a = exitAng * (float)PI / 180.0f;         // l'uscita da prendere
+  const float x0 = cx + sinf(a) * (ra - 1);
+  const float y0 = cy - cosf(a) * (ra - 1);
+  const float x1 = cx + sinf(a) * (r + 1);
+  const float y1 = cy - cosf(a) * (r + 1);
+  tft.drawWedgeLine(x0, y0, x1, y1, 1.3f, 1.3f, col, COL_BG);
   const float aL = a + 2.44f, aR = a - 2.44f;
-  const int p = r > 20 ? 9 : 6;
-  tft.fillTriangle(x1, y1,
-                   x1 + (int)(sinf(aL) * p), y1 - (int)(cosf(aL) * p),
-                   x1 + (int)(sinf(aR) * p), y1 - (int)(cosf(aR) * p), col);
+  const float p = r > 20 ? 9.0f : 6.0f;
+  const float xL = x1 + sinf(aL) * p, yL = y1 - cosf(aL) * p;
+  const float xR = x1 + sinf(aR) * p, yR = y1 - cosf(aR) * p;
+  tft.fillTriangle((int)x1, (int)y1, (int)xL, (int)yL, (int)xR, (int)yR, col);
+  tft.drawWedgeLine(x1, y1, xL, yL, 0.8f, 0.8f, col, COL_BG);
+  tft.drawWedgeLine(xL, yL, xR, yR, 0.8f, 0.8f, col, COL_BG);
+  tft.drawWedgeLine(xR, yR, x1, y1, 0.8f, 0.8f, col, COL_BG);
 
   if (exit && ra >= 14) {                                  // nel riquadro piccolo non ci sta
     char n[4];
@@ -397,8 +412,10 @@ static void drawRoundaboutAt(int cx, int cy, int r, uint8_t exit, float exitAng,
 // dopo la svolta sei su una strada diversa, non in curva sulla stessa.
 static void drawNewRoadMark(int cx, int cy, uint16_t col) {
   for (int i = 0; i < 2; i++) {
-    const int x = cx + i * 9;
-    tft.fillTriangle(x, cy - 8, x, cy + 8, x + 7, cy, col);
+    const float x = (float)(cx + i * 9);
+    tft.fillTriangle((int)x, cy - 8, (int)x, cy + 8, (int)x + 7, cy, col);
+    tft.drawWedgeLine(x, (float)(cy - 8), x + 7, (float)cy, 0.8f, 0.8f, col, COL_BG);
+    tft.drawWedgeLine(x + 7, (float)cy, x, (float)(cy + 8), 0.8f, 0.8f, col, COL_BG);
   }
 }
 
@@ -435,6 +452,8 @@ static void drawNavChrome() {
 static void drawNav(const DisplayData &d, bool force) {
   static int32_t pAngle = -9999, pRemain = -1, pSpeed = -1, pTurnM = -1, pPoiM = -1;
   static int8_t  pState = -1, pMode = -1, pVicina = -1;
+  static float   pDisegnata = 0;          // angolo della freccia gia' sullo schermo
+  static bool    pCeFreccia = false;
   static int32_t pTurnA = -9999, pPoiA = -9999;
   static char    pLinea[44] = "";
   static uint16_t pColBasso = 0xFFFF;
@@ -448,8 +467,16 @@ static void drawNav(const DisplayData &d, bool force) {
   const int8_t   stato  = d.navFinished ? 2 : d.navOffRoute ? 1 : 0;
   if (force || abs(angolo - pAngle) >= 4 || stato != pState) {
     pAngle = angolo;
-    tft.fillCircle(ARROW_X, ARROW_Y, ARROW_R + 2, COL_BG);
+    // Cancellare tutto il cerchio e ridisegnare dentro fa un lampo nero
+    // grande quanto la freccia, a ogni scarto di quattro gradi: in curva e'
+    // un battito continuo. Si cancella invece la SOLA freccia di prima,
+    // ridisegnandola del colore del fondo. L'area toccata diventa un quinto
+    // e il lampo non si vede piu'.
+    if (pCeFreccia && !force) drawArrow(pDisegnata, COL_BG);
+    else                      tft.fillCircle(ARROW_X, ARROW_Y, ARROW_R + 2, COL_BG);
     drawArrow(d.navRelative, coloreFreccia);
+    pDisegnata = d.navRelative;
+    pCeFreccia = true;
   }
 
   // ---- quanto manca alla fine --------------------------------------------
@@ -498,7 +525,8 @@ static void drawNav(const DisplayData &d, bool force) {
   // la cornice arancione dice "ci sei quasi" senza bisogno di leggere i numeri
   const bool cambiaVicina = force || (int8_t)vicina != pVicina;
   if (cambiaVicina)
-    tft.drawRoundRect(SV_BOX.x, SV_BOX.y, SV_BOX.w, SV_BOX.h, 8, vicina ? COL_WARN : COL_BG);
+    tft.drawSmoothRoundRect(SV_BOX.x, SV_BOX.y, 8, 7, SV_BOX.w, SV_BOX.h,
+                            vicina ? COL_WARN : COL_BG, COL_BG);
 
   // Il disegno cambia con il tipo, con l'uscita e con il cambio di strada: la
   // chiave li tiene tutti, altrimenti passando da una rotonda alla successiva
@@ -685,13 +713,13 @@ static void uiAsk(UiAction a, const char *domanda) {
 }
 
 static void drawButton(const Rect &r, const char *titolo, const char *sotto, uint16_t bordo) {
-  tft.fillRoundRect(r.x, r.y, r.w, r.h, 10, COL_BTN);
-  tft.drawRoundRect(r.x, r.y, r.w, r.h, 10, bordo);
+  // Angoli sfumati invece che a gradini: su uno schermo piccolo la differenza
+  // fra un pulsante disegnato bene e uno disegnato male e' tutta qui.
+  tft.fillSmoothRoundRect(r.x, r.y, r.w, r.h, 10, COL_BTN, COL_BG);
+  tft.drawSmoothRoundRect(r.x, r.y, 10, 9, r.w, r.h, bordo, COL_BG);
   // il pulsante scelto col tasto ha una cornice chiara tutt'intorno
-  if (&r == uiSelRect) {
-    tft.drawRoundRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4, 12, COL_FG);
-    tft.drawRoundRect(r.x - 3, r.y - 3, r.w + 6, r.h + 6, 13, COL_FG);
-  }
+  if (&r == uiSelRect)
+    tft.drawSmoothRoundRect(r.x - 3, r.y - 3, 13, 11, r.w + 6, r.h + 6, COL_FG, COL_BG);
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_FG, COL_BTN);
   const int16_t cx = r.x + r.w / 2, cy = r.y + r.h / 2;
@@ -1182,8 +1210,7 @@ static void drawSplash() {
 
     tft.drawEllipse(LOGO_X, LOGO_Y, ORB_RX,     ORB_RY,     COL_LINE);
     tft.drawEllipse(LOGO_X, LOGO_Y, ORB_RX - 1, ORB_RY - 1, COL_LINE);
-    tft.drawCircle(LOGO_X, LOGO_Y, LOGO_R,     COL_CYAN);
-    tft.drawCircle(LOGO_X, LOGO_Y, LOGO_R - 1, COL_CYAN);
+    tft.drawSmoothArc(LOGO_X, LOGO_Y, LOGO_R, LOGO_R - 2, 0, 360, COL_CYAN, COL_BG, true);
 
     // la freccia entra girando, come quando aggancia il fix
     drawArrowAt(LOGO_X, LOGO_Y, 40, -70.0f + 70.0f * f, COL_CYAN);

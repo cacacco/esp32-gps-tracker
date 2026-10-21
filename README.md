@@ -545,6 +545,35 @@ quando l'orologio non e' d'accordo con il cielo - una galleria lunga, un tempora
 pomeriggio - e tornare ad **Automatica** quando vuoi. La riga compare solo se `PIN_TFT_BL` e'
 impostato: senza, non ci sarebbe niente da regolare.
 
+### Come e' disegnato
+
+Due scelte che si vedono, e vale la pena sapere perche' sono state fatte.
+
+**Bordi sfumati.** Freccia, rotatoria, pulsanti e cornici non sono disegnati a
+pixel pieni ma con le primitive *smooth* di TFT_eSPI: i pixel di bordo prendono
+una via di mezzo fra la figura e il fondo invece di esserci o non esserci. Su un
+pannello da 480 x 320 guardato a venti centimetri e' la differenza fra una
+freccia fatta di mattoncini e una freccia.
+
+**Niente lampo quando la freccia gira.** La freccia grande si ridisegna a ogni
+scarto di quattro gradi. Cancellare il cerchio e ridisegnarci dentro faceva un
+lampo nero a ogni scatto, cioe' un battito continuo in curva. Adesso si
+cancella solo la freccia di prima, ridisegnandola del colore del fondo: l'area
+toccata e' un quinto e il lampo non si vede.
+
+**Se vuoi di piu', c'e' una leva che non e' ancora tirata.** In
+`platformio.ini` la frequenza del bus del display e' a 27 MHz invece di 40:
+
+```
+-D SPI_FREQUENCY=27000000
+```
+
+27 MHz e' la frequenza che regge con i cavetti volanti. **Quando avrai saldato
+la millefori**, con le piste corte, prova a mettere `40000000`: il disegno
+diventa quasi il doppio piu' veloce e lo schermo piu' fluido. Se compaiono
+righe o colori sbagliati, sei andato troppo in su: rimetti 27000000 e non se ne
+parla piu'.
+
 ### Sdraiato o in piedi
 
 Il pannello si puo' montare in orizzontale (480 x 320) o in verticale
