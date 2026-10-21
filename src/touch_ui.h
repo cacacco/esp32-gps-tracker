@@ -159,10 +159,22 @@ static void touchRunCalibration() {
   }
 }
 
+// Il quinto numero della taratura e' la rotazione per cui e' stata fatta:
+// TFT_eSPI lo usa per sapere quali assi scambiare. Una taratura fatta da
+// sdraiato, usata con il pannello in piedi, non "sbaglia un po'": manda il
+// dito da tutt'altra parte. In alto non succede niente, in basso ti apre il
+// riquadro sbagliato, e sembra che il tocco sia rotto.
+static bool touchCalGiusta() {
+  if (touchCal[4] == uiRot) return true;
+  Serial.printf("[TOUCH] taratura fatta per la rotazione %u, adesso siamo alla %u: "
+                "si butta e si rifa'\r\n", touchCal[4], uiRot);
+  return false;
+}
+
 static void touchBegin() {
   touchProbe();
 
-  if (touchLoadCal() && touchCalSensata()) {
+  if (touchLoadCal() && touchCalSensata() && touchCalGiusta()) {
     tft.setTouch(touchCal);
     touchReady = true;
     Serial.printf("[TOUCH] taratura caricata: %u %u %u %u (rot %u)\r\n",
@@ -178,12 +190,18 @@ static void touchBegin() {
   tft.drawString("Taratura del tocco", SW / 2, SH / 3, 4);
   tft.setTextColor(COL_LABEL, COL_BG);
   tft.drawString("tocca lo schermo per cominciare", SW / 2, SH / 3 + 40, 2);
+  tft.drawString(uiVert ? "schermo in piedi" : "schermo sdraiato", SW / 2, SH / 3 + 70, 2);
+  tft.setTextColor(COL_WARN, COL_BG);
+  tft.drawString("oppure tieni premuto il tasto 3 secondi", SW / 2, SH - 40, 2);
 
-  if (touchAttendiDito(15000)) {
+  // Un minuto invece di quindici secondi: cambiando formato la taratura va
+  // rifatta per forza, e perdere la finestra vuol dire ritrovarsi senza tocco
+  // senza capire perche'.
+  if (touchAttendiDito(60000)) {
     touchRunCalibration();
   } else {
     touchReady = false;
-    Serial.printf("[TOUCH] nessuna pressione in 15 secondi (soglia %u, riposo %u): il "
+    Serial.printf("[TOUCH] nessuna pressione in 60 secondi (soglia %u, riposo %u): il "
                   "controller risponde ma il pannello non sente il dito. Guarda il "
                   "connettore del vetro touch sulla basetta, non i fili verso l'ESP32. "
                   "Il tracker prosegue senza tocco.\r\n",

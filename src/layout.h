@@ -159,10 +159,13 @@ static void layoutVerticale() {
   NAV_SPD_X = 160; NAV_SPD_Y = 448; NAV_SPD_W = 300;
   NAV_MARK_X = 20; NAV_HINT = BAR_HINT;
 
-  const Rect mb[4] = {{14,52,146,112},{166,52,146,112},{14,176,146,112},{166,176,146,112}};
+  // Riquadri piu' bassi e barre piu' alte: in piedi lo spazio in verticale
+  // c'e', e quello che serve e' che fra una cosa e l'altra ci sia margine -
+  // col guanto non si centra il pixel.
+  const Rect mb[4] = {{14,52,146,92},{166,52,146,92},{14,152,146,92},{166,152,146,92}};
   for (uint8_t i = 0; i < 4; i++) MENU_BTN[i] = mb[i];
-  MENU_LUCE    = (Rect){14, 304, 292, 58};
-  MENU_SCHERMO = (Rect){14, 374, 292, 58};
+  MENU_LUCE    = (Rect){14, 264, 292, 68};
+  MENU_SCHERMO = (Rect){14, 346, 292, 68};
   LUCE_BTN[0] = (Rect){14, 60, 146, 96}; LUCE_BTN[1] = (Rect){166, 60, 146, 96};
   LUCE_PCT_Y  = 192;
   for (uint8_t i = 0; i < 3; i++) MODO_BTN[i] = (Rect){14, (int16_t)(240 + i * 56), 292, 48};

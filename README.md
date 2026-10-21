@@ -592,6 +592,18 @@ numeri della taratura dicono dove finisce il dito rispetto ai pixel, e girando
 il pannello i pixel si spostano. Ogni formato si ricorda la sua, quindi lo fai
 una volta per ciascuno e poi puoi passare dall'uno all'altro quando vuoi.
 
+> **Se il tocco non risponde**, quasi sempre e' la taratura che manca o e'
+> quella dell'altro formato. Il tracker se ne accorge da solo - il quinto
+> numero della taratura dice per quale rotazione e' stata fatta, e se non
+> corrisponde la butta - ma se ti trovi bloccato: **tieni premuto il tasto per
+> 3 secondi** e la taratura riparte. Il tasto funziona anche quando il tocco e'
+> morto, ed e' la via d'uscita per qualsiasi pasticcio del touch.
+>
+> Sul log seriale si legge cosa e' successo:
+> `[DISPLAY] rotazione 0, schermo in piedi, 320 x 480` dice in che formato sei,
+> e poi `[TOUCH] taratura caricata ...` oppure
+> `[TOUCH] taratura fatta per la rotazione 1, adesso siamo alla 0`.
+
 In `config.h` i due numeri `DISPLAY_ROTATION` (sdraiato: 1 o 3) e
 `DISPLAY_ROTATION_VERT` (in piedi: 0 o 2) dicono solo da che parte sta il cavo:
 se l'immagine esce capovolta, scambia 1 con 3 oppure 0 con 2.

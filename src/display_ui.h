@@ -1292,6 +1292,8 @@ static void displayBegin() {
   tft.init();
   layoutCompute(layoutLoadRot());
   tft.setRotation(uiRot);
+  Serial.printf("[DISPLAY] rotazione %u, schermo %s, %d x %d\r\n",
+                uiRot, uiVert ? "in piedi" : "sdraiato", SW, SH);
   drawSplash();
 
 #if ENABLE_TOUCH
