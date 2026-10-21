@@ -656,7 +656,7 @@ static const Rect NET_BTN[UI_NET_RIGHE] = {
 // tre posti in fondo alle pagine: indietro, azione, azione
 // Una riga larga sopra i tre tasti: il ricalcolo si chiede da qui, quando
 // sai gia' di aver sbagliato e non hai voglia di aspettare i dodici secondi.
-static const Rect ROUTE_RICALC = {14, 202, 452, 46};
+static const Rect ROUTE_RICALC = {14, 196, 452, 46};
 
 static const Rect PAGE_BTN[3] = {
   { 14, 258, 140, 48}, {170, 258, 140, 48}, {326, 258, 140, 48}
@@ -805,10 +805,10 @@ static void drawRoutePage(const DisplayData &d) {
   drawPageHead("PERCORSO");
 
   if (d.navTotal) {
-    snprintf(buf, sizeof(buf), "%.1f km", d.routeKm);         drawRiga("lunghezza", buf, 70);
-    snprintf(buf, sizeof(buf), "%u", d.navTotal);             drawRiga("punti", buf, 110);
-    snprintf(buf, sizeof(buf), "%u", d.routeTurns);           drawRiga("svolte", buf, 150);
-    snprintf(buf, sizeof(buf), "%u", d.navStops);             drawRiga("tappe", buf, 190);
+    snprintf(buf, sizeof(buf), "%.1f km", d.routeKm);         drawRiga("lunghezza", buf, 66);
+    snprintf(buf, sizeof(buf), "%u", d.navTotal);             drawRiga("punti", buf, 102);
+    snprintf(buf, sizeof(buf), "%u", d.routeTurns);           drawRiga("svolte", buf, 138);
+    snprintf(buf, sizeof(buf), "%u", d.navStops);             drawRiga("tappe", buf, 174);
   } else {
     tft.setTextDatum(MC_DATUM);
     tft.setTextColor(COL_LABEL, COL_BG);
