@@ -93,8 +93,9 @@
 // 6bis) Navigazione a freccia
 //     Il percorso si prepara sul PC (Google Maps, BRouter, Komoot...), si
 //     esporta in GPX e si carica dalla dashboard. Il tracker mostra la
-//     direzione del prossimo punto e quanto manca: niente calcolo del
-//     percorso a bordo, niente ricalcolo se sbagli strada.
+//     direzione del prossimo punto e quanto manca. L'itinerario lo calcola
+//     il telefono; a bordo resta il ricalcolo del rientro quando sbagli
+//     strada, che e' un'altra cosa e sta qui sotto.
 // ===========================================================================
 #define ROUTE_MAX_POINTS        2000   // ~24 KB di RAM
 #define ROUTE_MIN_SPACING_M       15   // distanza minima tra due punti del percorso
@@ -110,6 +111,22 @@
 #define ROUTE_OFF_ROUTE_M         60   // oltre questa distanza sei fuori percorso
 #define ROUTE_FINISH_M            30   // arrivo sull'ultimo punto
 #define ROUTE_LOOKAHEAD           40   // quanti punti guardare avanti per ritrovarsi
+
+// ---- ricalcolo del percorso ----------------------------------------------
+// Se sbagli strada, il tracker chiede al servizio strade come rientrare sul
+// percorso che avevi scelto. Non ricalcola fino a destinazione: ti riporta
+// sul tuo giro, perche' su una moto le strade le hai scelte apposta.
+// Serve rete: il tracker la prende dall'hotspot del telefono. Senza rete
+// resta la freccia che punta al rientro, che funziona comunque.
+#define ENABLE_REROUTE             1
+#define REROUTE_HOST               "router.project-osrm.org"
+#define REROUTE_AFTER_S           12   // secondi fuori percorso prima di provarci
+#define REROUTE_COOLDOWN_S        45   // minimo fra due tentativi
+#define REROUTE_AHEAD_M          250   // quanto piu' avanti rientrare sul percorso
+#define REROUTE_MAX_LEG          400   // punti del tratto di rientro, 8 byte l'uno
+#define REROUTE_MAX_TURNS         40   // manovre del tratto di rientro
+#define REROUTE_TIMEOUT_MS      9000   // oltre, si lascia perdere e si riprova dopo
+#define REROUTE_MIN_HEAP       55000   // con meno RAM libera non ci si prova nemmeno
 
 // Tappe con nome: lette dai <wpt> del GPX, oppure aggiunte dalla dashboard.
 #define STOPS_MAX                 40

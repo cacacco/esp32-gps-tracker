@@ -294,6 +294,7 @@ async function calcola(){
   const p = pronte();
   if (p.length < 2) return null;
   const coords = [], passi = [];
+  let precedente = '';                 // strada da cui si arriva, per il cambio di via
   const fuori = esclusioni();
   esclusioniIgnorate = false;
   for (let da = 0; da < p.length - 1; da += MAX_PER_CHIAMATA - 1){
@@ -317,11 +318,31 @@ async function calcola(){
     const rt = j.routes[0];
     const g = rt.geometry.coordinates.map(c => [c[1], c[0]]);
     for (let i = coords.length ? 1 : 0; i < g.length; i++) coords.push(g[i]);
-    for (const leg of rt.legs) for (const st of leg.steps){
-      if (!utile(st)) continue;
-      if (st.maneuver.type === 'arrive' && !ultimo) continue;
-      passi.push([st.maneuver.location[1], st.maneuver.location[0], tipo(st.maneuver),
-                  st.maneuver.exit || 0, (st.name||'').replace(/[\r\n,]/g,' ').trim().slice(0,19)]);
+    // Un "arrivo" per ogni tappa sarebbe sbagliato: a meta' giro leggeresti
+    // ARRIVO mentre il percorso continua. Le tappe hanno gia' il loro elenco,
+    // qui vale solo l'arrivo vero, quello dell'ultima tratta.
+    for (let li = 0; li < rt.legs.length; li++) for (const st of rt.legs[li].steps){
+      const nome = (st.name||'').replace(/[\r\n,]/g,' ').trim().slice(0,19);
+      const m = st.maneuver;
+      const fine = ultimo && li === rt.legs.length - 1;
+      const salta = !utile(st) || (m.type === 'arrive' && !fine);
+      if (!salta){
+        const k = tipo(m);
+        // Dettagli che non sono il tipo di manovra: 1 = la strada cambia nome,
+        // 2 e 4 = da che parte si esce dalla rotonda. Viaggiano nei bit alti
+        // dello stesso numero, cosi' il formato della riga non cambia.
+        let f = 0;
+        if (k !== 10 && nome && nome !== precedente) f |= 1;
+        if (k === 9){
+          const mod = m.modifier || '';
+          if (mod.indexOf('left')  >= 0) f |= 2;
+          if (mod.indexOf('right') >= 0) f |= 4;
+        }
+        passi.push([m.location[1], m.location[0], k | (f << 4), m.exit || 0, nome]);
+      }
+      // anche i passi saltati contano: la strada precedente e' quella del
+      // passo prima, che sia stato tenuto o no
+      precedente = nome;
     }
   }
   return {coords, passi, durata: 0};

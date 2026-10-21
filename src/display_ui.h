@@ -21,7 +21,7 @@
 #include <TFT_eSPI.h>
 #include <time.h>
 
-#include "turns.h"
+#include "route.h"   // svolte, stato della navigazione e del ricalcolo
 
 // I pin del pannello stanno in platformio.ini: qui si controlla solo che non
 // finiscano anche su un'altra funzione. Meglio una compilazione che si ferma
@@ -84,6 +84,11 @@ struct DisplayData {
   uint16_t    navTotal;
   uint8_t     navTurnKind;   // prossima manovra, 0 se non ce ne sono
   uint8_t     navTurnExit;   // uscita della rotonda
+  uint8_t     navTurnFlags;  // TurnFlag: cambio strada, lato dell'uscita
+  uint8_t     navTurn2Flags; // gli stessi, per la manovra dopo
+  float       navOffM;       // quanto sei lontano dal percorso
+  uint8_t     navReroute;    // RerouteState
+  const char *navRerouteMsg; // cosa sta facendo il ricalcolo
   uint8_t     navTurn2Kind;  // la manovra dopo quella in arrivo
   float       navTurn2M;     // quanto manca a quella
   const char *navTurnName;   // strada su cui si prosegue
@@ -354,6 +359,49 @@ static void drawArrowAt(int cx, int cy, int r, float angleDeg, uint16_t color) {
   tft.fillTriangle(x0, y0, xR, yR, xT, yT, color);
 }
 
+// Una rotonda non e' una freccia che gira: una freccia a 90 gradi dice "gira
+// a destra", e in rotonda non e' quello che devi fare. Qui si disegna
+// l'anello, il trattino da cui entri e la freccetta dell'uscita giusta, col
+// numero dell'uscita in mezzo - che e' l'unica cosa da leggere.
+static void drawRoundaboutAt(int cx, int cy, int r, uint8_t exit, float exitAng, uint16_t col) {
+  const int ra = (int)(r * 0.58f);
+  tft.drawCircle(cx, cy, ra, col);
+  tft.drawCircle(cx, cy, ra - 1, col);
+
+  tft.drawFastVLine(cx,     cy + ra, r - ra, col);        // da dove entri
+  tft.drawFastVLine(cx + 1, cy + ra, r - ra, col);
+
+  const float a = exitAng * (float)PI / 180.0f;           // l'uscita da prendere
+  const int x0 = cx + (int)(sinf(a) * ra);
+  const int y0 = cy - (int)(cosf(a) * ra);
+  const int x1 = cx + (int)(sinf(a) * (r + 1));
+  const int y1 = cy - (int)(cosf(a) * (r + 1));
+  tft.drawLine(x0, y0, x1, y1, col);
+  tft.drawLine(x0 + 1, y0, x1 + 1, y1, col);
+  const float aL = a + 2.44f, aR = a - 2.44f;
+  const int p = r > 20 ? 9 : 6;
+  tft.fillTriangle(x1, y1,
+                   x1 + (int)(sinf(aL) * p), y1 - (int)(cosf(aL) * p),
+                   x1 + (int)(sinf(aR) * p), y1 - (int)(cosf(aR) * p), col);
+
+  if (exit && ra >= 14) {                                  // nel riquadro piccolo non ci sta
+    char n[4];
+    snprintf(n, sizeof(n), "%u", exit);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextColor(col, COL_BG);
+    tft.drawString(n, cx, cy, 4);
+  }
+}
+
+// Il segno del cambio di via: due cunei accanto alla freccia. Vuol dire che
+// dopo la svolta sei su una strada diversa, non in curva sulla stessa.
+static void drawNewRoadMark(int cx, int cy, uint16_t col) {
+  for (int i = 0; i < 2; i++) {
+    const int x = cx + i * 9;
+    tft.fillTriangle(x, cy - 8, x, cy + 8, x + 7, cy, col);
+  }
+}
+
 static void drawArrow(float angleDeg, uint16_t color) {
   drawArrowAt(ARROW_X, ARROW_Y, ARROW_R, angleDeg, color);
 }
@@ -391,7 +439,8 @@ static void drawNav(const DisplayData &d, bool force) {
   static int32_t pAngle = -9999, pRemain = -1, pSpeed = -1, pTurnM = -1, pPoiM = -1;
   static int8_t  pState = -1, pMode = -1, pVicina = -1;
   static int32_t pTurnA = -9999, pPoiA = -9999;
-  static char    pLinea[40] = "";
+  static char    pLinea[44] = "";
+  static uint16_t pColBasso = 0xFFFF;
   char buf[32];
 
   drawTopBar(d, force);
@@ -416,11 +465,26 @@ static void drawNav(const DisplayData &d, bool force) {
   }
 
   // ---- riga di stato sotto la freccia -------------------------------------
-  char linea[40];
+  char linea[44];
   uint16_t coloreLinea = COL_LABEL;
-  if (d.navFinished)      { snprintf(linea, sizeof(linea), "ARRIVATO");       coloreLinea = COL_OK; }
-  else if (d.navOffRoute) { snprintf(linea, sizeof(linea), "FUORI PERCORSO"); coloreLinea = COL_BAD; }
-  else                    { linea[0] = '\0'; }
+  if (d.navFinished) {
+    snprintf(linea, sizeof(linea), "ARRIVATO");
+    coloreLinea = COL_OK;
+  } else if (d.navReroute == RR_CORSO) {
+    snprintf(linea, sizeof(linea), "RICALCOLO IN CORSO");
+    coloreLinea = COL_CYAN;
+  } else if (d.navRerouteMsg && *d.navRerouteMsg) {
+    snprintf(linea, sizeof(linea), "%s", d.navRerouteMsg);
+    coloreLinea = (d.navReroute == RR_FATTO) ? COL_OK : COL_WARN;
+  } else if (d.navOffRoute) {
+    // Non basta dire che sei fuori: la cosa utile e' quanto manca a rientrare,
+    // e la freccia grande intanto punta li' invece che al punto che hai perso.
+    if (d.navOffM < 1000) snprintf(linea, sizeof(linea), "RIENTRO  %ld m", (long)d.navOffM);
+    else                  snprintf(linea, sizeof(linea), "RIENTRO  %.1f km", d.navOffM / 1000.0f);
+    coloreLinea = COL_BAD;
+  } else {
+    linea[0] = '\0';
+  }
 
   // ---- riquadro SVOLTA ----------------------------------------------------
   const bool    haSvolta = d.navTurnKind != TURN_NONE && !d.navFinished;
@@ -437,11 +501,25 @@ static void drawNav(const DisplayData &d, bool force) {
   const bool cambiaVicina = force || (int8_t)vicina != pVicina;
   if (cambiaVicina) tft.drawRoundRect(296, 44, 180, 152, 8, vicina ? COL_WARN : COL_BG);
 
+  // Il disegno cambia con il tipo, con l'uscita e con il cambio di strada: la
+  // chiave li tiene tutti, altrimenti passando da una rotonda alla successiva
+  // con la stessa uscita non verrebbe rifatto.
+  const bool    rotonda     = haSvolta && d.navTurnKind == TURN_ROUNDABOUT;
+  const bool    stradaNuova = haSvolta && (d.navTurnFlags & TURN_F_NEWROAD);
   const int32_t angoloSvolta = haSvolta ? (int32_t)turnAngle(d.navTurnKind) : -9999;
-  if (force || angoloSvolta != pTurnA || cambiaVicina) {
-    pTurnA = angoloSvolta;
-    tft.fillCircle(SV_X, SV_Y, SV_R + 2, COL_BG);
-    if (haSvolta) drawArrowAt(SV_X, SV_Y, SV_R, (float)angoloSvolta, vicina ? COL_WARN : COL_FG);
+  const int32_t chiaveSvolta = haSvolta
+      ? (angoloSvolta * 1000 + (int32_t)d.navTurnKind * 100 + (int32_t)d.navTurnExit * 4 +
+         (d.navTurnFlags & 7))
+      : -9999;
+  if (force || chiaveSvolta != pTurnA || cambiaVicina) {
+    pTurnA = chiaveSvolta;
+    tft.fillRect(SV_X - SV_R - 2, SV_Y - SV_R - 2, (SV_R + 2) * 2, (SV_R + 2) * 2, COL_BG);
+    tft.fillRect(300, SV_Y - 10, 22, 20, COL_BG);
+    const uint16_t col = vicina ? COL_WARN : COL_FG;
+    if (rotonda)       drawRoundaboutAt(SV_X, SV_Y, SV_R, d.navTurnExit,
+                                        turnExitAngle(d.navTurnFlags), col);
+    else if (haSvolta) drawArrowAt(SV_X, SV_Y, SV_R, (float)angoloSvolta, col);
+    if (stradaNuova)   drawNewRoadMark(302, SV_Y, COL_CYAN);
   }
 
   const float   distSvolta = haSvolta ? d.navTurnM : d.navStopM;
@@ -460,29 +538,41 @@ static void drawNav(const DisplayData &d, bool force) {
   }
 
   // nome: la strada su cui si prosegue, o la tappa se non ci sono svolte
-  char strada[28];
-  if (haSvolta && d.navTurnKind == TURN_ROUNDABOUT && d.navTurnExit)
-    snprintf(strada, sizeof(strada), "%u uscita: %s", d.navTurnExit, d.navTurnName ? d.navTurnName : "");
+  // Il ">" davanti al nome, insieme al bianco invece del grigio, vuol dire
+  // "finisci su un'altra strada". Senza, la svolta resta sulla stessa via.
+  char strada[40];
+  const char *sep = stradaNuova ? " > " : " ";
+  const char *via = d.navTurnName ? d.navTurnName : "";
+  if (rotonda && d.navTurnExit)
+    snprintf(strada, sizeof(strada), "%s uscita%s%s", turnOrdinal(d.navTurnExit), sep, via);
   else if (haSvolta)
-    snprintf(strada, sizeof(strada), "%s %s", turnWord(d.navTurnKind), d.navTurnName ? d.navTurnName : "");
+    snprintf(strada, sizeof(strada), "%s%s%s", turnWord(d.navTurnKind), sep, via);
   else
     snprintf(strada, sizeof(strada), "%s", d.navStops ? (d.navStopName ? d.navStopName : "--") : "nessuna");
   // La riga larga sotto la freccia: l'avviso se c'e', altrimenti la strada.
   // Li' ci stanno 280 pixel invece di 180, e i nomi delle vie sono lunghi.
   const char *basso = linea[0] ? linea : strada;
-  if (force || strcmp(basso, pLinea) != 0) {
+  const uint16_t coloreBasso = linea[0] ? coloreLinea : (stradaNuova ? COL_FG : COL_LABEL);
+  if (force || strcmp(basso, pLinea) != 0 || coloreBasso != pColBasso) {
     snprintf(pLinea, sizeof(pLinea), "%s", basso);
-    displayField(basso, 144, 302, 2, 280, linea[0] ? coloreLinea : COL_LABEL);
+    pColBasso = coloreBasso;
+    displayField(basso, 144, 302, 2, 280, coloreBasso);
   }
 
   // ---- riquadro POI -------------------------------------------------------
   const bool    haPoi  = d.navTurn2Kind != TURN_NONE && !d.navFinished;
-  const int32_t poiA   = haPoi ? (int32_t)turnAngle(d.navTurn2Kind) : -9999;
+  const bool    poiRot = haPoi && d.navTurn2Kind == TURN_ROUNDABOUT;
+  const int32_t poiA   = haPoi
+      ? ((int32_t)turnAngle(d.navTurn2Kind) * 100 + (int32_t)d.navTurn2Kind * 8 +
+         (d.navTurn2Flags & 7))
+      : -9999;
   if (force || poiA != pPoiA) {
     pPoiA = poiA;
     displayField(haPoi ? "DOPO" : "", 386, 210, 2, 180, COL_LABEL);
-    tft.fillCircle(PO_X, PO_Y, PO_R + 2, COL_BG);
-    if (haPoi) drawArrowAt(PO_X, PO_Y, PO_R, (float)poiA, COL_LABEL);
+    tft.fillRect(PO_X - PO_R - 2, PO_Y - PO_R - 2, (PO_R + 2) * 2, (PO_R + 2) * 2, COL_BG);
+    if (poiRot)     drawRoundaboutAt(PO_X, PO_Y, PO_R, 0,
+                                     turnExitAngle(d.navTurn2Flags), COL_LABEL);
+    else if (haPoi) drawArrowAt(PO_X, PO_Y, PO_R, turnAngle(d.navTurn2Kind), COL_LABEL);
   }
 
   const int32_t poiM = haPoi ? (int32_t)d.navTurn2M : -1;
@@ -532,7 +622,7 @@ enum UiPage : uint8_t {
 };
 
 enum UiAction : uint8_t {
-  UI_NONE = 0, UI_ROUTE_CLEAR, UI_TRACK_CLEAR, UI_TRIP_RESET,
+  UI_NONE = 0, UI_ROUTE_CLEAR, UI_TRACK_CLEAR, UI_TRIP_RESET, UI_REROUTE,
   UI_PORTAL_ON, UI_PORTAL_OFF, UI_NET_SELECT,
   UI_BL_GIU, UI_BL_SU, UI_BL_AUTO, UI_BL_GIORNO, UI_BL_NOTTE
 };
@@ -564,6 +654,10 @@ static const Rect NET_BTN[UI_NET_RIGHE] = {
 };
 
 // tre posti in fondo alle pagine: indietro, azione, azione
+// Una riga larga sopra i tre tasti: il ricalcolo si chiede da qui, quando
+// sai gia' di aver sbagliato e non hai voglia di aspettare i dodici secondi.
+static const Rect ROUTE_RICALC = {14, 202, 452, 46};
+
 static const Rect PAGE_BTN[3] = {
   { 14, 258, 140, 48}, {170, 258, 140, 48}, {326, 258, 140, 48}
 };
@@ -721,6 +815,7 @@ static void drawRoutePage(const DisplayData &d) {
     tft.drawString("nessun percorso in memoria", 240, 120, 4);
   }
 
+  if (d.navTotal) drawButton(ROUTE_RICALC, "Ricalcola il rientro", "", COL_WARN);
   drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
   drawButton(PAGE_BTN[1], "Nuovo", "", COL_CYAN);
   if (d.navTotal) drawButton(PAGE_BTN[2], "Cancella", "", COL_BAD);
@@ -911,6 +1006,7 @@ static UiAction uiTouch(int16_t x, int16_t y) {
       return UI_NONE;
 
     case PAGE_ROUTE:
+      if (rectHit(ROUTE_RICALC, x, y) && uiHasRoute) { uiDirty = true; return UI_REROUTE; }
       if (rectHit(PAGE_BTN[0], x, y)) uiGoto(PAGE_MENU);
       else if (rectHit(PAGE_BTN[1], x, y)) uiGoto(PAGE_NEWROUTE);
       else if (rectHit(PAGE_BTN[2], x, y)) uiAsk(UI_ROUTE_CLEAR, "Cancellare il percorso?");
@@ -965,6 +1061,7 @@ static void uiSelAggiorna() {
       break;
 #endif
     case PAGE_ROUTE:
+      if (uiHasRoute) uiSelAggiungi(&ROUTE_RICALC);
       uiSelAggiungi(&PAGE_BTN[0]);
       uiSelAggiungi(&PAGE_BTN[1]);
       if (uiHasRoute) uiSelAggiungi(&PAGE_BTN[2]);

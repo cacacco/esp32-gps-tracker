@@ -28,6 +28,7 @@
 #include "version.h"
 #include "track_store.h"
 #include "route.h"
+#include "reroute.h"
 #include "wifi_portal.h"
 #include "display_ui.h"
 #include "web_ui.h"
@@ -450,6 +451,11 @@ static void readGps() {
     updateGeofence();
     stopsUpdate(fix.lat, fix.lon);   // prima le tappe: la navigazione le usa
     navUpdate(fix.lat, fix.lon, fix.course, fix.speedKmh >= STATS_MOVING_MIN_KMH);
+    // Dopo la navigazione, cosi' sa gia' se sei fuori percorso. Il giro in cui
+    // decide e quello in cui chiama il servizio sono due giri diversi: il
+    // display fa in tempo a scrivere "ricalcolo" prima di fermarsi qualche
+    // secondo sulla richiesta.
+    reroutePoll(fix.lat, fix.lon, fix.valid);
   }
 
   // Fix scaduto: la posizione resta visibile ma marcata come non valida.
@@ -525,11 +531,15 @@ static void handleStatus() {
   navObj["remaining"] = nav.remainingM;
   navObj["rel"]       = nav.relativeDeg;
   navObj["off"]       = nav.offRoute;
+  navObj["rr"]        = rrStato;
+  navObj["rrmsg"]     = rrMsg;
+  navObj["rrfatti"]   = rrFatti;
   navObj["offDist"]   = nav.offDistM;
   navObj["done"]      = nav.finished;
   navObj["turns"]     = turnCount;
   navObj["turnKind"]  = turnNextKind();
   navObj["turnExit"]  = turnNextExit();
+  navObj["turnFlags"] = turnNextFlags();
   navObj["turnName"]  = turnNextName();
   navObj["turnDist"]  = turnDistM;
   navObj["stop"]      = stopNextName();
@@ -811,8 +821,13 @@ static void handleTurnsPost() {
     const double lon = strtod(p, &end);
     if (end == p) break;
     p = end; if (*p == ',') p++;
-    const long kind = strtol(p, &end, 10);
+    // Il telefono manda tipo e dettagli in un numero solo: la manovra nei
+    // quattro bit bassi, i flag (cambio strada, lato dell'uscita) in quelli
+    // alti. Cosi' il formato della riga non cambia.
+    const long tipo = strtol(p, &end, 10);
     if (end == p) break;
+    const long kind  = tipo & 0x0F;
+    const long flags = (tipo >> 4) & 0x0F;
     p = end; if (*p == ',') p++;
     const long exit = strtol(p, &end, 10);
     if (end == p) break;
@@ -826,7 +841,7 @@ static void handleTurnsPost() {
     memcpy(nome, p, n);
     nome[n] = '\0';
 
-    turnsAdd(lat, lon, (uint8_t)kind, (uint8_t)exit, nome);
+    turnsAdd(lat, lon, (uint8_t)kind, (uint8_t)exit, nome, (uint8_t)flags);
     if (!fine) break;
     p = fine + 1;
   }
@@ -879,6 +894,15 @@ static void handleBacklight() {
   server.send(200, "application/json", "{\"ok\":true}");
 }
 #endif
+
+// Ricalcolo chiesto dalla dashboard. Non lo fa qui: lo mette in coda, perche'
+// la richiesta al servizio strade blocca tutto per qualche secondo e il
+// browser riceverebbe un timeout invece di una risposta.
+static void handleRouteRecalc() {
+  if (!routeCount) { server.send(409, "application/json", "{\"error\":\"nessun percorso\"}"); return; }
+  rerouteRequest();
+  server.send(200, "application/json", "{\"ok\":true}");
+}
 
 static void handleRouteClear() {
   routeClear();
@@ -940,6 +964,7 @@ static void setupWebServer() {
 #if ENABLE_DISPLAY && PIN_TFT_BL >= 0
   server.on("/api/backlight", HTTP_POST, handleBacklight);
 #endif
+  server.on("/api/route/recalc", HTTP_POST, handleRouteRecalc);
   server.on("/api/route/clear", HTTP_POST, handleRouteClear);
   server.on("/api/stops", HTTP_GET, handleStopsGet);
   server.on("/api/stops", HTTP_POST, handleStopsPost);
@@ -1152,6 +1177,10 @@ void loop() {
         routeClear();
         Serial.println(F("[MENU] percorso cancellato"));
         break;
+      case UI_REROUTE:
+        rerouteRequest();
+        Serial.println(F("[MENU] ricalcolo del rientro richiesto"));
+        break;
       case UI_TRACK_CLEAR:
         trackClear();
         lastTrackMs = 0;
@@ -1240,6 +1269,11 @@ void loop() {
     d.navTotal     = nav.total;
     d.navTurnKind  = turnNextKind();
     d.navTurnExit  = turnNextExit();
+    d.navTurnFlags = turnNextFlags();
+    d.navTurn2Flags= turnAfterFlags();
+    d.navOffM      = (float)nav.offDistM;
+    d.navReroute   = rrStato;
+    d.navRerouteMsg= rrMsg;
     d.navTurnName  = turnNextName();
     d.navTurnM     = turnDistM;
     d.navTurn2Kind = turnAfterKind();

@@ -135,6 +135,7 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
     <a class="btn primario" id="btnPercorso" href="/percorso">Crea percorso</a>
     <label class="btn" for="gpx">Carica GPX</label>
     <input type="file" id="gpx" accept=".gpx,.xml" hidden>
+    <button id="btnRicalc" hidden>Ricalcola rientro</button>
     <button id="btnRoute" hidden>Cancella percorso</button>
   </div>
 
@@ -278,12 +279,21 @@ async function refreshStatus(){
   $('btnPercorso').title       = haPercorso
     ? `${n.points} punti, ${fmt(n.km,1)} km: aprilo per cambiarlo`
     : 'nessun percorso in memoria';
+  $('btnRicalc').hidden = !haPercorso;
   if (n.active){
-    const testa = n.done ? '<b style="color:#35c46a">Arrivato</b>'
-      : n.off ? `<b style="color:#e8534f">Fuori percorso</b> di ${fmt(n.offDist,0)} m` : 'In rotta';
+    // Lo stato del ricalcolo vince sugli altri: se sta cercando la strada per
+    // rientrare, e' quello che vuoi sapere.
+    const testa = n.rr === 2 ? '<b style="color:#4aa3ff">Ricalcolo in corso</b>'
+      : n.rrmsg ? `<b style="color:${n.rr === 3 ? '#35c46a' : '#f0a93b'}">${n.rrmsg}</b>`
+      : n.done ? '<b style="color:#35c46a">Arrivato</b>'
+      : n.off ? `<b style="color:#e8534f">Rientro</b> a ${fmt(n.offDist,0)} m` : 'In rotta';
     const tappa = n.stops ? ` &nbsp;·&nbsp; prossima tappa <b>${n.stop}</b> a ${fmt(n.stopDist,0)} m` : '';
+    // Il ">" davanti al nome vuol dire che dopo la svolta sei su un'altra
+    // strada: lo stesso segno che compare sul display.
+    const viaNuova = (n.turnFlags & 1) ? ' &gt;' : '';
+    const uscita = n.turnKind === 9 && n.turnExit ? ` (${n.turnExit}a uscita)` : '';
     const svolta = n.turnKind ? ` &nbsp;·&nbsp; fra ${fmt(n.turnDist,0)} m <b style="color:#f0a93b">` +
-      `${SVOLTA_PAROLA[n.turnKind] || ''}</b>${n.turnName ? ' su ' + n.turnName : ''}` : '';
+      `${SVOLTA_PAROLA[n.turnKind] || ''}${uscita}</b>${n.turnName ? viaNuova + ' ' + n.turnName : ''}` : '';
     $('nav').innerHTML = `${testa} &nbsp;·&nbsp; restano ${fmt(n.remaining/1000,1)} km` + svolta + tappa;
     if (map && routePts[n.target]) targetMark.setLatLng(routePts[n.target]).addTo(map);
   } else {
@@ -434,6 +444,11 @@ $('gpx').onchange = async (e) => {
   e.target.value = '';
   stopsDirty = false;
   refreshRoute(); refreshTurns(); refreshStops(); refreshStatus();
+};
+$('btnRicalc').onclick = async () => {
+  const r = await fetch('/api/route/recalc', {method:'POST'});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) alert(j.error || 'ricalcolo non possibile');
 };
 $('btnRoute').onclick = async () => {
   if (!confirm('Cancellare il percorso caricato?')) return;

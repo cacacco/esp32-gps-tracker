@@ -27,15 +27,35 @@ enum TurnKind : uint8_t {
   TURN_KINDS
 };
 
+// Dettagli che non sono il tipo di manovra ma cambiano cosa leggi sul display.
+enum TurnFlag : uint8_t {
+  TURN_F_NEWROAD = 0x01,   // dopo la svolta la strada cambia nome
+  TURN_F_EXIT_L  = 0x02,   // dalla rotonda si esce verso sinistra
+  TURN_F_EXIT_R  = 0x04,   // ... oppure verso destra (nessuno dei due = dritto)
+};
+
 struct Turn {
   float    lat, lon;
   uint16_t idx;                  // punto del percorso piu' vicino, legato dopo
   uint8_t  kind;
   uint8_t  exit;                 // uscita della rotonda, 0 se non serve
+  uint8_t  flags;                // TurnFlag
   char     name[TURN_NAME_LEN];  // strada su cui si prosegue
 };
 
+// Il file delle svolte prima non aveva ne' intestazione ne' il campo flags.
+// Si riconosce dalla firma e si converte, altrimenti al primo avvio dopo
+// l'aggiornamento il percorso gia' caricato perderebbe tutte le manovre.
+struct TurnV1 {
+  float    lat, lon;
+  uint16_t idx;
+  uint8_t  kind;
+  uint8_t  exit;
+  char     name[TURN_NAME_LEN];
+};
+
 static const char TURNS_PATH[] = "/turns.bin";
+static const uint8_t TURNS_MAGIC[4] = { 'T', 'R', 'N', 2 };
 
 static Turn     turns[TURNS_MAX];
 static uint16_t turnCount = 0;
@@ -87,15 +107,17 @@ static void turnsClear() {
   LittleFS.remove(TURNS_PATH);
 }
 
-static bool turnsAdd(double lat, double lon, uint8_t kind, uint8_t exit, const char *name) {
+static bool turnsAdd(double lat, double lon, uint8_t kind, uint8_t exit, const char *name,
+                     uint8_t flags = 0) {
   if (turnCount >= TURNS_MAX) return false;
   if (kind == TURN_NONE || kind >= TURN_KINDS) return false;
   Turn &t = turns[turnCount];
-  t.lat  = (float)lat;
-  t.lon  = (float)lon;
-  t.idx  = 0;
-  t.kind = kind;
-  t.exit = exit;
+  t.lat   = (float)lat;
+  t.lon   = (float)lon;
+  t.idx   = 0;
+  t.kind  = kind;
+  t.exit  = exit;
+  t.flags = flags;
   snprintf(t.name, sizeof(t.name), "%s", name ? name : "");
   turnCount++;
   return true;
@@ -106,7 +128,8 @@ static bool turnsSave() {
   File f = LittleFS.open(TURNS_PATH, "w");
   if (!f) return false;
   const size_t bytes = (size_t)turnCount * sizeof(Turn);
-  const bool ok = f.write((const uint8_t *)turns, bytes) == bytes;
+  const bool ok = f.write(TURNS_MAGIC, sizeof(TURNS_MAGIC)) == sizeof(TURNS_MAGIC) &&
+                  f.write((const uint8_t *)turns, bytes) == bytes;
   f.close();
   return ok;
 }
@@ -120,9 +143,33 @@ static void turnsLoadRaw() {
   if (!LittleFS.exists(TURNS_PATH)) return;
   File f = LittleFS.open(TURNS_PATH, "r");
   if (!f) return;
-  const uint32_t n = f.size() / sizeof(Turn);
-  turnCount = (uint16_t)(n > TURNS_MAX ? TURNS_MAX : n);
-  f.read((uint8_t *)turns, (size_t)turnCount * sizeof(Turn));
+
+  uint8_t firma[4] = { 0, 0, 0, 0 };
+  const bool nuovo = f.size() >= sizeof(TURNS_MAGIC) &&
+                     f.read(firma, sizeof(firma)) == sizeof(firma) &&
+                     memcmp(firma, TURNS_MAGIC, sizeof(firma)) == 0;
+  if (nuovo) {
+    const uint32_t n = (f.size() - sizeof(TURNS_MAGIC)) / sizeof(Turn);
+    turnCount = (uint16_t)(n > TURNS_MAX ? TURNS_MAX : n);
+    f.read((uint8_t *)turns, (size_t)turnCount * sizeof(Turn));
+  } else {
+    // formato vecchio: niente firma, niente flags
+    f.seek(0);
+    const uint32_t n = f.size() / sizeof(TurnV1);
+    turnCount = (uint16_t)(n > TURNS_MAX ? TURNS_MAX : n);
+    for (uint16_t i = 0; i < turnCount; i++) {
+      TurnV1 v;
+      if (f.read((uint8_t *)&v, sizeof(v)) != sizeof(v)) { turnCount = i; break; }
+      turns[i].lat   = v.lat;
+      turns[i].lon   = v.lon;
+      turns[i].idx   = v.idx;
+      turns[i].kind  = v.kind;
+      turns[i].exit  = v.exit;
+      turns[i].flags = 0;
+      memcpy(turns[i].name, v.name, TURN_NAME_LEN);
+    }
+    Serial.printf("[ROTTA] svolte in formato vecchio: %u convertite\r\n", turnCount);
+  }
   f.close();
   for (uint16_t i = 0; i < turnCount; i++) turns[i].name[TURN_NAME_LEN - 1] = '\0';
 }
@@ -139,6 +186,25 @@ static uint8_t turnNextExit() {
   return (turnCount && turnNext < turnCount) ? turns[turnNext].exit : 0;
 }
 
+static uint8_t turnNextFlags() {
+  return (turnCount && turnNext < turnCount) ? turns[turnNext].flags : 0;
+}
+
+// "2a uscita". Niente lettere accentate: il font del display non le ha.
+static const char *turnOrdinal(uint8_t n) {
+  static char buf[8];
+  snprintf(buf, sizeof(buf), "%ua", n);
+  return buf;
+}
+
+// Di quanto gira la freccetta che esce dalla rotonda. La direzione la manda
+// il servizio strade insieme al numero dell'uscita.
+static float turnExitAngle(uint8_t flags) {
+  if (flags & TURN_F_EXIT_L) return -90;
+  if (flags & TURN_F_EXIT_R) return  90;
+  return 0;
+}
+
 // La manovra dopo quella in arrivo: sul display sta nel riquadro "poi",
 // come sui navigatori da auto.
 static uint8_t turnAfterKind() {
@@ -147,4 +213,8 @@ static uint8_t turnAfterKind() {
 
 static const char *turnAfterName() {
   return (turnCount && turnNext + 1 < turnCount) ? turns[turnNext + 1].name : "";
+}
+
+static uint8_t turnAfterFlags() {
+  return (turnCount && turnNext + 1 < turnCount) ? turns[turnNext + 1].flags : 0;
 }

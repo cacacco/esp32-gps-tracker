@@ -729,6 +729,50 @@ di metri. La freccia punta sempre al prossimo punto, quindi in curva ruota segue
 | un **GPX** caricato | segue il tracciato del file: se il file e' stato registrato su strada, segue la strada (ma senza svolte: un GPX non le contiene) |
 | **nessun percorso** | non c'e' nessuna freccia: il display mostra la schermata di marcia, con velocita', direzione in gradi e distanza dalla base |
 
+### Se sbagli strada
+
+Oltre i 60 metri dal tracciato il tracker ti considera fuori percorso, e fa due cose.
+
+**La prima funziona sempre, anche senza campo.** Cerca su tutto il percorso - non solo
+nel pezzo che hai davanti - il punto piu' comodo da riprendere, e ci punta la freccia
+grande. Sotto leggi `RIENTRO 340 m`: quanto manca a essere di nuovo sulla rotta. Se hai
+saltato una deviazione e rientrerai due chilometri piu' avanti, il punto giusto lo trova
+li', non ti rimanda indietro.
+
+**La seconda serve rete**, e normalmente ce l'hai: e' l'hotspot del telefono, lo stesso
+che usi per la dashboard. Dopo dodici secondi che sei fuori, il tracker chiede al servizio
+strade come arrivare al punto di rientro, e il tratto calcolato prende il posto del pezzo
+che hai saltato. Sul display compare `RICALCOLO IN CORSO` e per qualche secondo l'immagine
+resta ferma: sta parlando con la rete.
+
+La cosa importante e' **cosa non fa**: non ricalcola da capo fino a destinazione. Il giro
+lo hai scelto tu, curva per curva, e un ricalcolo "portami a destinazione" ti rispedirebbe
+in tangenziale. Qui si ricuce solo lo strappo: davanti il tratto nuovo, dietro il tuo giro
+intatto, comprese le svolte che non hai ancora fatto.
+
+Se vuoi chiederlo subito invece di aspettare i dodici secondi, c'e' il pulsante
+**Ricalcola il rientro** nella pagina *Percorso* del display, e **Ricalcola rientro** sulla
+dashboard. Senza rete il tracker lo dice e si tiene la freccia del rientro, che basta.
+
+Si regola in `config.h`, sotto *ricalcolo del percorso*: `ENABLE_REROUTE` a 0 lo spegne del
+tutto, `REROUTE_AFTER_S` e' l'attesa prima di provarci, `REROUTE_AHEAD_M` quanto piu' avanti
+rientrare sul percorso.
+
+### Le rotatorie e il cambio di via
+
+Due cose che si leggono con un'occhiata sola, perche' in moto non ce n'e' una seconda.
+
+**Nella rotatoria il display disegna una rotatoria**, non una freccia che gira: l'anello,
+il trattino da cui entri e la freccetta dell'uscita da prendere, col numero dell'uscita in
+mezzo. Sotto c'e' scritto per esteso, `2a uscita > Via Po`. Una freccia a 90 gradi direbbe
+"gira a destra", che in rotonda non e' quello che devi fare.
+
+**Il segno `>` davanti al nome della strada**, insieme al nome scritto in bianco invece che
+in grigio, vuol dire che dopo la svolta sei su **un'altra strada**. Senza il segno, la
+manovra resta sulla via su cui sei gia': e' una curva, non un bivio da sbagliare. Accanto
+alla freccia della svolta compaiono anche due cunei azzurri, che dicono la stessa cosa
+senza bisogno di leggere.
+
 Senza un percorso in memoria **non esiste modo di seguire le strade**: a bordo non c'e' nessuna
 mappa, l'ESP32 sa solo dove sei. Le strade le conosce solo il percorso che hai preparato.
 
@@ -821,8 +865,9 @@ cancellarti sotto le dita quello che stai battendo.
 
 Cosa **non** fa, perche' sia chiaro prima di salire in macchina:
 
-* niente ricalcolo: se sbagli strada ti avvisa, ma la via per rientrare la scegli tu;
-* niente nomi delle strade e niente voce: solo direzione e distanza;
+* niente itinerario nuovo: se la strada e' chiusa non ti inventa un altro giro, ti
+  riporta su quello che avevi scelto (vedi *Se sbagli strada* qui sotto);
+* niente voce: le indicazioni si leggono, non si ascoltano;
 * da fermo la freccia punta al nord, perche' la direzione di marcia il GPS la conosce solo
   in movimento (sopra i 3 km/h).
 
@@ -896,7 +941,8 @@ offline la mappa resta vuota, ma numeri, stato e link a Google Maps continuano a
 | `POST` | `/api/route` | carica un GPX (multipart) e lo sostituisce al precedente |
 | `POST` | `/api/route/draw` | crea il percorso, corpo `lat,lon;lat,lon;...` in testo semplice |
 | `GET` | `/api/route/steps` | le svolte, `[[lat, lon, tipo, uscita, "strada"], ...]` |
-| `POST` | `/api/route/steps` | carica le svolte, una per riga: `lat,lon,tipo,uscita,strada` |
+| `POST` | `/api/route/steps` | carica le svolte, una per riga: `lat,lon,tipo,uscita,strada`. Nel campo `tipo` la manovra sta nei 4 bit bassi e i dettagli (1 = cambia strada, 2 e 4 = lato dell'uscita in rotonda) in quelli alti |
+| `POST` | `/api/route/recalc` | chiede il ricalcolo del rientro; risponde subito, il calcolo parte al giro dopo |
 | `POST` | `/api/route/clear` | cancella il percorso e le sue tappe |
 | `POST` | `/api/touch/reset` | butta via la taratura del tocco e riavvia |
 | `GET` | `/api/stops` | elenco delle tappe e quale e' la prossima |
@@ -1069,6 +1115,9 @@ projects/esp32-gps-tracker/
 │   ├── main.cpp                 lettura GPS, geofence, statistiche, web server, SinricPro
 │   ├── track_store.h            traccia e odometro su memoria interna (LittleFS)
 │   ├── route.h                  percorso e navigazione a freccia
+│   ├── reroute.h                ricalcolo del rientro quando sbagli strada
+│   ├── osrm.h                   lettura in streaming della risposta del servizio strade
+│   ├── httpchunk.h              dalla risposta HTTP al solo corpo
 │   ├── stops.h                  tappe con nome, dal GPX o aggiunte a mano
 │   ├── turns.h                  svolte preparate dal telefono
 │   ├── wifi_portal.h            connessione WiFi e portale di configurazione

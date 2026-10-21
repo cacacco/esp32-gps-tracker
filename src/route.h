@@ -38,6 +38,17 @@ struct NavState {
   double   offDistM;      // quanto sei lontano dal tracciato
 };
 
+// A che punto e' il ricalcolo. Lo scrive reroute.h, lo legge il display:
+// sta qui perche' e' stato della navigazione, non roba di rete.
+enum RerouteState : uint8_t {
+  RR_FERMO = 0,    // niente da fare
+  RR_ATTESA,       // fuori percorso, si aspetta prima di disturbare la rete
+  RR_CORSO,        // richiesta in partenza o in corso
+  RR_FATTO,        // tratto di rientro inserito
+  RR_ERRORE,       // il servizio non ha risposto o non ha trovato strada
+  RR_SENZARETE     // nessuna rete: resta la freccia del rientro
+};
+
 static const char ROUTE_PATH[] = "/route.bin";
 
 static RoutePoint routePts[ROUTE_MAX_POINTS];
@@ -65,8 +76,13 @@ static void routeComputeCum() {
 // tiene un punto su due e si raddoppia il passo. Un giro da 350 km entra
 // tutto, solo meno fitto, invece di fermarsi a meta' strada.
 static void routeThinOut() {
-  for (uint16_t i = 1; i * 2 < routeCount; i++) routePts[i] = routePts[i * 2];
-  routeCount = (uint16_t)((routeCount + 1) / 2);
+  const uint16_t nuova = (uint16_t)((routeCount + 1) / 2);
+  for (uint16_t i = 1; i < nuova; i++) routePts[i] = routePts[i * 2];
+  // Tenendo un punto su due, con un numero pari di punti l'ultimo resterebbe
+  // fuori: su un percorso gia' completo sarebbe l'arrivo, e su uno in corso
+  // di lettura sarebbe il punto da cui prosegue il tratto successivo.
+  if (nuova) routePts[nuova - 1] = routePts[routeCount - 1];
+  routeCount = nuova;
 }
 
 // Le manovre arrivano in coordinate: qui ognuna viene agganciata al punto del
@@ -110,6 +126,25 @@ static void turnsUpdate() {
     const float d2 = routeCum[navIndex] - routeCum[turns[turnNext + 1].idx];
     turnDist2M = d2 > 0 ? d2 : 0;
   }
+}
+
+// Il punto piu' vicino cercato su TUTTO il percorso. Serve solo quando sei
+// fuori strada, e li' il risparmio non conta: conta ritrovare la rotta.
+// La distanza si misura sul piano - a queste distanze sbaglia di centimetri
+// e costa un millesimo di quella sferica, fatta duemila volte a ogni fix.
+static uint16_t routeNearestAll(double lat, double lon, double *distOut) {
+  uint16_t best = 0;
+  double   bestD = 1e18;
+  const double kLon = cos(lat * PI / 180.0);
+  for (uint16_t i = 0; i < routeCount; i++) {
+    const double dla = (double)routePts[i].lat - lat;
+    const double dlo = ((double)routePts[i].lon - lon) * kLon;
+    const double d   = dla * dla + dlo * dlo;
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  if (distOut && routeCount)
+    *distOut = TinyGPSPlus::distanceBetween(lat, lon, routePts[best].lat, routePts[best].lon);
+  return best;
 }
 
 static void navReset() {
@@ -399,6 +434,18 @@ static void navUpdate(double lat, double lon, double courseDeg, bool courseValid
   for (uint16_t i = navIndex; i <= last; i++) {
     const double d = TinyGPSPlus::distanceBetween(lat, lon, routePts[i].lat, routePts[i].lon);
     if (d < bestDist) { bestDist = d; best = i; }
+  }
+  // Fuori percorso il punto giusto puo' non essere nei prossimi quaranta: se
+  // hai saltato una deviazione, il rientro e' piu' avanti. Allora si guarda
+  // tutto il percorso. All'indietro si torna solo se li' sei davvero sulla
+  // strada, altrimenti su un giro ad anello il passaggio vicino alla partenza
+  // farebbe ricominciare il percorso da capo.
+  if (bestDist > ROUTE_OFF_ROUTE_M && routeCount > 1) {
+    double tuttoD = 0;
+    const uint16_t tutto = routeNearestAll(lat, lon, &tuttoD);
+    if (tuttoD < bestDist && (tutto >= navIndex || tuttoD <= ROUTE_OFF_ROUTE_M)) {
+      best = tutto; bestDist = tuttoD;
+    }
   }
   navIndex = best;
 
