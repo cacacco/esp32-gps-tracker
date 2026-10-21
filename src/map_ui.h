@@ -27,17 +27,27 @@ static const char MAP_HTML[] PROGMEM = R"MAPUI(<!doctype html>
 
   .pannello{position:absolute;z-index:2;top:max(10px,env(safe-area-inset-top));
     left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));
-    max-width:400px;background:var(--sfondo);border-radius:10px;
-    box-shadow:0 2px 10px rgba(0,0,0,.28);padding:10px 12px 12px}
-  .testa{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-  .testa h1{font-size:16px;font-weight:500;margin:0;flex:1}
+    max-width:min(400px, calc(100vw - 20px));background:var(--sfondo);border-radius:10px;
+    box-shadow:0 2px 10px rgba(0,0,0,.28);padding:10px 12px 12px;
+    overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+  /* su un telefono stretto titolo, "inverti" e "cruscotto" non ci stavano in
+     fila: andavano a finire fuori dal pannello e si leggeva "crusc". Adesso
+     il titolo si accorcia e, se proprio non basta, i comandi vanno a capo. */
+  .testa{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+  .testa h1{font-size:16px;font-weight:500;margin:0;flex:1 1 auto;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .testa a,.testa button{flex:none}
   .testa a{color:var(--tenue);text-decoration:none;font-size:13px}
 
   .riga{display:flex;align-items:center;gap:9px;padding:3px 0}
   .bollo{width:22px;height:22px;border-radius:50%;background:var(--blu);color:#fff;
     font:600 12px/22px system-ui;text-align:center;flex:none}
+  /* 16px e non 14: sotto i 16 Safari su iPhone INGRANDISCE la pagina da solo
+     appena tocchi la casella, e meta' pannello finisce fuori dallo schermo -
+     e' il motivo per cui alla quarta tappa non si vedeva piu' dove scrivere.
+     Non e' una questione di gusto: e' la soglia oltre la quale iOS sta fermo. */
   .riga input{flex:1;min-width:0;border:1px solid var(--filo);border-radius:7px;
-    padding:8px 10px;font-size:14px;font-family:inherit;color:var(--testo)}
+    padding:7px 10px;font-size:16px;font-family:inherit;color:var(--testo)}
   .riga input:focus{outline:2px solid var(--blu);outline-offset:-1px;border-color:var(--blu)}
   .riga .via{border:0;background:transparent;color:var(--tenue);font-size:17px;
     line-height:1;padding:4px 6px;cursor:pointer;border-radius:50%;flex:none}
@@ -50,8 +60,9 @@ static const char MAP_HTML[] PROGMEM = R"MAPUI(<!doctype html>
   .inverti:disabled{color:#9aa0a6;cursor:default;background:transparent}
 
   .piu{border:0;background:transparent;color:var(--blu);font:500 14px system-ui;
-    cursor:pointer;padding:7px 4px;margin-left:31px}
+    cursor:pointer;padding:7px 4px}
   .piu:hover{text-decoration:underline}
+  .azioni{display:flex;gap:14px;flex-wrap:wrap;margin-left:27px}
   .opzioni{display:flex;gap:16px;flex-wrap:wrap;margin:2px 0 0 31px;font-size:13px;color:var(--tenue)}
   .opzioni label{display:flex;align-items:center;gap:6px;cursor:pointer}
   .opzioni input{accent-color:var(--blu);width:15px;height:15px}
@@ -63,8 +74,11 @@ static const char MAP_HTML[] PROGMEM = R"MAPUI(<!doctype html>
     padding:6px 13px;font:500 13px system-ui;color:var(--blu);cursor:pointer}
   .avviso .scelte button:hover{background:#f1f3f4}
 
-  .sugg{position:absolute;z-index:3;background:var(--sfondo);border-radius:8px;
-    box-shadow:0 2px 10px rgba(0,0,0,.3);overflow:hidden;max-width:400px}
+  /* fixed e non absolute: getBoundingClientRect da' coordinate rispetto alla
+     finestra, e con la pagina scorsa dalla tastiera l'elenco finiva sopra la
+     casella invece che sotto, coprendo proprio quella in cui stai scrivendo */
+  .sugg{position:fixed;z-index:4;background:var(--sfondo);border-radius:8px;
+    box-shadow:0 2px 10px rgba(0,0,0,.3);overflow:auto;max-width:400px}
   .sugg button{display:block;width:100%;text-align:left;border:0;background:transparent;
     padding:10px 12px;font:14px system-ui;color:var(--testo);cursor:pointer;line-height:1.3}
   .sugg button:hover{background:#f1f3f4}
@@ -82,9 +96,8 @@ static const char MAP_HTML[] PROGMEM = R"MAPUI(<!doctype html>
   .num{background:var(--blu);color:#fff;border-radius:50%;width:24px;height:24px;
     display:flex;align-items:center;justify-content:center;font:600 12px system-ui;
     border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
-  .qui{position:absolute;z-index:2;right:max(10px,env(safe-area-inset-right));bottom:96px;
-    width:44px;height:44px;border-radius:50%;border:0;background:var(--sfondo);
-    box-shadow:0 2px 8px rgba(0,0,0,.3);font-size:19px;cursor:pointer}
+  /* prima era un pallino che galleggiava in basso a destra: nascosto dalla
+     tastiera e difficile da trovare. Adesso sta fra i comandi del pannello. */
 </style>
 </head>
 <body>
@@ -98,7 +111,10 @@ static const char MAP_HTML[] PROGMEM = R"MAPUI(<!doctype html>
   </div>
   <div class="avviso" id="avviso" hidden></div>
   <div id="righe"></div>
-  <button class="piu" id="piu">+ Aggiungi tappa</button>
+  <div class="azioni">
+    <button class="piu" id="piu">+ Aggiungi tappa</button>
+    <button class="piu" id="qui">&#9678; Parti da dove sono</button>
+  </div>
   <div class="opzioni">
     <label><input type="checkbox" id="noAuto"> evita autostrade</label>
     <label><input type="checkbox" id="noPedaggi"> evita pedaggi</label>
@@ -106,7 +122,6 @@ static const char MAP_HTML[] PROGMEM = R"MAPUI(<!doctype html>
 </div>
 
 <div class="sugg" id="sugg" hidden></div>
-<button class="qui" id="qui" title="parti da dove sono">&#9678;</button>
 
 <div class="barra">
   <div class="dati">
@@ -197,6 +212,12 @@ function disegnaRighe(){
     inp.oninput  = () => cerca(i, inp);
     inp.onkeydown = e => { if (e.key === 'Enter'){ e.preventDefault(); cerca(i, inp, true); } };
     inp.onblur   = () => setTimeout(() => { $('sugg').hidden = true; }, 180);
+    // toccando una casella in fondo, il pannello la porta al centro: senza,
+    // resta sotto la tastiera e scrivi alla cieca
+    inp.onfocus  = () => {
+      adattaPannello();
+      setTimeout(() => inp.scrollIntoView({block:'center', behavior:'smooth'}), 280);
+    };
 
     r.append(b, inp);
 
@@ -238,6 +259,55 @@ function sposta(i, verso){
   aggiorna();
 }
 
+// ---- dove ci stanno le cose quando si apre la tastiera ---------------------
+// La tastiera del telefono si mangia meta' schermo e sposta la pagina. Senza
+// tenerne conto, alla quarta tappa l'elenco dei suggerimenti finiva addosso
+// alla casella in cui stavi scrivendo, e non vedevi piu' cosa battevi.
+function posizionaSugg(box, input){
+  const r  = input.getBoundingClientRect();
+  const vv = window.visualViewport;
+  const cima  = vv ? vv.offsetTop : 0;
+  const alto  = vv ? vv.height    : window.innerHeight;
+  const largo = vv ? vv.width     : window.innerWidth;
+  const fondo = cima + alto;
+
+  box.style.width = r.width + 'px';
+  box.style.left  = Math.max(8, Math.min(r.left, largo - r.width - 8)) + 'px';
+
+  // Quanto spazio resta di qua e di la' dalla casella. Si apre sotto se
+  // l'elenco ci sta tutto, altrimenti dalla parte dove c'e' piu' posto.
+  const sotto = fondo - (r.bottom + 6);
+  const sopra = (r.top - 6) - cima;
+  box.style.maxHeight = 'none';
+  const naturale = box.offsetHeight;
+  const giu = (naturale <= sotto) || (sotto >= sopra);
+
+  // L'altezza non supera mai lo spazio dal lato scelto: cosi' l'elenco non
+  // puo' finire addosso alla casella nemmeno con dieci risultati. Quello che
+  // non ci sta si scorre.
+  box.style.maxHeight = Math.min(Math.round(alto / 2), Math.max(40, giu ? sotto : sopra)) + 'px';
+  const h = box.offsetHeight;
+  box.style.top = (giu ? r.bottom + 6 : Math.max(cima + 6, r.top - 6 - h)) + 'px';
+}
+
+// Il pannello si accorcia a quello che resta visibile e scorre: la riga che
+// stai scrivendo si raggiunge sempre, anche con sei tappe.
+function adattaPannello(){
+  const vv = window.visualViewport;
+  const alto = vv ? vv.height : window.innerHeight;
+  const p = document.querySelector('.pannello');
+  if (p) p.style.maxHeight = Math.max(160, alto - 24) + 'px';
+}
+if (window.visualViewport){
+  window.visualViewport.addEventListener('resize', adattaPannello);
+  window.visualViewport.addEventListener('scroll', adattaPannello);
+}
+window.addEventListener('resize', adattaPannello);
+adattaPannello();
+document.querySelector('.pannello').addEventListener('scroll', () => {
+  $('sugg').hidden = true;           // altrimenti resta appeso dov'era
+});
+
 // ---- ricerca degli indirizzi ----------------------------------------------
 function cerca(i, input, subito){
   clearTimeout(attesa);
@@ -246,18 +316,19 @@ function cerca(i, input, subito){
   if (q.length < 3) { $('sugg').hidden = true; return; }
   attesa = setTimeout(async () => {
     const box = $('sugg');
-    const r = input.getBoundingClientRect();
-    box.style.left = r.left + 'px';
-    box.style.top  = (r.bottom + 4) + 'px';
-    box.style.width = r.width + 'px';
     box.hidden = false;
     box.innerHTML = '<button disabled>cerco...</button>';
+    posizionaSugg(box, input);
     try {
       const url = NOMI + '?format=jsonv2&limit=5&accept-language=it&q=' + encodeURIComponent(q);
       const risp = await fetch(url);
       const esiti = await risp.json();
       box.innerHTML = '';
-      if (!esiti.length){ box.innerHTML = '<button disabled>nessun risultato</button>'; return; }
+      if (!esiti.length){
+        box.innerHTML = '<button disabled>nessun risultato</button>';
+        posizionaSugg(box, input);
+        return;
+      }
       esiti.forEach(e => {
         const b = document.createElement('button');
         b.textContent = e.display_name;
@@ -269,8 +340,10 @@ function cerca(i, input, subito){
         };
         box.appendChild(b);
       });
+      posizionaSugg(box, input);     // ora si sa quanto e' alto l'elenco
     } catch(err){
       box.innerHTML = '<button disabled>ricerca non riuscita: serve internet</button>';
+      posizionaSugg(box, input);
     }
   }, subito ? 0 : 450);
 }
