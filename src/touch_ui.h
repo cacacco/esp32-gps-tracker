@@ -29,18 +29,35 @@ static uint32_t touchLastMs  = 0;
 
 // La taratura sta in NVS, che sopravvive al cambio di partizioni e agli
 // aggiornamenti: si fa una volta nella vita della scheda.
+//
+// Una per formato, pero': i numeri della taratura dicono dove finisce il dito
+// RISPETTO AI PIXEL, e girando il pannello i pixel si spostano. Usarne una
+// sola vorrebbe dire ritarare ogni volta che si cambia formato; cosi' invece
+// ognuno si ricorda la sua, e si tara una volta per ciascuno.
+static const char *touchChiaveCal() {
+  static char chiave[8];
+  snprintf(chiave, sizeof(chiave), "cal%u", (unsigned)(uiRot & 3));
+  return chiave;
+}
+
 static void touchSaveCal() {
   Preferences p;
   if (!p.begin("touch", false)) return;
-  p.putBytes("cal", touchCal, sizeof(touchCal));
+  p.putBytes(touchChiaveCal(), touchCal, sizeof(touchCal));
   p.end();
 }
 
 static bool touchLoadCal() {
   Preferences p;
   if (!p.begin("touch", true)) return false;
-  const bool ok = p.isKey("cal") &&
-                  p.getBytes("cal", touchCal, sizeof(touchCal)) == sizeof(touchCal);
+  const char *chiave = touchChiaveCal();
+  bool ok = p.isKey(chiave) &&
+            p.getBytes(chiave, touchCal, sizeof(touchCal)) == sizeof(touchCal);
+  // Chi aggiorna da una versione precedente ha una taratura sola, senza
+  // numero: vale per il formato con cui e' stata fatta, cioe' quello di
+  // partenza. Si riusa invece di far ritarare per niente.
+  if (!ok && (uiRot & 3) == (DISPLAY_ROTATION & 3))
+    ok = p.isKey("cal") && p.getBytes("cal", touchCal, sizeof(touchCal)) == sizeof(touchCal);
   p.end();
   return ok;
 }
@@ -102,11 +119,11 @@ static void touchRunCalibration() {
   tft.fillScreen(COL_BG);
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("Taratura del tocco", 240, 110, 4);
+  tft.drawString("Taratura del tocco", SW / 2, 110, 4);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("tocca la PUNTA della freccia in ogni angolo", 240, 150, 2);
+  tft.drawString("tocca la PUNTA della freccia in ogni angolo", SW / 2, 150, 2);
   tft.setTextColor(COL_WARN, COL_BG);
-  tft.drawString("piu' ti avvicini al bordo, piu' viene precisa", 240, 178, 2);
+  tft.drawString("piu' ti avvicini al bordo, piu' viene precisa", SW / 2, 178, 2);
   delay(1800);
 
   tft.calibrateTouch(touchCal, COL_WARN, COL_BG, 15);
@@ -130,14 +147,14 @@ static void touchRunCalibration() {
     Serial.println(F("[TOUCH] ampiezze piccole: hai toccato troppo dentro, meta' schermo "
                      "restera' insensibile. Tieni premuto BOOT 3 secondi e rifalla."));
     tft.setTextColor(COL_WARN, COL_BG);
-    tft.drawString("taratura imprecisa", 240, 130, 4);
+    tft.drawString("taratura imprecisa", SW / 2, 130, 4);
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("hai toccato troppo dentro: tieni premuto BOOT 3 secondi", 240, 168, 2);
-    tft.drawString("e rifalla toccando proprio sulla punta delle frecce", 240, 192, 2);
+    tft.drawString("hai toccato troppo dentro: tieni premuto BOOT 3 secondi", SW / 2, 168, 2);
+    tft.drawString("e rifalla toccando proprio sulla punta delle frecce", SW / 2, 192, 2);
     delay(3500);
   } else {
     tft.setTextColor(COL_OK, COL_BG);
-    tft.drawString("fatto", 240, 150, 4);
+    tft.drawString("fatto", SW / 2, 150, 4);
     delay(600);
   }
 }
@@ -158,9 +175,9 @@ static void touchBegin() {
   tft.fillScreen(COL_BG);
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("Taratura del tocco", 240, 120, 4);
+  tft.drawString("Taratura del tocco", SW / 2, SH / 3, 4);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("tocca lo schermo per cominciare", 240, 160, 2);
+  tft.drawString("tocca lo schermo per cominciare", SW / 2, SH / 3 + 40, 2);
 
   if (touchAttendiDito(15000)) {
     touchRunCalibration();

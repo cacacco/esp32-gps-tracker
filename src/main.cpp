@@ -1181,6 +1181,21 @@ void loop() {
         rerouteRequest();
         Serial.println(F("[MENU] ricalcolo del rientro richiesto"));
         break;
+      case UI_ROT_ORIZZ:
+      case UI_ROT_VERT: {
+        // Cambiare formato vuol dire rifare l'impaginazione di tutte le
+        // schermate e, la prima volta, ritarare il tocco. Si riavvia: e' piu'
+        // onesto che rimettere a posto mezza interfaccia con la scheda accesa.
+        const bool piedi = (azione == UI_ROT_VERT);
+        layoutSaveRot(piedi ? DISPLAY_ROTATION_VERT : DISPLAY_ROTATION);
+        Serial.printf("[MENU] schermo %s: riavvio\r\n", piedi ? "in piedi" : "sdraiato");
+#if ENABLE_DISPLAY
+        displayAvviso(piedi ? "In piedi" : "Sdraiato", "riavvio in corso...");
+#endif
+        delay(900);
+        ESP.restart();
+        break;
+      }
       case UI_TRACK_CLEAR:
         trackClear();
         lastTrackMs = 0;

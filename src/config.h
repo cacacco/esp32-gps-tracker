@@ -151,7 +151,11 @@
 //     del GPS su GPIO4. I pin del pannello si cambiano in platformio.ini.
 // ===========================================================================
 #define ENABLE_DISPLAY             1
-#define DISPLAY_ROTATION           1   // 0-3: gira l'immagine di 90 gradi
+#define DISPLAY_ROTATION           1   // formato SDRAIATO: 1 oppure 3 (480x320)
+#define DISPLAY_ROTATION_VERT      0   // formato IN PIEDI:  0 oppure 2 (320x480)
+// Il formato si sceglie dal display (Menu / Schermo) e resta in memoria: i
+// due numeri qui sopra dicono solo da che parte sta il cavo. Se l'immagine
+// esce capovolta, cambia 1 con 3 (sdraiato) oppure 0 con 2 (in piedi).
 #define DISPLAY_REFRESH_MS       250   // ogni quanto aggiornare i numeri
 #define SPLASH_MS               1300   // durata del logo all'accensione, 0 per saltarlo
 #define TIME_UTC_OFFSET_MIN      120   // orologio: 60 in inverno, 120 in estate

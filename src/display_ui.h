@@ -21,6 +21,7 @@
 #include <TFT_eSPI.h>
 #include <time.h>
 
+#include "layout.h"  // dove sta ogni cosa, nei due formati
 #include "route.h"   // svolte, stato della navigazione e del ricalcolo
 
 // I pin del pannello stanno in platformio.ini: qui si controlla solo che non
@@ -185,7 +186,7 @@ static void drawTopBar(const DisplayData &d, bool force) {
     tft.setTextDatum(MR_DATUM);
     tft.setTextColor(COL_FG, COL_BG);
     tft.setTextPadding(90);
-    tft.drawString(pClock, 472, 19, 4);
+    tft.drawString(pClock, SW - 8, 19, 4);
     tft.setTextPadding(0);
   }
 }
@@ -195,10 +196,10 @@ static void drawTopBar(const DisplayData &d, bool force) {
 // ---------------------------------------------------------------------------
 static void drawWaitChrome() {
   tft.fillScreen(COL_BG);
-  tft.drawFastHLine(0, 38, 480, COL_LINE);
+  tft.drawFastHLine(0, 38, SW, COL_LINE);
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("ESP32 GPS Tracker", 240, 19, 2);
+  tft.drawString("ESP32 GPS Tracker", SW / 2, WAIT_TY, 2);
 #if ENABLE_TOUCH
   drawMenuHint(40);
 #endif
@@ -211,8 +212,8 @@ static void drawWait(const DisplayData &d, bool force) {
 
   if (force || d.gpsAlive != pAlive) {
     pAlive = d.gpsAlive;
-    if (d.gpsAlive) displayField("RICERCA SATELLITI", 240, 110, 4, 460, COL_FG);
-    else            displayField("NESSUN DATO DAL GPS", 240, 110, 4, 460, COL_BAD);
+    if (d.gpsAlive) displayField("RICERCA SATELLITI", SW / 2, WAIT_Y[0], 4, WAIT_W, COL_FG);
+    else            displayField("NESSUN DATO DAL GPS", SW / 2, WAIT_Y[0], 4, WAIT_W, COL_BAD);
   }
 
   // Qui serve quello che si VEDE, non quello che entra nel calcolo: senza
@@ -222,14 +223,14 @@ static void drawWait(const DisplayData &d, bool force) {
     if (d.satInVista) snprintf(buf, sizeof(buf), "%u satelliti in vista, segnale %u dB",
                                d.satInVista, d.snr);
     else              snprintf(buf, sizeof(buf), "nessun satellite in vista");
-    displayField(buf, 240, 160, 2, 460, d.satInVista ? COL_LABEL : COL_WARN);
+    displayField(buf, SW / 2, WAIT_Y[1], 2, WAIT_W, d.satInVista ? COL_LABEL : COL_WARN);
   }
 
   if (force || (int32_t)d.sentences != pSent) {
     pSent = (int32_t)d.sentences;
     if (d.gpsAlive) snprintf(buf, sizeof(buf), "frasi NMEA valide: %lu", (unsigned long)d.sentences);
     else            snprintf(buf, sizeof(buf), "controlla TX su D%d, GND e alimentazione", PIN_GPS_RX);
-    displayField(buf, 240, 190, 2, 460, COL_LABEL);
+    displayField(buf, SW / 2, WAIT_Y[2], 2, WAIT_W, COL_LABEL);
   }
 
   // Il cronometro della ricerca: serve a sapere se il modulo sta partendo a
@@ -239,13 +240,13 @@ static void drawWait(const DisplayData &d, bool force) {
     pCerca = (int32_t)d.searchS;
     snprintf(buf, sizeof(buf), "in ricerca da %lu:%02lu",
              (unsigned long)(d.searchS / 60), (unsigned long)(d.searchS % 60));
-    displayField(buf, 240, 230, 2, 460, d.searchS > 120 ? COL_WARN : COL_LABEL);
+    displayField(buf, SW / 2, WAIT_Y[3], 2, WAIT_W, d.searchS > 120 ? COL_WARN : COL_LABEL);
   }
 
   if (force) {
-    displayField("l'antenna deve vedere il cielo", 240, 258, 2, 460, COL_LABEL);
+    displayField("l'antenna deve vedere il cielo", SW / 2, WAIT_Y[4], 2, WAIT_W, COL_LABEL);
     snprintf(buf, sizeof(buf), "%s %s", d.portal ? "access point:" : "rete:", d.netName);
-    displayField(buf, 240, 292, 2, 460, d.portal ? COL_WARN : COL_LABEL);
+    displayField(buf, SW / 2, WAIT_Y[5], 2, WAIT_W, d.portal ? COL_WARN : COL_LABEL);
   }
 }
 
@@ -254,22 +255,23 @@ static void drawWait(const DisplayData &d, bool force) {
 // ---------------------------------------------------------------------------
 static void drawDriveChrome() {
   tft.fillScreen(COL_BG);
-  tft.drawFastHLine(0, 38, 480, COL_LINE);
-  tft.drawFastHLine(0, 250, 480, COL_LINE);
-  tft.drawFastVLine(316, 46, 196, COL_LINE);
+  tft.drawFastHLine(0, 38, SW, COL_LINE);
+  tft.drawFastHLine(0, DRV_HL1, SW, COL_LINE);
+  if (DRV_HL2 >= 0) tft.drawFastHLine(0, DRV_HL2, SW, COL_LINE);
+  tft.drawFastVLine(DRV_VL, DRV_VL_Y, DRV_VL_H, COL_LINE);
 
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("km/h", 158, 212, 4);
-  tft.drawString("DIREZIONE", 400, 70, 2);
-  tft.drawString("DALLA BASE", 400, 162, 2);
+  tft.drawString("km/h", DRV_KMH_X, DRV_KMH_Y, 4);
+  tft.drawString("DIREZIONE", DRV_DIR_X, DRV_DIR_LY, 2);
+  tft.drawString("DALLA BASE", DRV_BASE_X, DRV_BASE_LY, 2);
 
 #if ENABLE_TOUCH
-  drawMenuHint(260);                      // fra il contasatelliti e l'orologio
+  drawMenuHint(DRV_HINT);                 // fra il contasatelliti e l'orologio
 #endif
 
   static const char *labels[4] = { "VIAGGIO", "MAX", "IN MOVIMENTO", "QUOTA" };
-  for (uint8_t i = 0; i < 4; i++) tft.drawString(labels[i], 60 + i * 120, 268, 2);
+  for (uint8_t i = 0; i < 4; i++) tft.drawString(labels[i], DRV_ST_X[i], DRV_ST_LY[i], 2);
 }
 
 static void drawDrive(const DisplayData &d, bool force) {
@@ -284,7 +286,7 @@ static void drawDrive(const DisplayData &d, bool force) {
     pSpeed = speed;
     snprintf(buf, sizeof(buf), "%ld", (long)speed);
     tft.setTextSize(2);
-    displayField(buf, 158, 140, 7, 300, d.outside ? COL_WARN : COL_FG);
+    displayField(buf, DRV_SPD_X, DRV_SPD_Y, 7, DRV_SPD_W, d.outside ? COL_WARN : COL_FG);
     tft.setTextSize(1);
   }
 
@@ -293,7 +295,7 @@ static void drawDrive(const DisplayData &d, bool force) {
   if (force || strcmp(card, pCard) != 0) {
     snprintf(pCard, sizeof(pCard), "%s", card);
     tft.setTextSize(2);
-    displayField(pCard, 400, 110, 4, 150, COL_FG);
+    displayField(pCard, DRV_DIR_X, DRV_DIR_VY, 4, DRV_DIR_W, COL_FG);
     tft.setTextSize(1);
   }
 
@@ -303,7 +305,7 @@ static void drawDrive(const DisplayData &d, bool force) {
     pDist = dist;
     if (dist < 1000) snprintf(buf, sizeof(buf), "%ld m", (long)dist);
     else             snprintf(buf, sizeof(buf), "%.1f km", dist / 1000.0);
-    displayField(buf, 400, 196, 4, 150, d.outside ? COL_BAD : COL_OK);
+    displayField(buf, DRV_BASE_X, DRV_BASE_VY, 4, DRV_DIR_W, d.outside ? COL_BAD : COL_OK);
   }
 
   drawTopBar(d, force);
@@ -313,33 +315,31 @@ static void drawDrive(const DisplayData &d, bool force) {
   if (force || trip != pTrip) {
     pTrip = trip;
     snprintf(buf, sizeof(buf), "%.1f", d.tripKm);
-    displayField(buf, 60, 294, 4, 110, COL_FG);
+    displayField(buf, DRV_ST_X[0], DRV_ST_VY[0], 4, DRV_ST_W, COL_FG);
   }
   const int32_t maxs = (int32_t)(d.maxKmh + 0.5f);
   if (force || maxs != pMax) {
     pMax = maxs;
     snprintf(buf, sizeof(buf), "%ld", (long)maxs);
-    displayField(buf, 180, 294, 4, 110, COL_FG);
+    displayField(buf, DRV_ST_X[1], DRV_ST_VY[1], 4, DRV_ST_W, COL_FG);
   }
   const int32_t mov = (int32_t)(d.movingS / 10);
   if (force || mov != pMov) {
     pMov = mov;
     displayDuration(d.movingS, buf, sizeof(buf));
-    displayField(buf, 300, 294, 4, 110, COL_FG);
+    displayField(buf, DRV_ST_X[2], DRV_ST_VY[2], 4, DRV_ST_W, COL_FG);
   }
   const int32_t alt = (int32_t)d.altitude;
   if (force || alt != pAlt) {
     pAlt = alt;
     snprintf(buf, sizeof(buf), "%ld", (long)alt);
-    displayField(buf, 420, 294, 4, 110, COL_FG);
+    displayField(buf, DRV_ST_X[3], DRV_ST_VY[3], 4, DRV_ST_W, COL_FG);
   }
 }
 
 // ---------------------------------------------------------------------------
 // Schermata di navigazione: freccia verso il prossimo punto del percorso
 // ---------------------------------------------------------------------------
-static const int ARROW_X = 145, ARROW_Y = 152, ARROW_R = 76;
-
 // Una freccia qualunque: serve grande per la direzione e piccola per le due
 // manovre in arrivo.
 static void drawArrowAt(int cx, int cy, int r, float angleDeg, uint16_t color) {
@@ -417,22 +417,19 @@ static void drawArrow(float angleDeg, uint16_t color) {
 // Senza svolte caricate il riquadro SVOLTA mostra la prossima tappa: lo
 // spazio non resta vuoto e la freccia grande basta a orientarsi.
 // ---------------------------------------------------------------------------
-static const int SV_X = 386, SV_Y = 104, SV_R = 30;     // freccia della svolta
-static const int PO_X = 342, PO_Y = 242, PO_R = 15;     // freccia del "dopo"
-
 static void drawNavChrome() {
   tft.fillScreen(COL_BG);
-  tft.drawFastHLine(0, 38, 480, COL_LINE);
-  tft.drawFastVLine(292, 46, 270, COL_LINE);
-  tft.drawFastHLine(296, 196, 184, COL_LINE);
-  tft.drawFastHLine(296, 262, 184, COL_LINE);
+  tft.drawFastHLine(0, 38, SW, COL_LINE);
+  if (NAV_VL >= 0) tft.drawFastVLine(NAV_VL, NAV_VL_Y, NAV_VL_H, COL_LINE);
+  for (uint8_t i = 0; i < 3; i++)
+    if (NAV_HL[i] >= 0) tft.drawFastHLine(NAV_HL_X, NAV_HL[i], NAV_HL_W, COL_LINE);
 
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
 #if ENABLE_TOUCH
-  drawMenuHint(260);
+  drawMenuHint(NAV_HINT);
 #endif
-  tft.drawString("RESTANO", 144, 238, 2);
+  tft.drawString("RESTANO", NAV_REST_X, NAV_REST_LY, 2);
 }
 
 static void drawNav(const DisplayData &d, bool force) {
@@ -461,7 +458,7 @@ static void drawNav(const DisplayData &d, bool force) {
     pRemain = restano;
     if (d.navRemainM < 1000) snprintf(buf, sizeof(buf), "%ld m", (long)d.navRemainM);
     else                     snprintf(buf, sizeof(buf), "%.1f km", d.navRemainM / 1000.0f);
-    displayField(buf, 144, 268, 4, 270, COL_FG);
+    displayField(buf, NAV_REST_X, NAV_REST_VY, 4, NAV_REST_W, COL_FG);
   }
 
   // ---- riga di stato sotto la freccia -------------------------------------
@@ -493,13 +490,15 @@ static void drawNav(const DisplayData &d, bool force) {
 
   if (force || modo != pMode) {
     pMode = modo;
-    displayField(haSvolta ? "SVOLTA" : "PROSSIMA TAPPA", 386, 54, 2, 180, COL_LABEL);
+    displayField(haSvolta ? "SVOLTA" : "PROSSIMA TAPPA", NAV_LBL_X, NAV_LBL_Y, 2,
+                 NAV_LBL_W, COL_LABEL);
     pTurnA = -9999; pTurnM = -1; pLinea[0] = '\0';
   }
 
   // la cornice arancione dice "ci sei quasi" senza bisogno di leggere i numeri
   const bool cambiaVicina = force || (int8_t)vicina != pVicina;
-  if (cambiaVicina) tft.drawRoundRect(296, 44, 180, 152, 8, vicina ? COL_WARN : COL_BG);
+  if (cambiaVicina)
+    tft.drawRoundRect(SV_BOX.x, SV_BOX.y, SV_BOX.w, SV_BOX.h, 8, vicina ? COL_WARN : COL_BG);
 
   // Il disegno cambia con il tipo, con l'uscita e con il cambio di strada: la
   // chiave li tiene tutti, altrimenti passando da una rotonda alla successiva
@@ -514,12 +513,12 @@ static void drawNav(const DisplayData &d, bool force) {
   if (force || chiaveSvolta != pTurnA || cambiaVicina) {
     pTurnA = chiaveSvolta;
     tft.fillRect(SV_X - SV_R - 2, SV_Y - SV_R - 2, (SV_R + 2) * 2, (SV_R + 2) * 2, COL_BG);
-    tft.fillRect(300, SV_Y - 10, 22, 20, COL_BG);
+    tft.fillRect(NAV_MARK_X - 2, SV_Y - 10, 22, 20, COL_BG);
     const uint16_t col = vicina ? COL_WARN : COL_FG;
     if (rotonda)       drawRoundaboutAt(SV_X, SV_Y, SV_R, d.navTurnExit,
                                         turnExitAngle(d.navTurnFlags), col);
     else if (haSvolta) drawArrowAt(SV_X, SV_Y, SV_R, (float)angoloSvolta, col);
-    if (stradaNuova)   drawNewRoadMark(302, SV_Y, COL_CYAN);
+    if (stradaNuova)   drawNewRoadMark(NAV_MARK_X, SV_Y, COL_CYAN);
   }
 
   const float   distSvolta = haSvolta ? d.navTurnM : d.navStopM;
@@ -533,7 +532,7 @@ static void drawNav(const DisplayData &d, bool force) {
     else if (distSvolta < 10000)     snprintf(buf, sizeof(buf), "%.1f km", distSvolta / 1000.0f);
     else                             snprintf(buf, sizeof(buf), "%ld km", (long)(distSvolta / 1000.0f));
     tft.setTextSize(2);
-    displayField(buf, 386, 164, 4, 184, vicina ? COL_WARN : COL_FG);
+    displayField(buf, NAV_DST_X, NAV_DST_Y, 4, NAV_DST_W, vicina ? COL_WARN : COL_FG);
     tft.setTextSize(1);
   }
 
@@ -556,7 +555,7 @@ static void drawNav(const DisplayData &d, bool force) {
   if (force || strcmp(basso, pLinea) != 0 || coloreBasso != pColBasso) {
     snprintf(pLinea, sizeof(pLinea), "%s", basso);
     pColBasso = coloreBasso;
-    displayField(basso, 144, 302, 2, 280, coloreBasso);
+    displayField(basso, NAV_LINE_X, NAV_LINE_Y, 2, NAV_LINE_W, coloreBasso);
   }
 
   // ---- riquadro POI -------------------------------------------------------
@@ -568,7 +567,7 @@ static void drawNav(const DisplayData &d, bool force) {
       : -9999;
   if (force || poiA != pPoiA) {
     pPoiA = poiA;
-    displayField(haPoi ? "DOPO" : "", 386, 210, 2, 180, COL_LABEL);
+    displayField(haPoi ? "DOPO" : "", NAV_POI_LX, NAV_POI_LY, 2, NAV_LBL_W, COL_LABEL);
     tft.fillRect(PO_X - PO_R - 2, PO_Y - PO_R - 2, (PO_R + 2) * 2, (PO_R + 2) * 2, COL_BG);
     if (poiRot)     drawRoundaboutAt(PO_X, PO_Y, PO_R, 0,
                                      turnExitAngle(d.navTurn2Flags), COL_LABEL);
@@ -581,7 +580,7 @@ static void drawNav(const DisplayData &d, bool force) {
     if (!haPoi)                 buf[0] = '\0';
     else if (d.navTurn2M < 1000) snprintf(buf, sizeof(buf), "%ld m", (long)d.navTurn2M);
     else                         snprintf(buf, sizeof(buf), "%.1f km", d.navTurn2M / 1000.0f);
-    displayField(buf, 414, 242, 2, 100, COL_LABEL);
+    displayField(buf, NAV_POI_DX, NAV_POI_DY, 2, NAV_POI_DW, COL_LABEL);
   }
 
   // ---- velocita' ----------------------------------------------------------
@@ -590,7 +589,7 @@ static void drawNav(const DisplayData &d, bool force) {
     pSpeed = velocita;
     snprintf(buf, sizeof(buf), "%ld", (long)velocita);
     tft.setTextSize(2);
-    displayField(buf, 386, 290, 4, 170, COL_FG);
+    displayField(buf, NAV_SPD_X, NAV_SPD_Y, 4, NAV_SPD_W, COL_FG);
     tft.setTextSize(1);
   }
 
@@ -618,51 +617,32 @@ enum UiPage : uint8_t {
   PAGE_NETS,          // sceglie a quale rete ricordata attaccarsi
   PAGE_LUCE,          // regola la luminosita' a mano
   PAGE_TRIP,
+  PAGE_SCHERMO,      // sdraiato o in piedi
   PAGE_CONFIRM
 };
 
 enum UiAction : uint8_t {
   UI_NONE = 0, UI_ROUTE_CLEAR, UI_TRACK_CLEAR, UI_TRIP_RESET, UI_REROUTE,
   UI_PORTAL_ON, UI_PORTAL_OFF, UI_NET_SELECT,
-  UI_BL_GIU, UI_BL_SU, UI_BL_AUTO, UI_BL_GIORNO, UI_BL_NOTTE
+  UI_BL_GIU, UI_BL_SU, UI_BL_AUTO, UI_BL_GIORNO, UI_BL_NOTTE,
+  UI_ROT_ORIZZ, UI_ROT_VERT
 };
 
 // quale rete e' stata toccata: l'azione da sola non basta a dirlo
 static uint8_t uiNetScelta = 0;
-
-struct Rect { int16_t x, y, w, h; };
 
 static bool rectHit(const Rect &r, int16_t x, int16_t y) {
   return x >= r.x && x < (int16_t)(r.x + r.w) && y >= r.y && y < (int16_t)(r.y + r.h);
 }
 
 // due colonne per due righe, margini uguali da tutti i lati
-static const Rect MENU_BTN[4] = {
-  { 14,  50, 221, 100}, {245,  50, 221, 100},
-  { 14, 156, 221, 100}, {245, 156, 221, 100}
-};
 // la quinta voce del menu: una barra larga sotto i quattro quadrati
-static const Rect MENU_LUCE = {14, 262, 452, 52};
 // i due tasti della pagina Luce: grandi, si centrano col guanto
-static const Rect LUCE_BTN[2] = { {14, 56, 221, 86}, {245, 56, 221, 86} };
 // automatica, giorno, notte: tre scelte in fila, come sulla dashboard
-static const Rect MODO_BTN[3] = { {14, 200, 140, 48}, {170, 200, 140, 48}, {326, 200, 140, 48} };
 // tre righe larghe per le reti ricordate, sopra la barra dei pulsanti
-static const uint8_t UI_NET_RIGHE = 3;
-static const Rect NET_BTN[UI_NET_RIGHE] = {
-  {14, 52, 452, 56}, {14, 116, 452, 56}, {14, 180, 452, 56}
-};
-
 // tre posti in fondo alle pagine: indietro, azione, azione
 // Una riga larga sopra i tre tasti: il ricalcolo si chiede da qui, quando
 // sai gia' di aver sbagliato e non hai voglia di aspettare i dodici secondi.
-static const Rect ROUTE_RICALC = {14, 196, 452, 46};
-
-static const Rect PAGE_BTN[3] = {
-  { 14, 258, 140, 48}, {170, 258, 140, 48}, {326, 258, 140, 48}
-};
-static const Rect BARRA_MENU = {0, 0, 480, 40};   // tocca qui per il menu
-
 static UiPage    uiPage     = PAGE_MENU;          // all'accensione si parte da qui
 static bool      uiDirty    = true;
 static UiAction  uiPending  = UI_NONE;            // azione in attesa di conferma
@@ -725,7 +705,7 @@ static void drawButton(const Rect &r, const char *titolo, const char *sotto, uin
 
 static void drawPageHead(const char *titolo) {
   tft.fillScreen(COL_BG);
-  tft.drawFastHLine(0, 38, 480, COL_LINE);
+  tft.drawFastHLine(0, 38, SW, COL_LINE);
   tft.setTextDatum(ML_DATUM);
   tft.setTextColor(COL_FG, COL_BG);
   tft.drawString(titolo, 14, 19, 4);
@@ -734,9 +714,9 @@ static void drawPageHead(const char *titolo) {
 static void drawRiga(const char *etichetta, const char *valore, int16_t y) {
   tft.setTextDatum(ML_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString(etichetta, 20, y, 2);
+  tft.drawString(etichetta, RIGA_LX, y, 2);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString(valore, 210, y, 4);
+  tft.drawString(valore, RIGA_VX, y, 4);
 }
 
 static void drawMenu(const DisplayData &d) {
@@ -746,9 +726,10 @@ static void drawMenu(const DisplayData &d) {
   tft.setTextDatum(MR_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
 #if PIN_MENU_BUTTON == 0
-  tft.drawString("tasto BOOT: breve sposta, lungo conferma", 466, 19, 2);
+  tft.drawString(uiVert ? "tasto BOOT: breve sposta,\nlungo conferma"
+                        : "tasto BOOT: breve sposta, lungo conferma", SW - 14, 19, 2);
 #else
-  tft.drawString("tasto: breve sposta, lungo conferma", 466, 19, 2);
+  tft.drawString("tasto: breve sposta, lungo conferma", SW - 14, 19, 2);
 #endif
 #endif
 
@@ -756,7 +737,8 @@ static void drawMenu(const DisplayData &d) {
              d.navActive ? "percorso attivo" : d.fixValid ? "velocita' e viaggio"
                                                           : "in attesa del fix", COL_CYAN);
 
-  if (d.navTotal) snprintf(sotto, sizeof(sotto), "%.1f km, %u svolte", d.routeKm, d.routeTurns);
+  if (d.navTotal && uiVert)  snprintf(sotto, sizeof(sotto), "%.1f km", d.routeKm);
+  else if (d.navTotal) snprintf(sotto, sizeof(sotto), "%.1f km, %u svolte", d.routeKm, d.routeTurns);
   else            snprintf(sotto, sizeof(sotto), "nessun percorso");
   drawButton(MENU_BTN[1], "Percorso", sotto, COL_WARN);
 
@@ -765,7 +747,8 @@ static void drawMenu(const DisplayData &d) {
   else                     snprintf(sotto, sizeof(sotto), "non connesso");
   drawButton(MENU_BTN[2], "Telefono", sotto, COL_CYAN);
 
-  snprintf(sotto, sizeof(sotto), "%.1f km in questo viaggio", d.tripKm);
+  if (uiVert) snprintf(sotto, sizeof(sotto), "%.1f km", d.tripKm);
+  else        snprintf(sotto, sizeof(sotto), "%.1f km in questo viaggio", d.tripKm);
   drawButton(MENU_BTN[3], "Viaggio", sotto, COL_OK);
 
 #if PIN_TFT_BL >= 0
@@ -774,6 +757,33 @@ static void drawMenu(const DisplayData &d) {
                                                                                 : "automatica");
   drawButton(MENU_LUCE, sotto, "", COL_LABEL);
 #endif
+  // Sdraiato il tasto e' stretto e ci sta solo la parola; in piedi c'e' posto
+  // anche per dire come sta adesso.
+  if (uiVert) snprintf(sotto, sizeof(sotto), "Schermo   in piedi");
+  else        snprintf(sotto, sizeof(sotto), "Schermo");
+  drawButton(MENU_SCHERMO, sotto, "", COL_LABEL);
+}
+
+// ---------------------------------------------------------------------------
+// Come sta il pannello: sdraiato o in piedi. Cambiare formato vuol dire
+// rifare tutta l'impaginazione e ritarare il tocco, quindi la scheda si
+// riavvia: e' l'unico modo onesto di ripartire senza mezze misure.
+// ---------------------------------------------------------------------------
+static void drawSchermoPage(const DisplayData &d) {
+  (void)d;
+  drawPageHead("SCHERMO");
+
+  drawButton(SCHERMO_BTN[0], "Sdraiato", uiVert ? "480 x 320" : "in uso adesso",
+             uiVert ? COL_LINE : COL_OK);
+  drawButton(SCHERMO_BTN[1], "In piedi", uiVert ? "in uso adesso" : "320 x 480",
+             uiVert ? COL_OK : COL_LINE);
+
+  tft.setTextDatum(MC_DATUM);
+  tft.setTextColor(COL_LABEL, COL_BG);
+  tft.drawString("la scheda si riavvia e chiede di ritarare il tocco",
+                 SW / 2, PAGE_BTN[0].y - 20, 2);
+
+  drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
 }
 
 #if PIN_TFT_BL >= 0
@@ -788,7 +798,7 @@ static void drawLucePage(const DisplayData &d) {
 
   snprintf(buf, sizeof(buf), "%u%%", d.blPercento);
   tft.setTextSize(2);
-  displayField(buf, 240, 170, 4, 200, COL_FG);
+  displayField(buf, SW / 2, LUCE_PCT_Y, 4, 200, COL_FG);
   tft.setTextSize(1);
 
   // il modo attivo si riconosce dal bordo acceso, senza doverlo leggere
@@ -805,14 +815,14 @@ static void drawRoutePage(const DisplayData &d) {
   drawPageHead("PERCORSO");
 
   if (d.navTotal) {
-    snprintf(buf, sizeof(buf), "%.1f km", d.routeKm);         drawRiga("lunghezza", buf, 66);
-    snprintf(buf, sizeof(buf), "%u", d.navTotal);             drawRiga("punti", buf, 102);
-    snprintf(buf, sizeof(buf), "%u", d.routeTurns);           drawRiga("svolte", buf, 138);
-    snprintf(buf, sizeof(buf), "%u", d.navStops);             drawRiga("tappe", buf, 174);
+    snprintf(buf, sizeof(buf), "%.1f km", d.routeKm);   drawRiga("lunghezza", buf, RIGA_Y[0]);
+    snprintf(buf, sizeof(buf), "%u", d.navTotal);       drawRiga("punti", buf, RIGA_Y[1]);
+    snprintf(buf, sizeof(buf), "%u", d.routeTurns);     drawRiga("svolte", buf, RIGA_Y[2]);
+    snprintf(buf, sizeof(buf), "%u", d.navStops);       drawRiga("tappe", buf, RIGA_Y[3]);
   } else {
     tft.setTextDatum(MC_DATUM);
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("nessun percorso in memoria", 240, 120, 4);
+    tft.drawString("nessun percorso in memoria", SW / 2, 120, 4);
   }
 
   if (d.navTotal) drawButton(ROUTE_RICALC, "Ricalcola il rientro", "", COL_WARN);
@@ -833,26 +843,26 @@ static void drawNewRoutePage(const DisplayData &d) {
 
   if (!inRete) {
     tft.setTextColor(COL_BAD, COL_BG);
-    tft.drawString("serve il telefono collegato", 240, 100, 4);
+    tft.drawString("serve il telefono collegato", SW / 2, 100, 4);
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("accendi la rete del tracker, collega il telefono,", 240, 148, 2);
-    tft.drawString("e l'indirizzo compare qui da solo", 240, 172, 2);
+    tft.drawString("accendi la rete del tracker, collega il telefono,", SW / 2, 148, 2);
+    tft.drawString("e l'indirizzo compare qui da solo", SW / 2, 172, 2);
     drawButton(PAGE_BTN[2], "Accendi", "", COL_OK);
   } else {
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("apri questo indirizzo sul telefono", 240, 72, 2);
+    tft.drawString("apri questo indirizzo sul telefono", SW / 2, 72, 2);
     snprintf(buf, sizeof(buf), "http://%s/percorso",
              d.portal ? "192.168.4.1" : (d.ipText ? d.ipText : "--"));
     tft.setTextColor(COL_OK, COL_BG);
-    tft.drawString(buf, 240, 108, 4);
+    tft.drawString(buf, SW / 2, 108, 4);
 
     if (d.portal) {
       tft.setTextColor(COL_WARN, COL_BG);
-      tft.drawString("sulla rete del tracker non c'e' internet:", 240, 150, 2);
-      tft.drawString("le strade e le svolte non si possono calcolare", 240, 172, 2);
+      tft.drawString("sulla rete del tracker non c'e' internet:", SW / 2, 150, 2);
+      tft.drawString("le strade e le svolte non si possono calcolare", SW / 2, 172, 2);
     } else {
       tft.setTextColor(COL_LABEL, COL_BG);
-      tft.drawString("spunta \"segui le strade\" per avere le svolte", 240, 152, 2);
+      tft.drawString("strade e svolte le calcola da solo", SW / 2, 152, 2);
     }
 
     if (d.navTotal) {
@@ -862,9 +872,9 @@ static void drawNewRoutePage(const DisplayData &d) {
       snprintf(buf, sizeof(buf), "nessun percorso in memoria");
       tft.setTextColor(COL_LABEL, COL_BG);
     }
-    tft.drawString(buf, 240, 210, 2);
+    tft.drawString(buf, SW / 2, 210, 2);
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("questa riga cambia da sola appena salvi", 240, 232, 2);
+    tft.drawString("questa riga cambia da sola appena salvi", SW / 2, 232, 2);
   }
 
   drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
@@ -877,8 +887,8 @@ static void drawNetsPage(const DisplayData &d) {
   if (!d.netCount) {
     tft.setTextDatum(MC_DATUM);
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("nessuna rete salvata", 240, 120, 4);
-    tft.drawString("salvane una dal telefono, pagina /wifi", 240, 160, 2);
+    tft.drawString("nessuna rete salvata", SW / 2, 120, 4);
+    tft.drawString("salvane una dal telefono, pagina /wifi", SW / 2, 160, 2);
   }
 
   const uint8_t quante = d.netCount < UI_NET_RIGHE ? d.netCount : UI_NET_RIGHE;
@@ -892,7 +902,7 @@ static void drawNetsPage(const DisplayData &d) {
 
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("il collegamento puo' chiedere qualche secondo", 240, 248, 2);
+  tft.drawString("il collegamento puo' chiedere qualche secondo", SW / 2, 248, 2);
 
   drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
 }
@@ -903,36 +913,36 @@ static void drawPhonePage(const DisplayData &d) {
   tft.setTextDatum(MC_DATUM);
   if (d.portal) {
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("collega il telefono a questa rete", 240, 72, 2);
+    tft.drawString("collega il telefono a questa rete", SW / 2, 72, 2);
     tft.setTextColor(COL_FG, COL_BG);
-    tft.drawString(d.apName ? d.apName : "GPS-Tracker", 240, 108, 4);
+    tft.drawString(d.apName ? d.apName : "GPS-Tracker", SW / 2, 108, 4);
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("password: " AP_PASSWORD, 240, 144, 2);
+    tft.drawString("password: " AP_PASSWORD, SW / 2, 144, 2);
     tft.setTextColor(COL_OK, COL_BG);
-    tft.drawString("http://192.168.4.1", 240, 186, 4);
+    tft.drawString("http://192.168.4.1", SW / 2, 186, 4);
     drawButton(PAGE_BTN[2], "Spegni", "", COL_WARN);
   } else if (d.ipText && *d.ipText) {
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("stessa rete del telefono:", 240, 72, 2);
+    tft.drawString("stessa rete del telefono:", SW / 2, 72, 2);
     tft.setTextColor(COL_FG, COL_BG);
-    tft.drawString(d.netName ? d.netName : "--", 240, 106, 4);
+    tft.drawString(d.netName ? d.netName : "--", SW / 2, 106, 4);
     tft.setTextColor(COL_OK, COL_BG);
-    tft.drawString(d.ipText, 240, 152, 4);
+    tft.drawString(d.ipText, SW / 2, 152, 4);
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("oppure http://gps-tracker.local/", 240, 190, 2);
+    tft.drawString("oppure http://gps-tracker.local/", SW / 2, 190, 2);
     drawButton(PAGE_BTN[2], "Rete mia", "", COL_CYAN);
   } else {
     tft.setTextColor(COL_BAD, COL_BG);
-    tft.drawString("nessuna rete", 240, 100, 4);
+    tft.drawString("nessuna rete", SW / 2, 100, 4);
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("accendi la rete del tracker e collegati a quella", 240, 150, 2);
+    tft.drawString("accendi la rete del tracker e collegati a quella", SW / 2, 150, 2);
     drawButton(PAGE_BTN[2], "Accendi", "", COL_OK);
   }
 
   // la carta d'identita' del firmware: qui si legge con calma, lo splash dura un attimo
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("firmware  " FW_VERSIONE, 240, 232, 2);
+  tft.drawString("firmware  " FW_VERSIONE, SW / 2, 232, 2);
 
   drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
   if (d.netCount > 1) drawButton(PAGE_BTN[1], "Reti", "", COL_CYAN);
@@ -942,24 +952,24 @@ static void drawTripPage(const DisplayData &d) {
   char buf[40];
   drawPageHead("VIAGGIO");
 
-  snprintf(buf, sizeof(buf), "%.1f km", d.tripKm);            drawRiga("percorsi", buf, 70);
-  snprintf(buf, sizeof(buf), "%.0f km/h", d.maxKmh);          drawRiga("velocita' max", buf, 110);
-  displayDuration(d.movingS, buf, sizeof(buf));               drawRiga("in movimento", buf, 150);
+  snprintf(buf, sizeof(buf), "%.1f km", d.tripKm);      drawRiga("percorsi", buf, RIGA_Y[0]);
+  snprintf(buf, sizeof(buf), "%.0f km/h", d.maxKmh);    drawRiga("velocita' max", buf, RIGA_Y[1]);
+  displayDuration(d.movingS, buf, sizeof(buf));         drawRiga("in movimento", buf, RIGA_Y[2]);
   snprintf(buf, sizeof(buf), "%lu", (unsigned long)d.trackPoints);
-  drawRiga("punti registrati", buf, 190);
+  drawRiga("punti registrati", buf, RIGA_Y[3]);
 
   drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
   drawButton(PAGE_BTN[1], "Azzera", "", COL_WARN);
-  drawButton(PAGE_BTN[2], "Canc. traccia", "", COL_BAD);
+  drawButton(PAGE_BTN[2], "Cancella", "", COL_BAD);
 }
 
 static void drawConfirmPage() {
   drawPageHead("CONFERMA");
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString(uiQuestion, 240, 130, 4);
+  tft.drawString(uiQuestion, SW / 2, 130, 4);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("non si torna indietro", 240, 172, 2);
+  tft.drawString("non si torna indietro", SW / 2, 172, 2);
   drawButton(PAGE_BTN[0], "No", "", COL_LINE);
   drawButton(PAGE_BTN[2], "Si'", "", COL_BAD);
 }
@@ -976,6 +986,7 @@ static UiAction uiTouch(int16_t x, int16_t y) {
 
     case PAGE_MENU:
       if (rectHit(MENU_BTN[0], x, y)) uiGoto(PAGE_LIVE);
+      else if (rectHit(MENU_SCHERMO, x, y)) uiGoto(PAGE_SCHERMO);
       else if (rectHit(MENU_BTN[1], x, y)) uiGoto(PAGE_ROUTE);
       else if (rectHit(MENU_BTN[2], x, y)) uiGoto(PAGE_PHONE);
       else if (rectHit(MENU_BTN[3], x, y)) uiGoto(PAGE_TRIP);
@@ -1017,6 +1028,12 @@ static UiAction uiTouch(int16_t x, int16_t y) {
       if (rectHit(PAGE_BTN[2], x, y) && !uiPortalOn) { uiDirty = true; return UI_PORTAL_ON; }
       return UI_NONE;
 
+    case PAGE_SCHERMO:
+      if (rectHit(SCHERMO_BTN[0], x, y) && uiVert)  { uiDirty = true; return UI_ROT_ORIZZ; }
+      if (rectHit(SCHERMO_BTN[1], x, y) && !uiVert) { uiDirty = true; return UI_ROT_VERT; }
+      if (rectHit(PAGE_BTN[0], x, y)) uiGoto(PAGE_MENU);
+      return UI_NONE;
+
     case PAGE_TRIP:
       if (rectHit(PAGE_BTN[0], x, y)) { uiGoto(PAGE_MENU); return UI_NONE; }
       if (rectHit(PAGE_BTN[1], x, y)) { uiDirty = true;  return UI_TRIP_RESET; }
@@ -1051,6 +1068,7 @@ static void uiSelAggiorna() {
 #if PIN_TFT_BL >= 0
       uiSelAggiungi(&MENU_LUCE);
 #endif
+      uiSelAggiungi(&MENU_SCHERMO);
       break;
 #if PIN_TFT_BL >= 0
     case PAGE_LUCE:
@@ -1060,6 +1078,10 @@ static void uiSelAggiorna() {
       uiSelAggiungi(&PAGE_BTN[0]);
       break;
 #endif
+    case PAGE_SCHERMO:
+      uiSelAggiungi(&SCHERMO_BTN[uiVert ? 0 : 1]);
+      uiSelAggiungi(&PAGE_BTN[0]);
+      break;
     case PAGE_ROUTE:
       if (uiHasRoute) uiSelAggiungi(&ROUTE_RICALC);
       uiSelAggiungi(&PAGE_BTN[0]);
@@ -1122,9 +1144,16 @@ static UiAction uiActivate() {
 // un'immagine: un bitmap a colori di questa misura costerebbe decine di
 // kilobyte di flash, qui non costa niente e si muove.
 // ---------------------------------------------------------------------------
-static const int LOGO_X = 240, LOGO_Y = 130;
-static const int LOGO_R = 62;          // cerchio
-static const int ORB_RX = 96, ORB_RY = 34;   // orbita del satellite
+// Un messaggio secco a tutto schermo, per quando la scheda sta per riavviarsi
+// e non c'e' tempo per una pagina intera.
+static void displayAvviso(const char *titolo, const char *sotto) {
+  tft.fillScreen(COL_BG);
+  tft.setTextDatum(MC_DATUM);
+  tft.setTextColor(COL_FG, COL_BG);
+  tft.drawString(titolo, SW / 2, SH / 2 - 20, 4);
+  tft.setTextColor(COL_LABEL, COL_BG);
+  tft.drawString(sotto, SW / 2, SH / 2 + 20, 2);
+}
 
 static void drawSplash() {
   tft.fillScreen(COL_BG);
@@ -1133,12 +1162,12 @@ static void drawSplash() {
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_FG, COL_BG);
   tft.setTextSize(2);
-  tft.drawString("GPS TRACKER", 240, 240, 4);
+  tft.drawString("GPS TRACKER", SW / 2, SH - 80, 4);
   tft.setTextSize(1);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("registra i percorsi e ti porta a destinazione", 240, 286, 2);
+  tft.drawString("registra i percorsi e ti porta a destinazione", SW / 2, SH - 34, 2);
   tft.setTextColor(COL_LINE, COL_BG);
-  tft.drawString(FW_VERSIONE, 240, 308, 1);
+  tft.drawString(FW_VERSIONE, SW / 2, SH - 12, 1);
 
   const uint8_t  fotogrammi = 26;
   const uint32_t pausa = SPLASH_MS / fotogrammi;
@@ -1234,7 +1263,8 @@ static void displayBegin() {
   blBegin();                                     // prima di tutto: niente buio
 #endif
   tft.init();
-  tft.setRotation(DISPLAY_ROTATION);
+  layoutCompute(layoutLoadRot());
+  tft.setRotation(uiRot);
   drawSplash();
 
 #if ENABLE_TOUCH
@@ -1281,6 +1311,7 @@ static void displayUpdate(const DisplayData &d) {
     switch (uiPage) {
       case PAGE_MENU:    drawMenu(d);       break;
       case PAGE_ROUTE:   drawRoutePage(d);  break;
+      case PAGE_SCHERMO: drawSchermoPage(d); break;
       case PAGE_NEWROUTE: drawNewRoutePage(d); break;
       case PAGE_PHONE:   drawPhonePage(d);  break;
       case PAGE_NETS:    drawNetsPage(d);   break;
