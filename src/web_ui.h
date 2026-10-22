@@ -14,7 +14,9 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ESP32 GPS Tracker</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<!-- Leaflet non si carica qui: vedi caricaLeaflet() in fondo. Un tag fisso
+     verso internet, su una rete che internet non ce l'ha, blocca il
+     caricamento della pagina finche' non scade il timeout del browser. -->
 <style>
   :root{
     --bg:#0f1115; --card:#171a21; --line:#272c36; --fg:#e8ecf3;
@@ -150,7 +152,6 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
 
 <footer id="diag">--</footer>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 let map = null, marker = null, circle = null, line = null, firstFit = true;
@@ -168,9 +169,34 @@ const SVOLTA_PAROLA = ['', 'dritto', 'a sinistra', 'a destra', 'leggera sx',
 // proprio, altro provider) basta questa riga.
 let lastFix = null;
 
+// La rete del tracker non ha internet: la mappa e il suo codice stanno su
+// internet. Chiederli lo stesso vuol dire aspettare il timeout del browser a
+// ogni caricamento - ed e' il motivo per cui la pagina su 192.168.4.1 era
+// lentissima. Qui si chiedono solo se ha senso, e con un tempo massimo.
+const SU_AP = location.hostname === '192.168.4.1';
+function caricaLeaflet(ms){
+  return new Promise(ok => {
+    if (SU_AP) return ok(false);
+    let fatto = false;
+    const fine = v => { if (!fatto){ fatto = true; clearTimeout(t); ok(v); } };
+    const t = setTimeout(() => fine(false), ms);
+    const css = document.createElement('link');
+    css.rel = 'stylesheet'; css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(css);
+    const js = document.createElement('script');
+    js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    js.onload = () => fine(true);
+    js.onerror = () => fine(false);
+    document.head.appendChild(js);
+  });
+}
+
 function initMap(){
   if (typeof L === 'undefined') { $('map').innerHTML =
-    '<p style="padding:16px;color:#8b94a7">Mappa non disponibile (nessuna connessione a internet su questo dispositivo). I dati numerici restano validi.</p>';
+    '<p style="padding:16px;color:#8b94a7">Mappa non disponibile: ' + (SU_AP
+      ? 'sei collegato alla rete del tracker, che non ha internet.'
+      : 'internet non raggiungibile.') +
+    ' Tutto il resto funziona lo stesso.</p>';
     return; }
   map = L.map('map', {zoomControl:true}).setView([0,0], 2);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -502,7 +528,7 @@ $('btnClear').onclick = async () => {
   refreshStatus();
 };
 
-initMap();
+caricaLeaflet(2500).then(initMap);
 refreshStatus(); refreshTrack(); refreshRoute(); refreshTurns(); refreshStops();
 setInterval(refreshStatus, 2000);
 setInterval(refreshTrack, 10000);

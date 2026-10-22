@@ -63,6 +63,12 @@ static int16_t NAV_HINT;
 static Rect MENU_BTN[4], MENU_LUCE, MENU_SCHERMO;
 static Rect LUCE_BTN[2], MODO_BTN[3], SCHERMO_BTN[2];
 static Rect NET_BTN[UI_NET_RIGHE], PAGE_BTN[3], ROUTE_RICALC, BARRA_MENU;
+// La conferma ha i suoi due tasti e non usa quelli delle pagine: in piedi
+// quelli si impilano, e "Si'" sarebbe finito sopra "No" con un buco in mezzo.
+// Affiancati, No a sinistra e Si' a destra, il gesto e' lo stesso nei due
+// formati e non si preme quello sbagliato.
+static Rect CONF_NO, CONF_SI;
+static int16_t CONF_Q_Y, CONF_SUB_Y;
 static int16_t RIGA_LX, RIGA_VX, RIGA_Y[4], LUCE_PCT_Y;
 
 // ---- logo di accensione ----------------------------------------------------
@@ -116,6 +122,8 @@ static void layoutOrizzontale() {
   const Rect pb[3] = {{14,258,140,48},{170,258,140,48},{326,258,140,48}};
   for (uint8_t i = 0; i < 3; i++) PAGE_BTN[i] = pb[i];
   ROUTE_RICALC = (Rect){14, 196, 452, 46};
+  CONF_NO = (Rect){14, 258, 221, 48}; CONF_SI = (Rect){245, 258, 221, 48};
+  CONF_Q_Y = 130; CONF_SUB_Y = 172;
   BARRA_MENU   = (Rect){0, 0, 480, 40};
   RIGA_LX = 20; RIGA_VX = 210;
   const int16_t ry[4] = {66, 102, 138, 174};
@@ -177,6 +185,8 @@ static void layoutVerticale() {
   PAGE_BTN[1] = (Rect){14, 360, 292, 50};
   PAGE_BTN[2] = (Rect){14, 304, 292, 50};
   ROUTE_RICALC = (Rect){14, 248, 292, 50};
+  CONF_NO = (Rect){14, 400, 142, 58}; CONF_SI = (Rect){166, 400, 142, 58};
+  CONF_Q_Y = 190; CONF_SUB_Y = 232;
   BARRA_MENU   = (Rect){0, 0, 320, 40};
   RIGA_LX = 16; RIGA_VX = 156;
   const int16_t ry[4] = {72, 116, 160, 204};

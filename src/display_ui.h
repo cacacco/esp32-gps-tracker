@@ -995,11 +995,11 @@ static void drawConfirmPage() {
   drawPageHead("CONFERMA");
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString(uiQuestion, SW / 2, 130, 4);
+  tft.drawString(uiQuestion, SW / 2, CONF_Q_Y, 4);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("non si torna indietro", SW / 2, 172, 2);
-  drawButton(PAGE_BTN[0], "No", "", COL_LINE);
-  drawButton(PAGE_BTN[2], "Si'", "", COL_BAD);
+  tft.drawString("non si torna indietro", SW / 2, CONF_SUB_Y, 2);
+  drawButton(CONF_NO, "No", "", COL_LINE);
+  drawButton(CONF_SI, "Si', cancella", "", COL_BAD);
 }
 
 // Il tocco cambia pagina da solo; quello che tocca il resto del firmware
@@ -1035,8 +1035,8 @@ static UiAction uiTouch(int16_t x, int16_t y) {
 #endif
 
     case PAGE_CONFIRM:
-      if (rectHit(PAGE_BTN[0], x, y)) { uiGoto(uiBack); return UI_NONE; }
-      if (rectHit(PAGE_BTN[2], x, y)) {
+      if (rectHit(CONF_NO, x, y)) { uiGoto(uiBack); return UI_NONE; }
+      if (rectHit(CONF_SI, x, y)) {
         const UiAction fatto = uiPending;
         uiPending = UI_NONE;
         uiGoto(uiBack);
@@ -1131,8 +1131,8 @@ static void uiSelAggiorna() {
         uiSelAggiungi(&NET_BTN[i]);
       break;
     case PAGE_CONFIRM:
-      uiSelAggiungi(&PAGE_BTN[0]);
-      uiSelAggiungi(&PAGE_BTN[2]);
+      uiSelAggiungi(&CONF_NO);
+      uiSelAggiungi(&CONF_SI);
       break;
     case PAGE_TRIP:
       for (uint8_t i = 0; i < 3; i++) uiSelAggiungi(&PAGE_BTN[i]);

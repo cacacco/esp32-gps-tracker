@@ -592,12 +592,11 @@ numeri della taratura dicono dove finisce il dito rispetto ai pixel, e girando
 il pannello i pixel si spostano. Ogni formato si ricorda la sua, quindi lo fai
 una volta per ciascuno e poi puoi passare dall'uno all'altro quando vuoi.
 
-> **Se il tocco non risponde**, quasi sempre e' la taratura che manca o e'
-> quella dell'altro formato. Il tracker se ne accorge da solo - il quinto
-> numero della taratura dice per quale rotazione e' stata fatta, e se non
-> corrisponde la butta - ma se ti trovi bloccato: **tieni premuto il tasto per
-> 3 secondi** e la taratura riparte. Il tasto funziona anche quando il tocco e'
-> morto, ed e' la via d'uscita per qualsiasi pasticcio del touch.
+> **Se il tocco non risponde**, quasi sempre e' la taratura che manca per il
+> formato in uso: ogni formato ha la sua, sotto una chiave diversa. Se ti trovi
+> bloccato: **tieni premuto il tasto per 3 secondi** e la taratura riparte. Il
+> tasto funziona anche quando il tocco e' morto, ed e' la via d'uscita per
+> qualsiasi pasticcio del touch.
 >
 > Sul log seriale si legge cosa e' successo:
 > `[DISPLAY] rotazione 0, schermo in piedi, 320 x 480` dice in che formato sei,
@@ -975,6 +974,13 @@ Nell'**Arduino IDE** lo schema di partizioni va impostato su *Default 4MB with s
 ---
 
 ## 6. Dashboard
+
+> **Sulla rete del tracker la mappa non c'e', e va bene cosi'.** Mappa e
+> ricerca degli indirizzi stanno su internet, e la rete che accende il tracker
+> internet non ce l'ha. Le pagine se ne accorgono da sole e non stanno ad
+> aspettare: al posto della mappa compare il motivo, tutto il resto funziona.
+> Per avere anche la mappa, collega il telefono alla rete di casa - oppure
+> accendi l'hotspot e collega il tracker a quello.
 
 `http://gps-tracker.local/` (o l'indirizzo IP stampato sulla seriale).
 

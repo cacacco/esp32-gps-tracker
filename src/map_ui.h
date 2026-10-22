@@ -18,7 +18,7 @@ static const char MAP_HTML[] PROGMEM = R"MAPUI(<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Crea percorso</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<!-- Leaflet si carica dal codice, non da qui: vedi caricaLeaflet() -->
 <style>
   :root{--blu:#1a73e8;--testo:#202124;--tenue:#5f6368;--filo:#dadce0;--sfondo:#fff}
   *{box-sizing:border-box}
@@ -131,8 +131,59 @@ static const char MAP_HTML[] PROGMEM = R"MAPUI(<!doctype html>
   <button id="salva" disabled>Salva</button>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+// La rete del tracker non ha internet, e la mappa sta su internet. Un tag
+// fisso verso unpkg.com, su quella rete, blocca il caricamento della pagina
+// finche' non scade il timeout del browser: per questo da 192.168.4.1 era
+// lentissima. Qui si chiede solo se ha senso, e con un tempo massimo.
+const SU_AP = location.hostname === '192.168.4.1';
+function caricaLeaflet(ms){
+  return new Promise(ok => {
+    if (SU_AP) return ok(false);
+    let fatto = false;
+    const fine = v => { if (!fatto){ fatto = true; clearTimeout(t); ok(v); } };
+    const t = setTimeout(() => fine(false), ms);
+    const css = document.createElement('link');
+    css.rel = 'stylesheet'; css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(css);
+    const js = document.createElement('script');
+    js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    js.onload = () => fine(true);
+    js.onerror = () => fine(false);
+    document.head.appendChild(js);
+  });
+}
+
+// Senza mappa la pagina non deve restare bianca: un guscio che accetta tutte
+// le chiamate e non fa niente tiene in piedi il resto, e al posto della mappa
+// si legge perche' non c'e'.
+function guscio(){
+  const g = {};
+  const nulla = () => g;
+  for (const m of ['addTo','setLatLngs','clearLayers','addLayer','removeLayer','on',
+                   'setView','setLatLng','fitBounds','invalidateSize','remove','openOn'])
+    g[m] = nulla;
+  g.getBounds = () => null;
+  g.getCenter = () => ({lat:0, lng:0});
+  return g;
+}
+function senzaMappa(){
+  window.L = { map: guscio, tileLayer: guscio, polyline: guscio, layerGroup: guscio,
+               marker: guscio, circleMarker: guscio, divIcon: () => ({}),
+               control: { zoom: guscio } };
+  const m = document.getElementById('map');
+  if (m) m.style.background = '#eef0f2';
+  if (m) m.innerHTML = '<div style="position:absolute;left:0;right:0;top:58%;' +
+    'transform:translateY(-50%);padding:0 26px;color:#5f6368;' +
+    'font:14px/1.6 system-ui;text-align:center">' +
+    (SU_AP ? 'Sei collegato alla rete del tracker, che non ha internet: la mappa, '
+           + 'la ricerca degli indirizzi e il calcolo delle strade non possono funzionare.<br><br>'
+           + 'Collega il telefono alla rete di casa, oppure accendi l\'hotspot e collega '
+           + 'il tracker a quello: poi riapri questa pagina.'
+           : 'Mappa non raggiungibile: serve internet.') + '</div>';
+}
+
+function avvia(){
 const $ = id => document.getElementById(id);
 const OSRM = 'https://router.project-osrm.org/route/v1/driving/';
 const NOMI = 'https://nominatim.openstreetmap.org/search';
@@ -623,6 +674,9 @@ fetch('/api/status').then(r => r.json()).then(s => {
 
 disegnaRighe();
 apriPercorsoEsistente();
+}  // fine di avvia()
+
+caricaLeaflet(2500).then(ok => { if (!ok) senzaMappa(); avvia(); });
 </script>
 </body>
 </html>

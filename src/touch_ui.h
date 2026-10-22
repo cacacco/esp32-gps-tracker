@@ -159,25 +159,22 @@ static void touchRunCalibration() {
   }
 }
 
-// Il quinto numero della taratura e' la rotazione per cui e' stata fatta:
-// TFT_eSPI lo usa per sapere quali assi scambiare. Una taratura fatta da
-// sdraiato, usata con il pannello in piedi, non "sbaglia un po'": manda il
-// dito da tutt'altra parte. In alto non succede niente, in basso ti apre il
-// riquadro sbagliato, e sembra che il tocco sia rotto.
-static bool touchCalGiusta() {
-  if (touchCal[4] == uiRot) return true;
-  Serial.printf("[TOUCH] taratura fatta per la rotazione %u, adesso siamo alla %u: "
-                "si butta e si rifa'\r\n", touchCal[4], uiRot);
-  return false;
-}
-
+// Il quinto numero NON e' la rotazione: e' una maschera di bit che dice a
+// TFT_eSPI se scambiare gli assi e se invertirli (setTouch legge i bit 0, 1 e
+// 2). Confrontarlo con il numero della rotazione lo faceva quasi sempre
+// risultare diverso, e la taratura veniva buttata a ogni accensione.
+//
+// Il controllo giusto non serve: la taratura sta sotto una chiave per ogni
+// rotazione (cal0, cal1, ...), quindi quella che si carica e' gia' per forza
+// quella del formato in uso.
 static void touchBegin() {
   touchProbe();
 
-  if (touchLoadCal() && touchCalSensata() && touchCalGiusta()) {
+  if (touchLoadCal() && touchCalSensata()) {
     tft.setTouch(touchCal);
     touchReady = true;
-    Serial.printf("[TOUCH] taratura caricata: %u %u %u %u (rot %u)\r\n",
+    Serial.printf("[TOUCH] taratura caricata per la rotazione %u: %u %u %u %u (assi %u)\r\n",
+                  uiRot,
                   touchCal[0], touchCal[1], touchCal[2], touchCal[3], touchCal[4]);
     return;
   }
