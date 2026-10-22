@@ -106,19 +106,20 @@ def menu(L):
                                      ('Viaggio','84,2 km' if v else '84,2 km in questo viaggio',OK))):
         s.btn(L['MENU_BTN%d' % i], t, sot, c, scelto=(i == 0))
     s.btn(L['MENU_LUCE'], 'Luce   70%   automatica', '', LABEL)
-    s.btn(L['MENU_SCHERMO'], 'Schermo   in piedi' if v else 'Schermo', '', LABEL)
+    s.btn(L['MENU_SCHERMO'], 'Sistema   in piedi' if v else 'Sistema', '', LABEL)
     return s.im
 
-def schermo(L):
+def sistema(L):
     s = Schermo(L)
-    s.txt(14, 19, 'SCHERMO', F4, FG, 'lm'); s.hl(0, 38, L['SW'], LINE)
+    s.txt(14, 19, 'SISTEMA', F4, FG, 'lm'); s.hl(0, 38, L['SW'], LINE)
     v = L['vert']
-    s.btn(L['SCHERMO_BTN0'], 'Sdraiato', '480 x 320' if v else 'in uso adesso',
-          LINE if v else OK, scelto=not v)
-    s.btn(L['SCHERMO_BTN1'], 'In piedi', 'in uso adesso' if v else '320 x 480',
-          OK if v else LINE, scelto=v)
-    s.txt(L['SW']//2, L['PAGE_BTN0'][1]-20, 'la scheda si riavvia e chiede di ritarare il tocco', F2, LABEL)
-    s.btn(L['PAGE_BTN0'], 'Indietro', '', LINE)
+    s.btn(L['SIST_BTN0'], 'Sdraiato', 'cambia formato' if v else 'in uso adesso',
+          LINE if v else OK, scelto=v)
+    s.btn(L['SIST_BTN1'], 'In piedi', 'in uso adesso' if v else 'cambia formato',
+          OK if v else LINE, scelto=not v)
+    s.btn(L['SIST_BTN2'], 'Ritara tocco', 'tocca i 4 angoli', CYAN)
+    s.btn(L['SIST_BTN3'], 'Riavvia', 'come staccare la spina', WARN)
+    s.btn(L['SIST_IND'], 'Indietro', '', LINE)
     return s.im
 
 def percorso(L):
@@ -138,6 +139,6 @@ S = sys.argv[1]
 for nome, file in (('oriz', 'lay_oriz.json'), ('vert', 'lay_vert.json')):
     L = json.load(open(f'{S}/{file}'))
     for f, etichetta in ((nav,'nav'), (marcia,'marcia'), (menu,'menu'),
-                         (schermo,'schermo'), (percorso,'percorso')):
+                         (sistema,'sistema'), (percorso,'percorso')):
         f(L).save(f'{S}/v-{etichetta}-{nome}.png')
 print('dieci schermate disegnate dalle misure vere')

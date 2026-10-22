@@ -61,7 +61,11 @@ static int16_t NAV_HINT;
 // ---- menu e pagine ---------------------------------------------------------
 #define UI_NET_RIGHE 3
 static Rect MENU_BTN[4], MENU_LUCE, MENU_SCHERMO;
-static Rect LUCE_BTN[2], MODO_BTN[3], SCHERMO_BTN[2];
+static Rect LUCE_BTN[2], MODO_BTN[3];
+// Pagina Sistema: i primi due scelgono il formato, gli altri due sono le
+// due vie d'uscita quando qualcosa si impunta - e con la scatola chiusa al
+// pulsante della scheda non ci arrivi piu'.
+static Rect SIST_BTN[4], SIST_IND;
 static Rect NET_BTN[UI_NET_RIGHE], PAGE_BTN[3], ROUTE_RICALC, BARRA_MENU;
 // La conferma ha i suoi due tasti e non usa quelli delle pagine: in piedi
 // quelli si impilano, e "Si'" sarebbe finito sopra "No" con un buco in mezzo.
@@ -116,7 +120,9 @@ static void layoutOrizzontale() {
   LUCE_PCT_Y  = 170;
   const Rect mo[3] = {{14,200,140,48},{170,200,140,48},{326,200,140,48}};
   for (uint8_t i = 0; i < 3; i++) MODO_BTN[i] = mo[i];
-  SCHERMO_BTN[0] = (Rect){14, 80, 221, 110}; SCHERMO_BTN[1] = (Rect){245, 80, 221, 110};
+  SIST_BTN[0] = (Rect){14,  58, 221, 80}; SIST_BTN[1] = (Rect){245,  58, 221, 80};
+  SIST_BTN[2] = (Rect){14, 150, 221, 80}; SIST_BTN[3] = (Rect){245, 150, 221, 80};
+  SIST_IND    = (Rect){14, 246, 452, 56};
   for (uint8_t i = 0; i < UI_NET_RIGHE; i++)
     NET_BTN[i] = (Rect){14, (int16_t)(52 + i * 64), 452, 56};
   const Rect pb[3] = {{14,258,140,48},{170,258,140,48},{326,258,140,48}};
@@ -177,7 +183,9 @@ static void layoutVerticale() {
   LUCE_BTN[0] = (Rect){14, 60, 146, 96}; LUCE_BTN[1] = (Rect){166, 60, 146, 96};
   LUCE_PCT_Y  = 192;
   for (uint8_t i = 0; i < 3; i++) MODO_BTN[i] = (Rect){14, (int16_t)(240 + i * 56), 292, 48};
-  SCHERMO_BTN[0] = (Rect){14, 90, 292, 104}; SCHERMO_BTN[1] = (Rect){14, 210, 292, 104};
+  SIST_BTN[0] = (Rect){14,  56, 292, 76}; SIST_BTN[1] = (Rect){14, 142, 292, 76};
+  SIST_BTN[2] = (Rect){14, 228, 292, 76}; SIST_BTN[3] = (Rect){14, 314, 292, 76};
+  SIST_IND    = (Rect){14, 404, 292, 56};
   for (uint8_t i = 0; i < UI_NET_RIGHE; i++)
     NET_BTN[i] = (Rect){14, (int16_t)(60 + i * 70), 292, 60};
   // In piedi i tre tasti si impilano: larghi tutta la pagina, Indietro sotto.

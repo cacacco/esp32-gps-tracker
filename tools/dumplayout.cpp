@@ -47,7 +47,8 @@ int main(int argc, char **argv) {
   r("MENU_LUCE", MENU_LUCE); r("MENU_SCHERMO", MENU_SCHERMO);
   r("LUCE_BTN0", LUCE_BTN[0]); r("LUCE_BTN1", LUCE_BTN[1]);
   for (int k = 0; k < 3; k++) { char n[12]; snprintf(n, sizeof(n), "MODO_BTN%d", k); r(n, MODO_BTN[k]); }
-  r("SCHERMO_BTN0", SCHERMO_BTN[0]); r("SCHERMO_BTN1", SCHERMO_BTN[1]);
+  for (int k = 0; k < 4; k++) { char n[12]; snprintf(n, sizeof(n), "SIST_BTN%d", k); r(n, SIST_BTN[k]); }
+  r("SIST_IND", SIST_IND);
   for (int k = 0; k < 3; k++) { char n[12]; snprintf(n, sizeof(n), "NET_BTN%d", k); r(n, NET_BTN[k]); }
   for (int k = 0; k < 3; k++) { char n[12]; snprintf(n, sizeof(n), "PAGE_BTN%d", k); r(n, PAGE_BTN[k]); }
   r("ROUTE_RICALC", ROUTE_RICALC);

@@ -1196,6 +1196,23 @@ void loop() {
         ESP.restart();
         break;
       }
+      case UI_RITARA:
+#if ENABLE_DISPLAY && ENABLE_TOUCH
+        Serial.println(F("[MENU] taratura del tocco richiesta dal display"));
+        touchRunCalibration();
+        lastDrawForce = true;
+#endif
+        break;
+      case UI_RIAVVIA:
+        // Con la scatola chiusa il tasto sulla scheda non si raggiunge: questo
+        // e' l'unico modo di far ripartire il tracker senza aprirla.
+        Serial.println(F("[MENU] riavvio richiesto dal display"));
+#if ENABLE_DISPLAY
+        displayAvviso("Riavvio", "un attimo...");
+#endif
+        delay(700);
+        ESP.restart();
+        break;
       case UI_TRACK_CLEAR:
         trackClear();
         lastTrackMs = 0;

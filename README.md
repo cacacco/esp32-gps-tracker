@@ -583,7 +583,7 @@ destra; **in piedi** la svolta sta in alto, larga quanto lo schermo, la freccia
 in mezzo e la velocita' in fondo. Sono due disegni diversi, non lo stesso
 disegno ruotato.
 
-Si cambia dal display: **Menu / Schermo**, poi *Sdraiato* o *In piedi*. La
+Si cambia dal display: **Menu / Sistema**, poi *Sdraiato* o *In piedi*. La
 scheda **si riavvia** - rifare l'impaginazione con il tracker acceso vorrebbe
 dire rimetterne a posto solo meta'.
 
@@ -606,6 +606,24 @@ una volta per ciascuno e poi puoi passare dall'uno all'altro quando vuoi.
 In `config.h` i due numeri `DISPLAY_ROTATION` (sdraiato: 1 o 3) e
 `DISPLAY_ROTATION_VERT` (in piedi: 0 o 2) dicono solo da che parte sta il cavo:
 se l'immagine esce capovolta, scambia 1 con 3 oppure 0 con 2.
+
+### La pagina Sistema
+
+**Menu / Sistema** tiene le quattro cose che riguardano la scheda e non il
+viaggio:
+
+| | |
+|---|---|
+| **Sdraiato** / **In piedi** | il formato dello schermo (vedi sopra) |
+| **Ritara tocco** | rifa' la taratura toccando i quattro angoli |
+| **Riavvia** | fa ripartire il tracker, con conferma |
+
+Le ultime due servono soprattutto **a scatola chiusa**: li' il pulsante sulla
+scheda non si raggiunge piu', e queste diventano l'unico modo di rimettere a
+posto un tocco impreciso o una scheda impuntata senza riaprire tutto.
+
+Il riavvio chiede conferma perche' interrompe la navigazione per qualche
+secondo. Percorso, tappe e traccia sono gia' in memoria e non si perdono.
 
 ### Il menu sul display
 

@@ -645,7 +645,7 @@ enum UiPage : uint8_t {
   PAGE_NETS,          // sceglie a quale rete ricordata attaccarsi
   PAGE_LUCE,          // regola la luminosita' a mano
   PAGE_TRIP,
-  PAGE_SCHERMO,      // sdraiato o in piedi
+  PAGE_SISTEMA,      // formato, taratura, riavvio
   PAGE_CONFIRM
 };
 
@@ -653,7 +653,7 @@ enum UiAction : uint8_t {
   UI_NONE = 0, UI_ROUTE_CLEAR, UI_TRACK_CLEAR, UI_TRIP_RESET, UI_REROUTE,
   UI_PORTAL_ON, UI_PORTAL_OFF, UI_NET_SELECT,
   UI_BL_GIU, UI_BL_SU, UI_BL_AUTO, UI_BL_GIORNO, UI_BL_NOTTE,
-  UI_ROT_ORIZZ, UI_ROT_VERT
+  UI_ROT_ORIZZ, UI_ROT_VERT, UI_RITARA, UI_RIAVVIA
 };
 
 // quale rete e' stata toccata: l'azione da sola non basta a dirlo
@@ -787,8 +787,8 @@ static void drawMenu(const DisplayData &d) {
 #endif
   // Sdraiato il tasto e' stretto e ci sta solo la parola; in piedi c'e' posto
   // anche per dire come sta adesso.
-  if (uiVert) snprintf(sotto, sizeof(sotto), "Schermo   in piedi");
-  else        snprintf(sotto, sizeof(sotto), "Schermo");
+  if (uiVert) snprintf(sotto, sizeof(sotto), "Sistema   in piedi");
+  else        snprintf(sotto, sizeof(sotto), "Sistema");
   drawButton(MENU_SCHERMO, sotto, "", COL_LABEL);
 }
 
@@ -797,21 +797,22 @@ static void drawMenu(const DisplayData &d) {
 // rifare tutta l'impaginazione e ritarare il tocco, quindi la scheda si
 // riavvia: e' l'unico modo onesto di ripartire senza mezze misure.
 // ---------------------------------------------------------------------------
-static void drawSchermoPage(const DisplayData &d) {
+static void drawSistemaPage(const DisplayData &d) {
   (void)d;
-  drawPageHead("SCHERMO");
+  drawPageHead("SISTEMA");
 
-  drawButton(SCHERMO_BTN[0], "Sdraiato", uiVert ? "480 x 320" : "in uso adesso",
+  drawButton(SIST_BTN[0], "Sdraiato", uiVert ? "cambia formato" : "in uso adesso",
              uiVert ? COL_LINE : COL_OK);
-  drawButton(SCHERMO_BTN[1], "In piedi", uiVert ? "in uso adesso" : "320 x 480",
+  drawButton(SIST_BTN[1], "In piedi", uiVert ? "in uso adesso" : "cambia formato",
              uiVert ? COL_OK : COL_LINE);
 
-  tft.setTextDatum(MC_DATUM);
-  tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("la scheda si riavvia e chiede di ritarare il tocco",
-                 SW / 2, PAGE_BTN[0].y - 20, 2);
+  // Le due vie d'uscita. Con la scatola chiusa il pulsante della scheda non
+  // si raggiunge piu', e queste diventano l'unico modo per rimettere a posto
+  // un tocco impreciso o una scheda impuntata.
+  drawButton(SIST_BTN[2], "Ritara tocco", "tocca i 4 angoli", COL_CYAN);
+  drawButton(SIST_BTN[3], "Riavvia", "come staccare la spina", COL_WARN);
 
-  drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
+  drawButton(SIST_IND, "Indietro", "", COL_LINE);
 }
 
 #if PIN_TFT_BL >= 0
@@ -1014,7 +1015,7 @@ static UiAction uiTouch(int16_t x, int16_t y) {
 
     case PAGE_MENU:
       if (rectHit(MENU_BTN[0], x, y)) uiGoto(PAGE_LIVE);
-      else if (rectHit(MENU_SCHERMO, x, y)) uiGoto(PAGE_SCHERMO);
+      else if (rectHit(MENU_SCHERMO, x, y)) uiGoto(PAGE_SISTEMA);
       else if (rectHit(MENU_BTN[1], x, y)) uiGoto(PAGE_ROUTE);
       else if (rectHit(MENU_BTN[2], x, y)) uiGoto(PAGE_PHONE);
       else if (rectHit(MENU_BTN[3], x, y)) uiGoto(PAGE_TRIP);
@@ -1056,10 +1057,12 @@ static UiAction uiTouch(int16_t x, int16_t y) {
       if (rectHit(PAGE_BTN[2], x, y) && !uiPortalOn) { uiDirty = true; return UI_PORTAL_ON; }
       return UI_NONE;
 
-    case PAGE_SCHERMO:
-      if (rectHit(SCHERMO_BTN[0], x, y) && uiVert)  { uiDirty = true; return UI_ROT_ORIZZ; }
-      if (rectHit(SCHERMO_BTN[1], x, y) && !uiVert) { uiDirty = true; return UI_ROT_VERT; }
-      if (rectHit(PAGE_BTN[0], x, y)) uiGoto(PAGE_MENU);
+    case PAGE_SISTEMA:
+      if (rectHit(SIST_BTN[0], x, y) && uiVert)  { uiDirty = true; return UI_ROT_ORIZZ; }
+      if (rectHit(SIST_BTN[1], x, y) && !uiVert) { uiDirty = true; return UI_ROT_VERT; }
+      if (rectHit(SIST_BTN[2], x, y)) { uiDirty = true; return UI_RITARA; }
+      if (rectHit(SIST_BTN[3], x, y)) uiAsk(UI_RIAVVIA, "Riavviare il tracker?");
+      else if (rectHit(SIST_IND, x, y)) uiGoto(PAGE_MENU);
       return UI_NONE;
 
     case PAGE_TRIP:
@@ -1106,9 +1109,11 @@ static void uiSelAggiorna() {
       uiSelAggiungi(&PAGE_BTN[0]);
       break;
 #endif
-    case PAGE_SCHERMO:
-      uiSelAggiungi(&SCHERMO_BTN[uiVert ? 0 : 1]);
-      uiSelAggiungi(&PAGE_BTN[0]);
+    case PAGE_SISTEMA:
+      uiSelAggiungi(&SIST_BTN[uiVert ? 0 : 1]);   // solo il formato che non usi
+      uiSelAggiungi(&SIST_BTN[2]);
+      uiSelAggiungi(&SIST_BTN[3]);
+      uiSelAggiungi(&SIST_IND);
       break;
     case PAGE_ROUTE:
       if (uiHasRoute) uiSelAggiungi(&ROUTE_RICALC);
@@ -1340,7 +1345,7 @@ static void displayUpdate(const DisplayData &d) {
     switch (uiPage) {
       case PAGE_MENU:    drawMenu(d);       break;
       case PAGE_ROUTE:   drawRoutePage(d);  break;
-      case PAGE_SCHERMO: drawSchermoPage(d); break;
+      case PAGE_SISTEMA: drawSistemaPage(d); break;
       case PAGE_NEWROUTE: drawNewRoutePage(d); break;
       case PAGE_PHONE:   drawPhonePage(d);  break;
       case PAGE_NETS:    drawNetsPage(d);   break;
