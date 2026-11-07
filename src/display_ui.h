@@ -271,6 +271,12 @@ static void drawMenuHint(int16_t x) {
   tft.setTextDatum(ML_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
   tftStr("menu", x + 20, 19, 2);
+  // Rimettere il centrato non e' pignoleria: tutte e tre le schermate che
+  // chiamano questa funzione disegnano altre scritte subito dopo, e senza
+  // questa riga le disegnavano allineate a sinistra senza accorgersene.
+  // Con i font stretti di prima si notava appena; con i caratteri nuovi
+  // "IN MOVIMENTO" finiva addosso a "QUOTA".
+  tft.setTextDatum(MC_DATUM);
 }
 #endif
 
@@ -393,6 +399,8 @@ static void drawDriveChrome() {
   drawMenuHint(DRV_HINT);                 // fra il contasatelliti e l'orologio
 #endif
 
+  // Centrate sulla loro colonna: il datum lo rimette drawMenuHint qui sopra.
+  // Le larghezze le controlla tools/controlla_testi.py.
   static const char *labels[4] = { "VIAGGIO", "MAX", "IN MOVIMENTO", "QUOTA" };
   for (uint8_t i = 0; i < 4; i++) tftStr(labels[i], DRV_ST_X[i], DRV_ST_LY[i], 2);
 }

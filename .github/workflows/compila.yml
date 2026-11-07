@@ -64,6 +64,14 @@ jobs:
           key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
           restore-keys: pio-${{ runner.os }}-
 
+      # Le scritte devono stare nel loro spazio. Una troppo larga non da'
+      # nessun errore di compilazione: finisce sopra la vicina, e lo si
+      # scopre guardando lo schermo nel momento giusto. Gira una volta sola:
+      # non dipende dalla variante.
+      - name: le scritte stanno nel loro spazio?
+        if: matrix.nome == 'completo'
+        run: python3 tools/controlla_testi.py
+
       - name: installa PlatformIO
         run: pip install --upgrade platformio
 
