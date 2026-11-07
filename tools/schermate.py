@@ -158,6 +158,18 @@ def sistema(L):
     s.btn(L['SIST_IND'], 'Indietro', '', LINE)
     return s.im
 
+def luce(L):
+    s = Schermo(L)
+    s.txt(14, 19, 'LUCE', F4, FG, 'lm'); s.hl(0, 38, L['SW'], LINE)
+    s.btn(L['LUCE_BTN0'], '-', "piu' scura", LABEL)
+    s.btn(L['LUCE_BTN1'], '+', 'piu\' chiara', LABEL)
+    s.txt(L['SW'] // 2, L['LUCE_PCT_Y'], '100%', F4X2, FG)
+    # il modo attivo ha il bordo verde: qui e' "Giorno", cioe' tema chiaro
+    for k, nome in enumerate(('Auto', 'Giorno', 'Notte')):
+        s.btn(L[f'MODO_BTN{k}'], nome, '', OK if k == 1 else LINE)
+    s.btn(L['PAGE_BTN0'], 'Indietro', '', LINE)
+    return s.im
+
 def percorso(L):
     s = Schermo(L)
     s.txt(14, 19, 'PERCORSO', F4, FG, 'lm'); s.hl(0, 38, L['SW'], LINE)
@@ -184,7 +196,8 @@ for tema, suffisso in (('SCURA', ''), ('CHIARA', '-chiaro')):
     for nome, file in (('oriz', 'lay_oriz.json'), ('vert', 'lay_vert.json')):
         L = json.load(open(f'{S}/{file}'))
         for f, etichetta in ((nav,'nav'), (marcia,'marcia'), (menu,'menu'),
-                             (sistema,'sistema'), (percorso,'percorso')):
+                             (sistema,'sistema'), (percorso,'percorso'),
+                             (luce,'luce')):
             f(L).save(f'{S}/v-{etichetta}-{nome}{suffisso}.png')
             fatte += 1
 print('%d schermate disegnate dalle misure e dai colori veri' % fatte)
