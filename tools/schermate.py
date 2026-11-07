@@ -1,11 +1,47 @@
 #!/usr/bin/env python3
 # Anteprima delle schermate leggendo le misure vere dal firmware (dumplayout),
 # cosi' l'immagine non puo' raccontare un'impaginazione diversa da quella vera.
-import json, math, sys
+import json, math, os, re, sys
 from PIL import Image, ImageDraw, ImageFont
 
 K = 2
 F  = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+
+# I colori NON si ricopiano qui: si leggono da display_ui.h, come le misure si
+# leggono da dumplayout. Un'anteprima che si invent'a i colori e' peggio di
+# nessuna anteprima.
+#
+# Valori di TFT_eSPI (In_eSPI.h). Se la palette del firmware usa un nome che
+# non sta in questo elenco lo script si ferma invece di disegnare nero: un
+# colore sbagliato in un'anteprima non si nota, un errore si'.
+TFT = {
+    'TFT_BLACK': 0x0000, 'TFT_WHITE': 0xFFFF, 'TFT_DARKGREY': 0x7BEF,
+    'TFT_LIGHTGREY': 0xD69A, 'TFT_GREEN': 0x07E0, 'TFT_RED': 0xF800,
+    'TFT_CYAN': 0x07FF, 'TFT_ORANGE': 0xFDA0, 'TFT_YELLOW': 0xFFE0,
+    'TFT_BLUE': 0x001F, 'TFT_MAGENTA': 0xF81F, 'TFT_NAVY': 0x000F,
+    'TFT_DARKGREEN': 0x03E0, 'TFT_MAROON': 0x7800, 'TFT_OLIVE': 0x7BE0,
+}
+CAMPI = ('BG', 'FG', 'LABEL', 'LINE', 'OK', 'BAD', 'WARN', 'BTN', 'CYAN')
+
+def rgb(c):                      # RGB565 -> RGB888, replicando i bit alti
+    r, g, b = (c >> 11) & 0x1F, (c >> 5) & 0x3F, c & 0x1F
+    return (r << 3 | r >> 2, g << 2 | g >> 4, b << 3 | b >> 2)
+
+def palette(sorgente, nome):
+    m = re.search(r'PAL_' + nome + r'\s*=\s*\{(.*?)\}\s*;', sorgente, re.S)
+    if not m:
+        sys.exit('non trovo PAL_%s in display_ui.h' % nome)
+    corpo = re.sub(r'//[^\n]*', '', m.group(1))          # via i commenti
+    voci = [v.strip() for v in corpo.split(',') if v.strip()]
+    if len(voci) != len(CAMPI):
+        sys.exit('PAL_%s ha %d valori, ne servono %d' % (nome, len(voci), len(CAMPI)))
+    fuori = {}
+    for campo, v in zip(CAMPI, voci):
+        if v in TFT:            fuori[campo] = rgb(TFT[v])
+        elif re.fullmatch(r'0[xX][0-9a-fA-F]+', v): fuori[campo] = rgb(int(v, 16))
+        else: sys.exit('PAL_%s: non so che colore sia "%s"' % (nome, v))
+    return fuori
+
 BG, FG, LABEL = (0,0,0), (255,255,255), (128,128,128)
 LINE, BTN = (32,32,32), (24,28,24)
 OK, BAD, WARN, CYAN = (0,255,0), (255,0,0), (255,165,0), (0,255,255)
@@ -136,9 +172,19 @@ def percorso(L):
     return s.im
 
 S = sys.argv[1]
-for nome, file in (('oriz', 'lay_oriz.json'), ('vert', 'lay_vert.json')):
-    L = json.load(open(f'{S}/{file}'))
-    for f, etichetta in ((nav,'nav'), (marcia,'marcia'), (menu,'menu'),
-                         (sistema,'sistema'), (percorso,'percorso')):
-        f(L).save(f'{S}/v-{etichetta}-{nome}.png')
-print('dieci schermate disegnate dalle misure vere')
+SRC = sys.argv[2] if len(sys.argv) > 2 else os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), '..', 'src')
+sorgente = open(os.path.join(SRC, 'display_ui.h')).read()
+
+fatte = 0
+# Il tema scuro tiene i nomi di prima: il README e i link esistenti non si
+# rompono. Il chiaro aggiunge "-chiaro".
+for tema, suffisso in (('SCURA', ''), ('CHIARA', '-chiaro')):
+    globals().update(palette(sorgente, tema))
+    for nome, file in (('oriz', 'lay_oriz.json'), ('vert', 'lay_vert.json')):
+        L = json.load(open(f'{S}/{file}'))
+        for f, etichetta in ((nav,'nav'), (marcia,'marcia'), (menu,'menu'),
+                             (sistema,'sistema'), (percorso,'percorso')):
+            f(L).save(f'{S}/v-{etichetta}-{nome}{suffisso}.png')
+            fatte += 1
+print('%d schermate disegnate dalle misure e dai colori veri' % fatte)

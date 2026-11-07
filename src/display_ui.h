@@ -101,16 +101,80 @@ struct DisplayData {
 
 static TFT_eSPI tft;
 
-static const uint16_t COL_BG    = TFT_BLACK;
-static const uint16_t COL_FG    = TFT_WHITE;
-static const uint16_t COL_LABEL = TFT_DARKGREY;
-static const uint16_t COL_LINE  = 0x2104;        // grigio molto scuro
-static const uint16_t COL_OK    = TFT_GREEN;
-static const uint16_t COL_BAD   = TFT_RED;
-static const uint16_t COL_WARN  = TFT_ORANGE;
+// I colori non sono piu' costanti: cambiano al passaggio giorno/notte. Il
+// resto del file li usa con gli stessi nomi di prima, quindi non c'e' un
+// punto del disegno che possa dimenticarsi di seguire il tema.
+struct Palette {
+  uint16_t bg, fg, label, line, ok, bad, warn, btn, cyan;
+};
 
-static const uint16_t COL_BTN   = 0x18E3;        // fondo dei pulsanti
-static const uint16_t COL_CYAN  = TFT_CYAN;
+static const Palette PAL_SCURA = {
+  TFT_BLACK,                 // fondo
+  TFT_WHITE,                 // testo
+  TFT_DARKGREY,              // etichette
+  0x2104,                    // righe di separazione, grigio molto scuro
+  TFT_GREEN, TFT_RED, TFT_ORANGE,
+  0x18E3,                    // fondo dei pulsanti
+  TFT_CYAN                   // freccia e accenti
+};
+
+// Tema chiaro: i colori non sono scelti a occhio ma col contrasto calcolato
+// (WCAG) contro il fondo bianco. Ogni colore di TESTO sta sopra 4,5:1, la
+// soglia AA, perche' "leggibile al sole" e' una misura e non un'opinione.
+// Il ciano del tema scuro su bianco farebbe 1,3:1, cioe' invisibile: di
+// giorno la freccia diventa blu. Verde, rosso e arancio vanno scuriti per
+// lo stesso motivo.
+static const Palette PAL_CHIARA = {
+  0xFFFF,                    // fondo bianco
+  0x0000,                    // testo nero                      21,0:1
+  0x528A,                    // etichette, grigio 31%            7,9:1
+                             //   su bianco; sul fondo dei pulsanti, dove
+                             //   stanno davvero, fanno 5,1:1. Col grigio
+                             //   del tema scuro sarebbero scese a 4,5:1.
+  0xB5B6,                    // righe di separazione             2,0:1
+  0x03A0,                    // verde scuro                      5,9:1
+  0xC000,                    // rosso scuro                      6,2:1
+  0xA260,                    // ambra scura, l'arancio sbiadisce 5,7:1
+  0xCE79,                    // fondo dei pulsanti               1,6:1
+  0x0299                     // blu al posto del ciano           6,8:1
+};
+
+static uint16_t COL_BG    = PAL_SCURA.bg;
+static uint16_t COL_FG    = PAL_SCURA.fg;
+static uint16_t COL_LABEL = PAL_SCURA.label;
+static uint16_t COL_LINE  = PAL_SCURA.line;
+static uint16_t COL_OK    = PAL_SCURA.ok;
+static uint16_t COL_BAD   = PAL_SCURA.bad;
+static uint16_t COL_WARN  = PAL_SCURA.warn;
+static uint16_t COL_BTN   = PAL_SCURA.btn;
+static uint16_t COL_CYAN  = PAL_SCURA.cyan;
+
+static bool temaChiaro = false;
+
+static void temaApplica(const Palette &p) {
+  COL_BG = p.bg; COL_FG = p.fg; COL_LABEL = p.label; COL_LINE = p.line;
+  COL_OK = p.ok; COL_BAD = p.bad; COL_WARN = p.warn; COL_BTN = p.btn;
+  COL_CYAN = p.cyan;
+}
+
+// Il tema si ricorda fra un'accensione e l'altra: senza l'ora dal GPS non si
+// saprebbe che tema mettere, e accendere il tracker in pieno sole su un
+// fondo nero e' proprio il caso che si vuole evitare. Al primo aggancio
+// l'orologio corregge, se serve.
+static bool temaCaricaChiaro() {
+  Preferences p;
+  if (!p.begin("display", true)) return false;
+  const bool chiaro = p.getBool("tema", false);
+  p.end();
+  return chiaro;
+}
+
+static void temaSalvaChiaro(bool chiaro) {
+  Preferences p;
+  if (!p.begin("display", false)) return;
+  p.putBool("tema", chiaro);
+  p.end();
+}
 
 enum DisplayScreen { SCREEN_NONE, SCREEN_WAIT, SCREEN_DRIVE, SCREEN_NAV };
 static DisplayScreen displayScreen = SCREEN_NONE;
@@ -1233,6 +1297,18 @@ static void drawSplash() {
 #endif
 }
 
+// Giorno o notte secondo l'ora del GPS. Sta fuori dal blocco della
+// retroilluminazione perche' serve anche al tema dei colori, che funziona
+// anche su una scheda con la luce fissa (PIN_TFT_BL a -1).
+static bool oraDiNotte(uint32_t epoch) {
+  const time_t t = (time_t)epoch + (time_t)TIME_UTC_OFFSET_MIN * 60;
+  struct tm ora;
+  gmtime_r(&t, &ora);                            // l'offset e' gia' dentro
+  return (BL_NOTTE_DA > BL_NOTTE_A)              // la notte scavalca mezzanotte
+       ? (ora.tm_hour >= BL_NOTTE_DA || ora.tm_hour < BL_NOTTE_A)
+       : (ora.tm_hour >= BL_NOTTE_DA && ora.tm_hour < BL_NOTTE_A);
+}
+
 #if PIN_TFT_BL >= 0
 #define BL_CANALE 7                              // canale PWM, sui core Arduino 2.x
 // La luce del pannello: di giorno al massimo, di notte abbassata. L'ora la da'
@@ -1262,15 +1338,6 @@ static void blBegin() {
   blApplica(BL_GIORNO);                          // si accende sempre al massimo
 }
 
-static bool blEnotte(uint32_t epoch) {
-  const time_t t = (time_t)epoch + (time_t)TIME_UTC_OFFSET_MIN * 60;
-  struct tm ora;
-  gmtime_r(&t, &ora);                            // l'offset e' gia' dentro
-  return (BL_NOTTE_DA > BL_NOTTE_A)              // la notte scavalca mezzanotte
-       ? (ora.tm_hour >= BL_NOTTE_DA || ora.tm_hour < BL_NOTTE_A)
-       : (ora.tm_hour >= BL_NOTTE_DA && ora.tm_hour < BL_NOTTE_A);
-}
-
 // Un gradino per volta, mai sotto il 10%: uno schermo nero non si recupera
 // piu', perche' per rialzare la luce dovresti vedere i pulsanti.
 static void blPasso(int8_t verso) {
@@ -1288,10 +1355,29 @@ static void blAggiorna(uint32_t epoch) {
   else if (blModo == 2) voluta = BL_NOTTE;
   else if (blModo == 3) voluta = blManuale;
   else if (!epoch)      return;                  // senza ora non si indovina
-  else                  voluta = blEnotte(epoch) ? BL_NOTTE : BL_GIORNO;
+  else                  voluta = oraDiNotte(epoch) ? BL_NOTTE : BL_GIORNO;
   if (voluta != blPercento) blApplica(voluta);
 }
 #endif
+
+// Che tema ci vuole adesso. Segue i pulsanti Giorno / Notte / Auto della
+// pagina Luce: un solo comando per un solo concetto, come il quadro di
+// un'auto. Con la luce regolata a mano (-/+) decide l'orologio, perche' in
+// quel caso l'utente ha detto quanta luce vuole, non se e' giorno.
+static bool temaChiaroVoluto(uint32_t epoch) {
+#if TEMA_CHIARO_DI_GIORNO == 0
+  (void)epoch;
+  return false;                                  // sempre scuro, come prima
+#else
+# if PIN_TFT_BL >= 0
+  if (blModo == 1) return true;                  // "Giorno" premuto a mano
+  if (blModo == 2) return false;                 // "Notte" premuto a mano
+# endif
+  if (!epoch) return temaChiaro;                 // senza ora si tiene quello
+                                                 // che c'e': niente lampi
+  return !oraDiNotte(epoch);
+#endif
+}
 
 static void displayBegin() {
 #if PIN_TFT_BL >= 0
@@ -1300,6 +1386,12 @@ static void displayBegin() {
   tft.init();
   layoutCompute(layoutLoadRot());
   tft.setRotation(uiRot);
+#if TEMA_CHIARO_DI_GIORNO
+  // Prima dello splash: altrimenti il logo si disegna col fondo sbagliato e
+  // un attimo dopo tutto lampeggia.
+  temaChiaro = temaCaricaChiaro();
+  temaApplica(temaChiaro ? PAL_CHIARA : PAL_SCURA);
+#endif
   Serial.printf("[DISPLAY] rotazione %u, schermo %s, %d x %d\r\n",
                 uiRot, uiVert ? "in piedi" : "sdraiato", SW, SH);
   drawSplash();
@@ -1314,6 +1406,23 @@ static void displayBegin() {
 static void displayUpdate(const DisplayData &d) {
 #if PIN_TFT_BL >= 0
   blAggiorna(d.epoch);
+#endif
+#if TEMA_CHIARO_DI_GIORNO
+  // Cambiare tema vuol dire ridipingere davvero tutto: cambia il colore del
+  // fondo, quindi non basta marcare la pagina come da rifare, va riempito lo
+  // schermo. Capita due volte al giorno, il costo non conta.
+  {
+    const bool voluto = temaChiaroVoluto(d.epoch);
+    if (voluto != temaChiaro) {
+      temaChiaro = voluto;
+      temaApplica(voluto ? PAL_CHIARA : PAL_SCURA);
+      temaSalvaChiaro(voluto);
+      tft.fillScreen(COL_BG);
+      displayScreen = SCREEN_NONE;               // la cornice si rifa' da zero
+      uiDirty       = true;                      // e anche la pagina dei menu
+      Serial.printf("[DISPLAY] tema %s\r\n", voluto ? "chiaro" : "scuro");
+    }
+  }
 #endif
   // Se non tocchi niente il menu si fa da parte: senza touch collegato il
   // tracker si comporta come prima, dopo MENU_TIMEOUT_MS e' in navigazione.

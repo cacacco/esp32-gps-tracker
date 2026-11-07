@@ -177,6 +177,24 @@
 #define BL_NOTTE_DA               20   // ora locale in cui si passa alla notte
 #define BL_NOTTE_A                 7   // e quella in cui torna giorno
 
+// ---------------------------------------------------------------------------
+// Tema dei colori: di giorno fondo bianco e scritte nere, di notte il
+// contrario.
+//
+// Non e' una questione di gusto. Al sole il bianco su nero non si legge:
+// la luce dell'ambiente si riflette sul vetro e si somma a quella del
+// pannello, il fondo nero diventa grigio e le scritte bianche ci affogano
+// dentro. Il nero su bianco invece regge, perche' il riflesso schiarisce un
+// fondo che e' gia' bianco e le lettere restano nere. Di notte e' il
+// contrario: il fondo bianco acceca e rovina l'adattamento all'oscurita'.
+//
+// Il tema segue i pulsanti Giorno / Notte / Auto della pagina Luce, cosi'
+// c'e' un solo comando per un solo concetto. Con Auto decide l'orologio del
+// GPS, con le stesse ore di BL_NOTTE_DA e BL_NOTTE_A qui sopra.
+//
+// A 0 lo schermo resta sempre scuro, come nelle versioni precedenti.
+#define TEMA_CHIARO_DI_GIORNO      1
+
 // ---- tocco e menu --------------------------------------------------------
 //     Il pannello ha gia' il touch a bordo: servono quattro fili in piu'.
 //

@@ -612,6 +612,39 @@ quando l'orologio non e' d'accordo con il cielo - una galleria lunga, un tempora
 pomeriggio - e tornare ad **Automatica** quando vuoi. La riga compare solo se `PIN_TFT_BL` e'
 impostato: senza, non ci sarebbe niente da regolare.
 
+### Di giorno lo schermo si ribalta: nero su bianco
+
+![nero su bianco di giorno, bianco su nero di notte](docs/schermate/confronto-temi.png)
+
+Non e' una questione di gusto, e' fisica del vetro. Al sole il bianco su nero **non si legge**:
+la luce dell'ambiente si riflette sul vetro e si somma a quella del pannello, il fondo nero
+diventa grigio e le scritte bianche ci affogano dentro. Il nero su bianco regge, perche' il
+riflesso schiarisce un fondo che e' gia' bianco e le lettere restano nere. Di notte e' il
+contrario: il fondo bianco acceca e rovina l'adattamento all'oscurita'.
+
+Il tema **segue i pulsanti Giorno / Notte / Auto** della pagina Luce. Un comando solo per un
+concetto solo, come il quadro di un'auto:
+
+| | luce | colori |
+|---|---|---|
+| **Auto** | la decide l'orologio | li decide l'orologio |
+| **Giorno** | `BL_GIORNO` (100%) | fondo bianco, scritte nere |
+| **Notte** | `BL_NOTTE` (25%) | fondo nero, scritte bianche |
+| **-** / **+** a mano | quella che scegli tu | li decide l'orologio |
+
+I colori del tema chiaro non sono scelti a occhio: ognuno e' stato misurato col **contrasto
+WCAG** contro il fondo, perche' "leggibile al sole" e' una misura e non un'opinione. Ogni
+colore di testo sta sopra 4,5:1, la soglia AA. Il ciano del tema scuro su bianco farebbe
+1,3:1, cioe' invisibile: di giorno la freccia diventa **blu**, il verde e il rosso si
+scuriscono, l'arancio diventa ambra.
+
+Il tracker **si ricorda l'ultimo tema** fra un'accensione e l'altra. Senza il fix del GPS non
+saprebbe che ora e', e accendere il tracker in pieno sole su un fondo nero e' proprio il caso
+che si vuole evitare; al primo aggancio l'orologio corregge, se serve.
+
+Per tornare allo schermo sempre scuro, come nelle versioni precedenti, metti
+`TEMA_CHIARO_DI_GIORNO` a `0` in `config.h`.
+
 ### Come e' disegnato
 
 Due scelte che si vedono, e vale la pena sapere perche' sono state fatte.
