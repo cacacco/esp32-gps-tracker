@@ -24,6 +24,11 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      versione:
+        description: "Numero di versione (es. v1.0.0). Vuoto: compila e aggiorna solo la pagina, senza creare una Release."
+        required: false
+        default: ''
 
 permissions:
   contents: write        # per creare la Release
@@ -64,10 +69,30 @@ jobs:
       - name: come si chiama questa versione
         id: ver
         shell: bash
+        env:
+          DA_MANO: ${{ inputs.versione }}
+          TIPO_REF: ${{ github.ref_type }}
+          NOME_REF: ${{ github.ref_name }}
         run: |
-          V=$(git describe --tags --always)
-          echo "v=$V" >> "$GITHUB_OUTPUT"
-          echo "rilascio: $V"
+          set -eu
+          if [ -n "$DA_MANO" ]; then
+            case "$DA_MANO" in
+              v[0-9]*) ;;
+              *) echo "::error::la versione deve cominciare per v, es. v1.0.0"; exit 1 ;;
+            esac
+            V="$DA_MANO"
+            # tag solo in locale: serve a git describe, cioe' a marcare il
+            # firmware. Quello pubblicato lo crea gh release piu' sotto.
+            git tag -f "$V"
+            RILASCIA=si
+          elif [ "$TIPO_REF" = tag ]; then
+            V="$NOME_REF"; RILASCIA=si
+          else
+            V=$(git describe --tags --always); RILASCIA=no
+          fi
+          echo "v=$V"               >> "$GITHUB_OUTPUT"
+          echo "rilascia=$RILASCIA" >> "$GITHUB_OUTPUT"
+          echo "versione: $V   crea la Release: $RILASCIA"
 
       # pipefail o la compilazione fallita passerebbe per verde: il codice
       # d'uscita della pipeline sarebbe quello di tee, che riesce sempre.
@@ -155,12 +180,11 @@ jobs:
           echo "--- manifest ---"; cat sito/manifest.json
 
       - name: crea la Release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: steps.ver.outputs.rilascia == 'si'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           V: ${{ steps.ver.outputs.v }}
-          TAG: ${{ github.ref_name }}
         run: |
           set -eu
           cat > note.md <<NOTE
@@ -194,8 +218,11 @@ jobs:
           dalla dashboard prima di cominciare. Reti WiFi, taratura del tocco e
           odometro restano.
           NOTE
-          gh release create "$TAG" \
-            --title "$TAG" \
+          # --target fa creare il tag a GitHub se non c'e' gia': cosi' il
+          # rilascio funziona anche partendo da un dispatch a mano.
+          gh release create "$V" \
+            --target "$GITHUB_SHA" \
+            --title "$V" \
             --notes-file note.md \
             "tracker-$V-tutto.bin" \
             "tracker-$V-solo-firmware.bin"
