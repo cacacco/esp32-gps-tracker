@@ -76,10 +76,35 @@ jobs:
           echo '--- src/config_local.h ---'
           cat src/config_local.h
 
+      # set -o pipefail e' obbligatorio: senza, il codice d'uscita della
+      # pipeline sarebbe quello di tee, che riesce sempre, e una compilazione
+      # fallita passerebbe per verde. E' una trappola in cui si cade una volta
+      # sola, ma la si paga cara.
       - name: compila
-        run: pio run -e esp32doit-devkit-v1
+        shell: bash
+        run: |
+          set -o pipefail
+          pio run -e esp32doit-devkit-v1 2>&1 | tee "$RUNNER_TEMP/compila.log"
 
-      - name: quanto occupa
+      # La partizione del firmware e' 1,625 MB (vedi partizioni.csv). Se si
+      # riempie, l'aggiornamento via WiFi smette di funzionare e per rifare le
+      # partizioni serve il cavo. Meglio saperlo qui, con un pallino rosso,
+      # che in garage.
+      - name: controlla che ci sia ancora spazio
+        shell: bash
+        run: |
+          riga=$(grep -o 'Flash:.*' "$RUNNER_TEMP/compila.log" | tail -1)
+          [ -n "$riga" ] || { echo "::error::non trovo la riga Flash: nel log"; exit 1; }
+          echo "$riga"
+          uso=$(printf '%s' "$riga" | grep -oE '[0-9]+(\.[0-9]+)?%' | head -1 | tr -d '%')
+          [ -n "$uso" ] || { echo "::error::non riesco a leggere la percentuale"; exit 1; }
+          if awk -v u="$uso" 'BEGIN { exit !(u >= 85) }'; then
+            echo "::error::il firmware occupa il $uso% della partizione: sotto il 15% di margine non si aggiunge piu' niente senza rifare le partizioni"
+            exit 1
+          fi
+          echo "occupato il $uso%: margine ancora buono"
+
+      - name: quanto occupa, nel dettaglio
         run: pio run -e esp32doit-devkit-v1 -t size | tail -20
 
       - name: allega il firmware

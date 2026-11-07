@@ -1054,7 +1054,29 @@ Due limiti da conoscere:
 * se `gps-tracker.local` non si risolve, metti l'indirizzo IP al posto di `upload_port`
   nella sezione `[env:ota]`.
 
-Nell'**Arduino IDE** lo schema di partizioni va impostato su *Default 4MB with spiffs*.
+### Una volta sola, col cavo
+
+La **mappa della memoria** (`partizioni.csv`) via WiFi non si puo' cambiare: l'OTA scrive
+solo il firmware, non la mappa. Chi aggiorna da una versione precedente a questa deve fare
+**un** caricamento col cavo USB:
+
+```powershell
+.\tools\windows\carica-firmware.bat
+```
+
+Da quel momento l'OTA riprende a funzionare come prima.
+
+Quel caricamento **azzera la traccia salvata** (il filesystem si sposta e viene
+riformattato). Se ci tieni, scaricati il GPX dalla dashboard prima di collegare il cavo.
+Reti WiFi, taratura del touch, rotazione dello schermo e odometro restano: stanno in `nvs`,
+che non si e' spostata.
+
+Perche' il cambio: con lo schema standard il firmware occupava il **93,9%** del suo spazio,
+78 KB liberi. Al filesystem ne servono 400 KB e gliene erano stati dati 1,4 MB. Ora il
+firmware ha 1,625 MB (ne usa il 72%) e il filesystem 640 KB. La compilazione automatica
+fallisce se si supera l'85%, cosi' il problema non torna di nascosto.
+
+Nell'**Arduino IDE** questo schema non c'e': serve PlatformIO.
 
 ---
 

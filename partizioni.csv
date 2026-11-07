@@ -1,0 +1,30 @@
+# Mappa della memoria flash - ESP32-WROOM-32, 4 MB
+#
+# Perche' non si usa piu' default.csv: quella divisione dava 1,25 MB al
+# firmware e 1,4 MB al filesystem. Il firmware era arrivato al 93,9% (78 KB
+# liberi), mentre al filesystem bastano 400 KB: la traccia ruota a 12000
+# punti da 16 byte (188 KB), il file di backup altrettanto, percorso e
+# svolte stanno in 25 KB. Lo spazio c'era, era solo nel posto sbagliato.
+#
+# Ora il firmware ha 1,625 MB per partizione (occupa il 72%) e il
+# filesystem 640 KB, con 240 KB di margine sui 400 che gli servono.
+#
+# I due spazi app0/app1 servono all'aggiornamento via WiFi: la scheda scrive
+# il firmware nuovo in quello libero mentre gira con il vecchio, e al riavvio
+# passa all'altro. Devono partire a multipli di 0x10000.
+#
+# ATTENZIONE: "spiffs" e' il nome che LittleFS cerca per default
+# (LittleFS.begin() usa partitionLabel = "spiffs"). Il nome resta quello
+# anche se dentro c'e' LittleFS e non SPIFFS: rinominarlo fa fallire il
+# mount e la traccia non viene piu' salvata.
+#
+# nvs resta dov'era e della stessa dimensione: reti WiFi, taratura del
+# touch, rotazione dello schermo e odometro sopravvivono al cambio.
+#
+# Nome,     Tipo, SottoTipo, Offset,   Dimensione
+nvs,        data, nvs,       0x9000,   0x5000,
+otadata,    data, ota,       0xe000,   0x2000,
+app0,       app,  ota_0,     0x10000,  0x1A0000,
+app1,       app,  ota_1,     0x1B0000, 0x1A0000,
+spiffs,     data, spiffs,    0x350000, 0xA0000,
+coredump,   data, coredump,  0x3F0000, 0x10000,
