@@ -5,6 +5,10 @@ destinazione con le frecce e le svolte lette sul display, registra dove sei
 passato, e se sbagli strada ti riporta **sul giro che avevi scelto tu** invece
 di rifartene uno in tangenziale.
 
+![Il tracker acceso, con nove satelliti agganciati](docs/foto/display-in-marcia.jpg)
+
+<sub>La schermata di marcia, sul pannello vero. Sotto, com'e' fatta quella di navigazione:</sub>
+
 ![La schermata di navigazione](docs/schermate/v-nav-oriz.png)
 
 | | |
