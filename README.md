@@ -1,5 +1,7 @@
 # ESP32 GPS Tracker
 
+[![compila](https://github.com/cacacco/esp32-gps-tracker/actions/workflows/compila.yml/badge.svg)](https://github.com/cacacco/esp32-gps-tracker/actions/workflows/compila.yml)
+
 **Navigatore e registratore di percorsi per moto**, fatto in casa. Ti porta a
 destinazione con le frecce e le svolte lette sul display, registra dove sei
 passato, e se sbagli strada ti riporta **sul giro che avevi scelto tu** invece

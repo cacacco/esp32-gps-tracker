@@ -1,0 +1,91 @@
+# ---------------------------------------------------------------------------
+# Compila il firmware a ogni modifica.
+#
+# Serve a una cosa sola, ma importante: sapere che il codice compila DAVVERO,
+# prima di collegare il cavo. Un errore di compilazione si scopre qui, con un
+# pallino rosso, invece che dopo dieci minuti di toolchain sul proprio PC.
+#
+# Si compila anche con il display spento e con la rete spenta, perche' quelle
+# configurazioni le usa poca gente e nessuno le prova: sono proprio quelle in
+# cui un #if sbagliato resta nascosto per mesi.
+#
+# Le opzioni NON si passano con -D sulla riga di comando: un #define dentro
+# config.h avrebbe comunque la meglio. Si scrivono in src/config_local.h, che
+# config.h include per ultimo, come farebbe un utente vero.
+# ---------------------------------------------------------------------------
+name: compila
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  firmware:
+    name: ${{ matrix.nome }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - nome: completo
+            locale: ''
+          - nome: senza display
+            locale: |
+              #undef  ENABLE_DISPLAY
+              #define ENABLE_DISPLAY 0
+              #undef  ENABLE_TOUCH
+              #define ENABLE_TOUCH   0
+          - nome: senza rete
+            locale: |
+              #undef  ENABLE_REROUTE
+              #define ENABLE_REROUTE 0
+              #undef  ENABLE_OTA
+              #define ENABLE_OTA     0
+          - nome: schermo in piedi
+            locale: |
+              #undef  DISPLAY_ROTATION
+              #define DISPLAY_ROTATION 0
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: riusa toolchain e librerie gia' scaricate
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: pio-${{ runner.os }}-
+
+      - name: installa PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: scrivi la configurazione della variante
+        if: matrix.locale != ''
+        env:
+          LOCALE: ${{ matrix.locale }}
+        run: |
+          { echo '#pragma once'; echo "$LOCALE"; } > src/config_local.h
+          echo '--- src/config_local.h ---'
+          cat src/config_local.h
+
+      - name: compila
+        run: pio run -e esp32doit-devkit-v1
+
+      - name: quanto occupa
+        run: pio run -e esp32doit-devkit-v1 -t size | tail -20
+
+      - name: allega il firmware
+        if: matrix.nome == 'completo'
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: .pio/build/esp32doit-devkit-v1/firmware.bin
+          retention-days: 30
