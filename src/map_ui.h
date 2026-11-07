@@ -650,12 +650,21 @@ async function apriPercorsoEsistente(){
 }
 
 // ---- mappa -----------------------------------------------------------------
-mappa = L.map('map', {zoomControl:false}).setView([43.8513, 12.7605], 13);
+// Si parte da una vista larga e ci si sposta appena il tracker dice dov'e'.
+// Prima c'era un punto fisso: diceva a chiunque aprisse la pagina da che
+// parte d'Italia veniva il progetto, e non serviva a niente.
+mappa = L.map('map', {zoomControl:false}).setView([42.5, 12.5], 6);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   {maxZoom:19, attribution:'&copy; OpenStreetMap'}).addTo(mappa);
 L.control.zoom({position:'bottomleft'}).addTo(mappa);
 linea = L.polyline([], {color:'#1a73e8', weight:6, opacity:.85}).addTo(mappa);
 segni = L.layerGroup().addTo(mappa);
+
+// La posizione vera la sa il tracker: appena risponde, la mappa va li'.
+if (!SU_AP) fetch('/api/status')
+  .then(r => r.json())
+  .then(s => { if (s && s.fix) mappa.setView([s.lat, s.lon], 13); })
+  .catch(() => {});
 
 // un tocco sulla mappa riempie la prima riga libera, come trascinare un segnalino
 mappa.on('click', e => {

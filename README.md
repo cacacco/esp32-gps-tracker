@@ -1,6 +1,60 @@
-# ESP32 GPS Tracker con geofence
+# ESP32 GPS Tracker
 
-Progetto completo per l'hardware della foto: **ESP32 DevKit v1** (ESP32-WROOM-32)
+**Navigatore e registratore di percorsi per moto**, fatto in casa. Ti porta a
+destinazione con le frecce e le svolte lette sul display, registra dove sei
+passato, e se sbagli strada ti riporta **sul giro che avevi scelto tu** invece
+di rifartene uno in tangenziale.
+
+![La schermata di navigazione](docs/schermate/v-nav-oriz.png)
+
+| | |
+|---|---|
+| **Hardware** | ESP32 DevKit v1, GPS u-blox NEO-7M, display ST7796 da 4" con touch |
+| **Costo** | sotto i 60 euro, antenna e scatola comprese |
+| **Serve saper fare** | saldare qualche filo e lanciare uno script |
+| **Licenza** | MIT: copialo, modificalo, usalo come vuoi |
+
+Funziona **senza internet e senza telefono**: percorso e svolte stanno nella
+memoria del tracker. Il telefono serve solo per disegnare il giro, una volta,
+quando sei ancora collegato alla rete.
+
+<details>
+<summary><b>What is this? (English summary)</b></summary>
+
+A homemade **GPS navigator and track logger for motorcycles**, built around an
+ESP32, a 4" ST7796 touch display and a u-blox NEO-7M GPS module. Total cost is
+under 60 EUR.
+
+**What it does**
+
+* **Turn-by-turn navigation on the display**: a large arrow for the direction to
+  follow, the next manoeuvre with its distance and street name, and the one
+  after it. Roundabouts are drawn as roundabouts, with the exit number inside.
+* **Works fully offline.** You draw the route once from your phone, on a page
+  the tracker itself serves; road geometry and manoeuvres are then stored on the
+  device. On the road nothing is requested from anyone.
+* **Rejoin instead of reroute.** If you leave the route, the arrow points to the
+  best place to rejoin *the route you chose*, computed on board with no network.
+  When the tracker does have a connection (your phone's hotspot), it asks a
+  routing service how to get back there and stitches that leg in - it never
+  recomputes a new route to the destination, because on a motorcycle the roads
+  are the point.
+* **Track logging** to internal flash, surviving power loss, exported as GPX.
+* **Trip statistics**, a non-resettable odometer, and a geofence alarm.
+* **Web dashboard** served by the ESP32 itself, with a live map when you are on
+  a network that has internet.
+* Portrait or landscape layout, automatic day/night backlight, multi-network
+  WiFi, and over-the-air firmware updates.
+
+**Documentation is in Italian**, and it is thorough: wiring, assembly videos, a
+printable PDF guide and a troubleshooting section. The source code comments are
+in Italian too. Translations are welcome.
+
+</details>
+
+---
+
+Il progetto e' nato per l'hardware della foto: **ESP32 DevKit v1** (ESP32-WROOM-32)
 e **modulo GPS u-blox NEO-7M** con antenna esterna.
 
 L'ESP32 legge la posizione dal NEO-7M e:
@@ -281,7 +335,7 @@ danni. La prima compilazione scarica toolchain e librerie, anche diverse centina
 ### PlatformIO a mano
 
 ```bash
-cd projects/esp32-gps-tracker
+cd esp32-gps-tracker
 pio run -t upload -t monitor
 ```
 
@@ -1195,7 +1249,7 @@ registra uno ogni 10 m, quindi sono ore e ore di viaggio. Se ti serve di piu':
 ## 11. File del progetto
 
 ```
-projects/esp32-gps-tracker/
+esp32-gps-tracker/
 ├── platformio.ini               configurazione build e librerie
 ├── src/
 │   ├── config.h                 tutte le impostazioni (l'unico file da modificare)

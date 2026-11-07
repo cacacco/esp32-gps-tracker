@@ -103,7 +103,7 @@ if ($messoDaParte) {
         Scrivi "  git -C `"$progetto`" stash drop" 'Yellow'
         Scrivi ""
         Scrivi "Poi, per non ritrovarti qui mai piu', copia" 'Yellow'
-        Scrivi "  projects/esp32-gps-tracker/src/config_local.h.esempio" 'Yellow'
+        Scrivi "  src/config_local.h.esempio" 'Yellow'
         Scrivi "in config_local.h e tieni li' le tue impostazioni: git non lo tocca." 'Yellow'
         Scrivi ""
         Scrivi "Se invece le tue modifiche ti servono tutte, sono al sicuro:" 'DarkGray'
