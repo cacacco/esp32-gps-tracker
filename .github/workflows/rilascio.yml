@@ -225,13 +225,17 @@ jobs:
           | \`tracker-$V-tutto.bin\` | prima installazione: contiene bootloader, partizioni e firmware |
           | \`tracker-$V-solo-firmware.bin\` | aggiornamento via OTA o a \`0x10000\` |
 
-          ## Attenzione, se arrivi da una versione precedente
+          ## Se arrivi da una versione precedente alla v1.0.0
 
-          La divisione della memoria e' cambiata (il firmware era arrivato al
-          93,9% del suo spazio). Il primo caricamento con questa versione va
-          fatto **col cavo** e **azzera la traccia salvata**: scaricati il GPX
-          dalla dashboard prima di cominciare. Reti WiFi, taratura del tocco e
-          odometro restano.
+          Solo in quel caso: con la v1.0.0 e' cambiata la divisione della
+          memoria, quindi il primo caricamento va fatto **col cavo** e
+          **azzera la traccia salvata**. Scaricati il GPX dalla dashboard
+          prima di cominciare. Reti WiFi, taratura del tocco e odometro
+          restano.
+
+          Venendo dalla v1.0.0 o successive non cambia niente: le partizioni
+          sono le stesse, la traccia resta, e l'aggiornamento si puo' fare
+          anche via WiFi.
           NOTE
           # --target fa creare il tag a GitHub se non c'e' gia': cosi' il
           # rilascio funziona anche partendo da un dispatch a mano.
