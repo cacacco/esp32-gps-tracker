@@ -108,14 +108,21 @@ struct Palette {
   uint16_t bg, fg, label, line, ok, bad, warn, btn, cyan;
 };
 
+// I colori a saturazione massima di TFT_eSPI - verde (0,255,0), ciano
+// (0,255,255) - sono la firma dei cruscotti anni '90 e di notte stancano.
+// Qui sono attenuati, ma non a caso: ognuno resta sopra 4,5:1 di contrasto
+// sul fondo nero, la soglia AA. Il rosso addirittura migliora, perche' il
+// rosso puro e' scuro di suo e sul nero si legge male (5,2:1 contro 7,3:1).
 static const Palette PAL_SCURA = {
   TFT_BLACK,                 // fondo
-  TFT_WHITE,                 // testo
-  TFT_DARKGREY,              // etichette
-  0x2104,                    // righe di separazione, grigio molto scuro
-  TFT_GREEN, TFT_RED, TFT_ORANGE,
+  TFT_WHITE,                 // testo                          21,0:1
+  0x8C93,                    // etichette, grigio tiepido        6,7:1
+  0x2104,                    // righe di separazione, appena visibili
+  0x46B0,                    // verde, non piu' acido           11,3:1
+  0xFB2C,                    // rosso chiaro: sul nero si legge  7,3:1
+  0xFDC8,                    // ambra                           12,4:1
   0x18E3,                    // fondo dei pulsanti
-  TFT_CYAN                   // freccia e accenti
+  0x5DDF                     // azzurro al posto del ciano       9,9:1
 };
 
 // Tema chiaro: i colori non sono scelti a occhio ma col contrasto calcolato
@@ -176,6 +183,51 @@ static void temaSalvaChiaro(bool chiaro) {
   p.end();
 }
 
+#include "font/fontpiccolo.h"
+#include "font/fontmedio.h"
+#include "font/fontgrande.h"
+#include "font/fontenorme.h"
+
+// TFT_eSPI tiene UN carattere liscio per volta, e finche' ce n'e' uno
+// caricato il numero di font passato a drawString viene ignorato del tutto
+// (verificato nel suo sorgente). Quindi ogni disegno deve prima dire quale
+// carattere vuole. I numeri restano quelli dei vecchi font, cosi' il resto
+// del file si legge come prima:
+//
+//   1, 2 -> piccolo 16px    4 -> medio 26px
+//      5 -> grande 48px     7 -> enorme 72px   0 -> nessuno
+//
+// Il 5 e il 7 prendono il posto dei due casi che prima si ottenevano
+// raddoppiando la dimensione: i caratteri lisci non si scalano, e ogni
+// grandezza e' un file a se'.
+#define F_PICCOLO 2
+#define F_MEDIO   4
+#define F_GRANDE  5
+#define F_ENORME  7
+
+static uint8_t fontCorrente = 0;
+
+static void fontUsa(uint8_t quale) {
+  if (quale == 1) quale = F_PICCOLO;             // il font 1 era troppo minuto
+  if (quale == fontCorrente) return;
+  if (fontCorrente) tft.unloadFont();
+  fontCorrente = 0;
+  switch (quale) {
+    case F_PICCOLO: tft.loadFont(fontPiccolo); break;
+    case F_MEDIO:   tft.loadFont(fontMedio);   break;
+    case F_GRANDE:  tft.loadFont(fontGrande);  break;
+    case F_ENORME:  tft.loadFont(fontEnorme);  break;
+    default:        return;                      // 0: si torna ai font numerati
+  }
+  fontCorrente = quale;
+}
+
+// drawString con il carattere giusto gia' caricato.
+static void tftStr(const char *testo, int32_t x, int32_t y, uint8_t font) {
+  fontUsa(font);
+  tft.drawString(testo, x, y);
+}
+
 enum DisplayScreen { SCREEN_NONE, SCREEN_WAIT, SCREEN_DRIVE, SCREEN_NAV };
 static DisplayScreen displayScreen = SCREEN_NONE;
 
@@ -187,7 +239,8 @@ static void displayField(const char *text, int32_t x, int32_t y,
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(color, COL_BG);
   tft.setTextPadding(pad);
-  tft.drawString(text, x, y, font);
+  fontUsa(font);
+  tft.drawString(text, x, y);
   tft.setTextPadding(0);
 }
 
@@ -217,7 +270,7 @@ static void drawMenuHint(int16_t x) {
   for (uint8_t i = 0; i < 3; i++) tft.drawFastHLine(x, 13 + i * 5, 14, COL_LABEL);
   tft.setTextDatum(ML_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("menu", x + 20, 19, 2);
+  tftStr("menu", x + 20, 19, 2);
 }
 #endif
 
@@ -243,7 +296,7 @@ static void drawTopBar(const DisplayData &d, bool force) {
     tft.setTextDatum(ML_DATUM);
     tft.setTextColor(COL_LABEL, COL_BG);
     tft.setTextPadding(BAR_SAT_W);
-    tft.drawString(buf, 34, 19, 2);
+    tftStr(buf, 34, 19, 2);
     tft.setTextPadding(0);
   }
 
@@ -253,7 +306,7 @@ static void drawTopBar(const DisplayData &d, bool force) {
     tft.setTextDatum(MR_DATUM);
     tft.setTextColor(COL_FG, COL_BG);
     tft.setTextPadding(90);
-    tft.drawString(pClock, SW - 8, 19, 4);
+    tftStr(pClock, SW - 8, 19, 4);
     tft.setTextPadding(0);
   }
 }
@@ -266,7 +319,7 @@ static void drawWaitChrome() {
   tft.drawFastHLine(0, 38, SW, COL_LINE);
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("ESP32 GPS Tracker", SW / 2, WAIT_TY, 2);
+  tftStr("ESP32 GPS Tracker", SW / 2, WAIT_TY, 2);
 #if ENABLE_TOUCH
   drawMenuHint(40);
 #endif
@@ -332,16 +385,16 @@ static void drawDriveChrome() {
 
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("km/h", DRV_KMH_X, DRV_KMH_Y, 4);
-  tft.drawString("DIREZIONE", DRV_DIR_X, DRV_DIR_LY, 2);
-  tft.drawString("DALLA BASE", DRV_BASE_X, DRV_BASE_LY, 2);
+  tftStr("km/h", DRV_KMH_X, DRV_KMH_Y, 4);
+  tftStr("DIREZIONE", DRV_DIR_X, DRV_DIR_LY, 2);
+  tftStr("DALLA BASE", DRV_BASE_X, DRV_BASE_LY, 2);
 
 #if ENABLE_TOUCH
   drawMenuHint(DRV_HINT);                 // fra il contasatelliti e l'orologio
 #endif
 
   static const char *labels[4] = { "VIAGGIO", "MAX", "IN MOVIMENTO", "QUOTA" };
-  for (uint8_t i = 0; i < 4; i++) tft.drawString(labels[i], DRV_ST_X[i], DRV_ST_LY[i], 2);
+  for (uint8_t i = 0; i < 4; i++) tftStr(labels[i], DRV_ST_X[i], DRV_ST_LY[i], 2);
 }
 
 static void drawDrive(const DisplayData &d, bool force) {
@@ -355,18 +408,14 @@ static void drawDrive(const DisplayData &d, bool force) {
   if (force || speed != pSpeed) {
     pSpeed = speed;
     snprintf(buf, sizeof(buf), "%ld", (long)speed);
-    tft.setTextSize(2);
-    displayField(buf, DRV_SPD_X, DRV_SPD_Y, 7, DRV_SPD_W, d.outside ? COL_WARN : COL_FG);
-    tft.setTextSize(1);
+    displayField(buf, DRV_SPD_X, DRV_SPD_Y, F_ENORME, DRV_SPD_W, d.outside ? COL_WARN : COL_FG);
   }
 
   // --- direzione ---
   const char *card = d.cardinal ? d.cardinal : "--";
   if (force || strcmp(card, pCard) != 0) {
     snprintf(pCard, sizeof(pCard), "%s", card);
-    tft.setTextSize(2);
-    displayField(pCard, DRV_DIR_X, DRV_DIR_VY, 4, DRV_DIR_W, COL_FG);
-    tft.setTextSize(1);
+    displayField(pCard, DRV_DIR_X, DRV_DIR_VY, F_GRANDE, DRV_DIR_W, COL_FG);
   }
 
   // --- distanza dalla base ---
@@ -471,7 +520,7 @@ static void drawRoundaboutAt(int cx, int cy, int r, uint8_t exit, float exitAng,
     snprintf(n, sizeof(n), "%u", exit);
     tft.setTextDatum(MC_DATUM);
     tft.setTextColor(col, COL_BG);
-    tft.drawString(n, cx, cy, 4);
+    tftStr(n, cx, cy, 4);
   }
 }
 
@@ -513,7 +562,7 @@ static void drawNavChrome() {
 #if ENABLE_TOUCH
   drawMenuHint(NAV_HINT);
 #endif
-  tft.drawString("RESTANO", NAV_REST_X, NAV_REST_LY, 2);
+  tftStr("RESTANO", NAV_REST_X, NAV_REST_LY, 2);
 }
 
 static void drawNav(const DisplayData &d, bool force) {
@@ -626,9 +675,7 @@ static void drawNav(const DisplayData &d, bool force) {
     else if (distSvolta < 1000)      snprintf(buf, sizeof(buf), "%ld m", (long)distSvolta);
     else if (distSvolta < 10000)     snprintf(buf, sizeof(buf), "%.1f km", distSvolta / 1000.0f);
     else                             snprintf(buf, sizeof(buf), "%ld km", (long)(distSvolta / 1000.0f));
-    tft.setTextSize(2);
-    displayField(buf, NAV_DST_X, NAV_DST_Y, 4, NAV_DST_W, vicina ? COL_WARN : COL_FG);
-    tft.setTextSize(1);
+    displayField(buf, NAV_DST_X, NAV_DST_Y, F_GRANDE, NAV_DST_W, vicina ? COL_WARN : COL_FG);
   }
 
   // nome: la strada su cui si prosegue, o la tappa se non ci sono svolte
@@ -683,9 +730,7 @@ static void drawNav(const DisplayData &d, bool force) {
   if (force || velocita != pSpeed) {
     pSpeed = velocita;
     snprintf(buf, sizeof(buf), "%ld", (long)velocita);
-    tft.setTextSize(2);
-    displayField(buf, NAV_SPD_X, NAV_SPD_Y, 4, NAV_SPD_W, COL_FG);
-    tft.setTextSize(1);
+    displayField(buf, NAV_SPD_X, NAV_SPD_Y, F_GRANDE, NAV_SPD_W, COL_FG);
   }
 
   pState  = stato;
@@ -791,10 +836,10 @@ static void drawButton(const Rect &r, const char *titolo, const char *sotto, uin
   tft.setTextColor(COL_FG, COL_BTN);
   const int16_t cx = r.x + r.w / 2, cy = r.y + r.h / 2;
   const bool    due = sotto && *sotto;
-  tft.drawString(titolo, cx, due ? cy - 16 : cy, 4);
+  tftStr(titolo, cx, due ? cy - 16 : cy, 4);
   if (due) {
     tft.setTextColor(COL_LABEL, COL_BTN);
-    tft.drawString(sotto, cx, cy + 20, 2);
+    tftStr(sotto, cx, cy + 20, 2);
   }
 }
 
@@ -803,15 +848,15 @@ static void drawPageHead(const char *titolo) {
   tft.drawFastHLine(0, 38, SW, COL_LINE);
   tft.setTextDatum(ML_DATUM);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString(titolo, 14, 19, 4);
+  tftStr(titolo, 14, 19, 4);
 }
 
 static void drawRiga(const char *etichetta, const char *valore, int16_t y) {
   tft.setTextDatum(ML_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString(etichetta, RIGA_LX, y, 2);
+  tftStr(etichetta, RIGA_LX, y, 2);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString(valore, RIGA_VX, y, 4);
+  tftStr(valore, RIGA_VX, y, 4);
 }
 
 static void drawMenu(const DisplayData &d) {
@@ -821,10 +866,10 @@ static void drawMenu(const DisplayData &d) {
   tft.setTextDatum(MR_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
 #if PIN_MENU_BUTTON == 0
-  tft.drawString(uiVert ? "tasto BOOT: breve sposta,\nlungo conferma"
-                        : "tasto BOOT: breve sposta, lungo conferma", SW - 14, 19, 2);
+  tftStr(uiVert ? "tasto BOOT: breve sposta,\nlungo conferma"
+                : "tasto BOOT: breve sposta, lungo conferma", SW - 14, 19, F_PICCOLO);
 #else
-  tft.drawString("tasto: breve sposta, lungo conferma", SW - 14, 19, 2);
+  tftStr("tasto: breve sposta, lungo conferma", SW - 14, 19, 2);
 #endif
 #endif
 
@@ -893,9 +938,7 @@ static void drawLucePage(const DisplayData &d) {
   drawButton(LUCE_BTN[1], "+", "piu' chiara", COL_LABEL);
 
   snprintf(buf, sizeof(buf), "%u%%", d.blPercento);
-  tft.setTextSize(2);
-  displayField(buf, SW / 2, LUCE_PCT_Y, 4, 200, COL_FG);
-  tft.setTextSize(1);
+  displayField(buf, SW / 2, LUCE_PCT_Y, F_GRANDE, 200, COL_FG);
 
   // il modo attivo si riconosce dal bordo acceso, senza doverlo leggere
   static const char *NOMI[3] = { "Auto", "Giorno", "Notte" };
@@ -918,7 +961,7 @@ static void drawRoutePage(const DisplayData &d) {
   } else {
     tft.setTextDatum(MC_DATUM);
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("nessun percorso in memoria", SW / 2, 120, 4);
+    tftStr("nessun percorso in memoria", SW / 2, 120, 4);
   }
 
   if (d.navTotal) drawButton(ROUTE_RICALC, "Ricalcola il rientro", "", COL_WARN);
@@ -939,26 +982,26 @@ static void drawNewRoutePage(const DisplayData &d) {
 
   if (!inRete) {
     tft.setTextColor(COL_BAD, COL_BG);
-    tft.drawString("serve il telefono collegato", SW / 2, 100, 4);
+    tftStr("serve il telefono collegato", SW / 2, 100, 4);
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("accendi la rete del tracker, collega il telefono,", SW / 2, 148, 2);
-    tft.drawString("e l'indirizzo compare qui da solo", SW / 2, 172, 2);
+    tftStr("accendi la rete del tracker, collega il telefono,", SW / 2, 148, 2);
+    tftStr("e l'indirizzo compare qui da solo", SW / 2, 172, 2);
     drawButton(PAGE_BTN[2], "Accendi", "", COL_OK);
   } else {
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("apri questo indirizzo sul telefono", SW / 2, 72, 2);
+    tftStr("apri questo indirizzo sul telefono", SW / 2, 72, 2);
     snprintf(buf, sizeof(buf), "http://%s/percorso",
              d.portal ? "192.168.4.1" : (d.ipText ? d.ipText : "--"));
     tft.setTextColor(COL_OK, COL_BG);
-    tft.drawString(buf, SW / 2, 108, 4);
+    tftStr(buf, SW / 2, 108, 4);
 
     if (d.portal) {
       tft.setTextColor(COL_WARN, COL_BG);
-      tft.drawString("sulla rete del tracker non c'e' internet:", SW / 2, 150, 2);
-      tft.drawString("le strade e le svolte non si possono calcolare", SW / 2, 172, 2);
+      tftStr("sulla rete del tracker non c'e' internet:", SW / 2, 150, 2);
+      tftStr("le strade e le svolte non si possono calcolare", SW / 2, 172, 2);
     } else {
       tft.setTextColor(COL_LABEL, COL_BG);
-      tft.drawString("strade e svolte le calcola da solo", SW / 2, 152, 2);
+      tftStr("strade e svolte le calcola da solo", SW / 2, 152, 2);
     }
 
     if (d.navTotal) {
@@ -968,9 +1011,9 @@ static void drawNewRoutePage(const DisplayData &d) {
       snprintf(buf, sizeof(buf), "nessun percorso in memoria");
       tft.setTextColor(COL_LABEL, COL_BG);
     }
-    tft.drawString(buf, SW / 2, 210, 2);
+    tftStr(buf, SW / 2, 210, 2);
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("questa riga cambia da sola appena salvi", SW / 2, 232, 2);
+    tftStr("questa riga cambia da sola appena salvi", SW / 2, 232, 2);
   }
 
   drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
@@ -983,8 +1026,8 @@ static void drawNetsPage(const DisplayData &d) {
   if (!d.netCount) {
     tft.setTextDatum(MC_DATUM);
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("nessuna rete salvata", SW / 2, 120, 4);
-    tft.drawString("salvane una dal telefono, pagina /wifi", SW / 2, 160, 2);
+    tftStr("nessuna rete salvata", SW / 2, 120, 4);
+    tftStr("salvane una dal telefono, pagina /wifi", SW / 2, 160, 2);
   }
 
   const uint8_t quante = d.netCount < UI_NET_RIGHE ? d.netCount : UI_NET_RIGHE;
@@ -998,7 +1041,7 @@ static void drawNetsPage(const DisplayData &d) {
 
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("il collegamento puo' chiedere qualche secondo", SW / 2, 248, 2);
+  tftStr("il collegamento puo' chiedere qualche secondo", SW / 2, 248, 2);
 
   drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
 }
@@ -1009,36 +1052,36 @@ static void drawPhonePage(const DisplayData &d) {
   tft.setTextDatum(MC_DATUM);
   if (d.portal) {
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("collega il telefono a questa rete", SW / 2, 72, 2);
+    tftStr("collega il telefono a questa rete", SW / 2, 72, 2);
     tft.setTextColor(COL_FG, COL_BG);
-    tft.drawString(d.apName ? d.apName : "GPS-Tracker", SW / 2, 108, 4);
+    tftStr(d.apName ? d.apName : "GPS-Tracker", SW / 2, 108, 4);
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("password: " AP_PASSWORD, SW / 2, 144, 2);
+    tftStr("password: " AP_PASSWORD, SW / 2, 144, 2);
     tft.setTextColor(COL_OK, COL_BG);
-    tft.drawString("http://192.168.4.1", SW / 2, 186, 4);
+    tftStr("http://192.168.4.1", SW / 2, 186, 4);
     drawButton(PAGE_BTN[2], "Spegni", "", COL_WARN);
   } else if (d.ipText && *d.ipText) {
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("stessa rete del telefono:", SW / 2, 72, 2);
+    tftStr("stessa rete del telefono:", SW / 2, 72, 2);
     tft.setTextColor(COL_FG, COL_BG);
-    tft.drawString(d.netName ? d.netName : "--", SW / 2, 106, 4);
+    tftStr(d.netName ? d.netName : "--", SW / 2, 106, 4);
     tft.setTextColor(COL_OK, COL_BG);
-    tft.drawString(d.ipText, SW / 2, 152, 4);
+    tftStr(d.ipText, SW / 2, 152, 4);
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("oppure http://gps-tracker.local/", SW / 2, 190, 2);
+    tftStr("oppure http://gps-tracker.local/", SW / 2, 190, 2);
     drawButton(PAGE_BTN[2], "Rete mia", "", COL_CYAN);
   } else {
     tft.setTextColor(COL_BAD, COL_BG);
-    tft.drawString("nessuna rete", SW / 2, 100, 4);
+    tftStr("nessuna rete", SW / 2, 100, 4);
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("accendi la rete del tracker e collegati a quella", SW / 2, 150, 2);
+    tftStr("accendi la rete del tracker e collegati a quella", SW / 2, 150, 2);
     drawButton(PAGE_BTN[2], "Accendi", "", COL_OK);
   }
 
   // la carta d'identita' del firmware: qui si legge con calma, lo splash dura un attimo
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("firmware  " FW_VERSIONE, SW / 2, 232, 2);
+  tftStr("firmware  " FW_VERSIONE, SW / 2, 232, 2);
 
   drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
   if (d.netCount > 1) drawButton(PAGE_BTN[1], "Reti", "", COL_CYAN);
@@ -1063,9 +1106,9 @@ static void drawConfirmPage() {
   drawPageHead("CONFERMA");
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString(uiQuestion, SW / 2, CONF_Q_Y, 4);
+  tftStr(uiQuestion, SW / 2, CONF_Q_Y, 4);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("non si torna indietro", SW / 2, CONF_SUB_Y, 2);
+  tftStr("non si torna indietro", SW / 2, CONF_SUB_Y, 2);
   drawButton(CONF_NO, "No", "", COL_LINE);
   drawButton(CONF_SI, "Si', cancella", "", COL_BAD);
 }
@@ -1250,9 +1293,9 @@ static void displayAvviso(const char *titolo, const char *sotto) {
   tft.fillScreen(COL_BG);
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString(titolo, SW / 2, SH / 2 - 20, 4);
+  tftStr(titolo, SW / 2, SH / 2 - 20, 4);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString(sotto, SW / 2, SH / 2 + 20, 2);
+  tftStr(sotto, SW / 2, SH / 2 + 20, 2);
 }
 
 static void drawSplash() {
@@ -1261,13 +1304,11 @@ static void drawSplash() {
 
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.setTextSize(2);
-  tft.drawString("GPS TRACKER", SW / 2, SH - 80, 4);
-  tft.setTextSize(1);
+  tftStr("GPS TRACKER", SW / 2, SH - 80, F_GRANDE);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("registra i percorsi e ti porta a destinazione", SW / 2, SH - 34, 2);
+  tftStr("registra i percorsi e ti porta a destinazione", SW / 2, SH - 34, 2);
   tft.setTextColor(COL_LINE, COL_BG);
-  tft.drawString(FW_VERSIONE, SW / 2, SH - 12, 1);
+  tftStr(FW_VERSIONE, SW / 2, SH - 12, 1);
 
   const uint8_t  fotogrammi = 26;
   const uint32_t pausa = SPLASH_MS / fotogrammi;

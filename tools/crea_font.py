@@ -42,15 +42,27 @@ QUI = os.path.dirname(os.path.abspath(__file__))
 DEST = os.path.join(QUI, '..', 'src', 'font')
 
 ASCII = ''.join(chr(c) for c in range(32, 127))
-MAIUSC = ' 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ.,:%-/'
+LETTERE = (' 0123456789.,:%-/'
+           'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+           'abcdefghijklmnopqrstuvwxyz')
 CIFRE = ' 0123456789.,:-'
+
+# Un glifo che manca non da' errore: TFT_eSPI semplicemente non disegna
+# niente. E' il guasto peggiore, perche' si vede solo guardando lo schermo
+# nel momento giusto. Per questo ogni misura porta con se' degli esempi di
+# cio' che dovra' scrivere, e la generazione si ferma se non li copre.
+ESEMPI = {
+    'fontGrande': ['NE', 'NO', 'SE', 'SO', '900 m', '1,2 km', '72', '100%',
+                   'GPS TRACKER', '--'],
+    'fontEnorme': ['0', '188', '72'],
+}
 
 # nome in C, file del carattere, pixel, caratteri, a cosa serve
 PIANO = [
-    ('fontPiccolo', 'Inter-Medium.otf',   16, ASCII,  'etichette e sottotitoli'),
-    ('fontMedio',   'Inter-Medium.otf',   26, ASCII,  'valori e titoli dei tasti'),
-    ('fontGrande',  'Inter-SemiBold.otf', 48, MAIUSC, 'direzione, percentuali'),
-    ('fontEnorme',  'Inter-SemiBold.otf', 72, CIFRE,  'la velocita\''),
+    ('fontPiccolo', 'Inter-Medium.otf',   16, ASCII,   'etichette e sottotitoli'),
+    ('fontMedio',   'Inter-Medium.otf',   26, ASCII,   'valori e titoli dei tasti'),
+    ('fontGrande',  'Inter-SemiBold.otf', 48, LETTERE, 'direzione, distanze, percentuali'),
+    ('fontEnorme',  'Inter-SemiBold.otf', 92, CIFRE,   'la velocita\''),
 ]
 
 CERCA_IN = [
@@ -175,6 +187,10 @@ def main():
     guasti = 0
     for nome, file_font, px, car, uso in PIANO:
         p = trova(file_font)
+        mancano = sorted({c for s in ESEMPI.get(nome, []) for c in s} - set(car))
+        if mancano:
+            sys.exit('%s non copre %r: su schermo non si vedrebbe niente'
+                     % (nome, ''.join(mancano)))
         n_byte, scarto = verifica(p, px, car)
         esito = 'esatto' if scarto == 0 else 'SCARTO %d' % scarto
         if scarto:

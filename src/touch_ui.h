@@ -119,13 +119,14 @@ static void touchRunCalibration() {
   tft.fillScreen(COL_BG);
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("Taratura del tocco", SW / 2, 110, 4);
+  tftStr("Taratura del tocco", SW / 2, 110, 4);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("tocca la PUNTA della freccia in ogni angolo", SW / 2, 150, 2);
+  tftStr("tocca la PUNTA della freccia in ogni angolo", SW / 2, 150, 2);
   tft.setTextColor(COL_WARN, COL_BG);
-  tft.drawString("piu' ti avvicini al bordo, piu' viene precisa", SW / 2, 178, 2);
+  tftStr("piu' ti avvicini al bordo, piu' viene precisa", SW / 2, 178, 2);
   delay(1800);
 
+  fontUsa(0);                      // la taratura disegna coi font suoi
   tft.calibrateTouch(touchCal, COL_WARN, COL_BG, 15);
   tft.setTouch(touchCal);
   touchSaveCal();
@@ -147,14 +148,14 @@ static void touchRunCalibration() {
     Serial.println(F("[TOUCH] ampiezze piccole: hai toccato troppo dentro, meta' schermo "
                      "restera' insensibile. Tieni premuto BOOT 3 secondi e rifalla."));
     tft.setTextColor(COL_WARN, COL_BG);
-    tft.drawString("taratura imprecisa", SW / 2, 130, 4);
+    tftStr("taratura imprecisa", SW / 2, 130, 4);
     tft.setTextColor(COL_LABEL, COL_BG);
-    tft.drawString("hai toccato troppo dentro: tieni premuto BOOT 3 secondi", SW / 2, 168, 2);
-    tft.drawString("e rifalla toccando proprio sulla punta delle frecce", SW / 2, 192, 2);
+    tftStr("hai toccato troppo dentro: tieni premuto BOOT 3 secondi", SW / 2, 168, 2);
+    tftStr("e rifalla toccando proprio sulla punta delle frecce", SW / 2, 192, 2);
     delay(3500);
   } else {
     tft.setTextColor(COL_OK, COL_BG);
-    tft.drawString("fatto", SW / 2, 150, 4);
+    tftStr("fatto", SW / 2, 150, 4);
     delay(600);
   }
 }
@@ -184,12 +185,12 @@ static void touchBegin() {
   tft.fillScreen(COL_BG);
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_FG, COL_BG);
-  tft.drawString("Taratura del tocco", SW / 2, SH / 3, 4);
+  tftStr("Taratura del tocco", SW / 2, SH / 3, 4);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tft.drawString("tocca lo schermo per cominciare", SW / 2, SH / 3 + 40, 2);
-  tft.drawString(uiVert ? "schermo in piedi" : "schermo sdraiato", SW / 2, SH / 3 + 70, 2);
+  tftStr("tocca lo schermo per cominciare", SW / 2, SH / 3 + 40, 2);
+  tftStr(uiVert ? "schermo in piedi" : "schermo sdraiato", SW / 2, SH / 3 + 70, 2);
   tft.setTextColor(COL_WARN, COL_BG);
-  tft.drawString("oppure tieni premuto il tasto 3 secondi", SW / 2, SH - 40, 2);
+  tftStr("oppure tieni premuto il tasto 3 secondi", SW / 2, SH - 40, 2);
 
   // Un minuto invece di quindici secondi: cambiando formato la taratura va
   // rifatta per forza, e perdere la finestra vuol dire ritrovarsi senza tocco
