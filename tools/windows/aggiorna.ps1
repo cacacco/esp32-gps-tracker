@@ -22,7 +22,11 @@ function Scrivi([string]$testo, [string]$colore = 'Gray') {
 }
 
 $progetto = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$ramo     = 'esp32-gps-tracker'
+# Il ramo giusto e' quello che il repository dichiara come predefinito, non
+# uno scritto qui dentro: cosi' lo script continua a funzionare anche se un
+# giorno il ramo cambia nome, come e' gia' successo trasferendo il progetto.
+$ramo = (& git -C $progetto symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>$null) -replace '^origin/', ''
+if (-not $ramo) { $ramo = 'main' }
 
 Scrivi ""
 Scrivi "=== Aggiornamento ESP32 GPS Tracker ===" 'Cyan'
