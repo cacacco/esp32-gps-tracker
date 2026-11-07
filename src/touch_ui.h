@@ -123,7 +123,7 @@ static void touchRunCalibration() {
   tft.setTextColor(COL_LABEL, COL_BG);
   tftStr("tocca la PUNTA della freccia in ogni angolo", SW / 2, 150, 2);
   tft.setTextColor(COL_WARN, COL_BG);
-  tftStr("piu' ti avvicini al bordo, piu' viene precisa", SW / 2, 178, 2);
+  tftStr("più ti avvicini al bordo, più viene precisa", SW / 2, 178, 2);
   delay(1800);
 
   fontUsa(0);                      // la taratura disegna coi font suoi

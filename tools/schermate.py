@@ -161,8 +161,12 @@ def sistema(L):
 def luce(L):
     s = Schermo(L)
     s.txt(14, 19, 'LUCE', F4, FG, 'lm'); s.hl(0, 38, L['SW'], LINE)
-    s.btn(L['LUCE_BTN0'], '-', "piu' scura", LABEL)
-    s.btn(L['LUCE_BTN1'], '+', 'piu\' chiara', LABEL)
+    # il meno e il piu' sono forme disegnate, non lettere: vedi drawSegno
+    for chiave, piu, sotto in (('LUCE_BTN0', False, 'più scura'), ('LUCE_BTN1', True, 'più chiara')):
+        r = L[chiave]; s.btn(r, '', sotto, LABEL)
+        cx, cy = r[0] + r[2] // 2, r[1] + r[3] // 2 - 14
+        s.d.rounded_rectangle([(cx-18)*K, (cy-3)*K, (cx+18)*K, (cy+4)*K], radius=3*K, fill=FG)
+        if piu: s.d.rounded_rectangle([(cx-3)*K, (cy-18)*K, (cx+4)*K, (cy+18)*K], radius=3*K, fill=FG)
     s.txt(L['SW'] // 2, L['LUCE_PCT_Y'], '100%', F4X2, FG)
     # il modo attivo ha il bordo verde: qui e' "Giorno", cioe' tema chiaro
     for k, nome in enumerate(('Auto', 'Giorno', 'Notte')):

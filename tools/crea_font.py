@@ -42,7 +42,11 @@ QUI = os.path.dirname(os.path.abspath(__file__))
 DEST = os.path.join(QUI, '..', 'src', 'font')
 
 ASCII = ''.join(chr(c) for c in range(32, 127))
-LETTERE = (' 0123456789.,:%-/'
+# Le accentate dell'italiano: coi font a matrice non c'erano e si scriveva
+# "piu'" con l'apostrofo. Col carattere vero non c'e' piu' scusa.
+ACCENTI = 'àèéìòùÀÈÉÌÒÙ'
+TESTO = ASCII + ACCENTI
+LETTERE = (' 0123456789.,:%+-/'
            'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
            'abcdefghijklmnopqrstuvwxyz')
 CIFRE = ' 0123456789.,:-'
@@ -52,15 +56,17 @@ CIFRE = ' 0123456789.,:-'
 # nel momento giusto. Per questo ogni misura porta con se' degli esempi di
 # cio' che dovra' scrivere, e la generazione si ferma se non li copre.
 ESEMPI = {
-    'fontGrande': ['NE', 'NO', 'SE', 'SO', '900 m', '1,2 km', '72', '100%',
-                   'GPS TRACKER', '--'],
-    'fontEnorme': ['0', '188', '72'],
+    'fontPiccolo': ['più scura', 'velocità max', "non c'è internet", 'può'],
+    'fontMedio':   ['velocità e viaggio', 'Indietro', 'È'],
+    'fontGrande':  ['NE', 'NO', 'SE', 'SO', '900 m', '1,2 km', '72', '100%',
+                    'GPS TRACKER', '--', '+'],
+    'fontEnorme':  ['0', '188', '72'],
 }
 
 # nome in C, file del carattere, pixel, caratteri, a cosa serve
 PIANO = [
-    ('fontPiccolo', 'Inter-Medium.otf',   16, ASCII,   'etichette e sottotitoli'),
-    ('fontMedio',   'Inter-Medium.otf',   26, ASCII,   'valori e titoli dei tasti'),
+    ('fontPiccolo', 'Inter-Medium.otf',   16, TESTO,   'etichette e sottotitoli'),
+    ('fontMedio',   'Inter-Medium.otf',   26, TESTO,   'valori e titoli dei tasti'),
     ('fontGrande',  'Inter-SemiBold.otf', 48, LETTERE, 'direzione, distanze, percentuali'),
     ('fontEnorme',  'Inter-SemiBold.otf', 92, CIFRE,   'la velocita\''),
 ]

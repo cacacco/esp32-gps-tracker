@@ -10,3 +10,6 @@ src/config_local.h
 # cache di Python, generata dagli strumenti in tools/
 __pycache__/
 *.pyc
+
+# binario di servizio compilato da tools/controlla_testi.py
+tools/.dumplayout

@@ -116,7 +116,9 @@ static void layoutOrizzontale() {
   // tasto dello schermo basta la parola, lo stato si legge dentro la pagina.
   MENU_LUCE    = (Rect){14, 262, 330, 52};
   MENU_SCHERMO = (Rect){352, 262, 114, 52};
-  LUCE_BTN[0] = (Rect){14, 56, 221, 86}; LUCE_BTN[1] = (Rect){245, 56, 221, 86};
+  // Alti 76 e non 86: con 86 il "100%" qui sotto, alto 48 px, restava a
+  // quattro pixel dal loro bordo. Per il guanto 221x76 avanza.
+  LUCE_BTN[0] = (Rect){14, 56, 221, 76}; LUCE_BTN[1] = (Rect){245, 56, 221, 76};
   LUCE_PCT_Y  = 170;
   const Rect mo[3] = {{14,200,140,48},{170,200,140,48},{326,200,140,48}};
   for (uint8_t i = 0; i < 3; i++) MODO_BTN[i] = mo[i];

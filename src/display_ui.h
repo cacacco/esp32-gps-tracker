@@ -835,8 +835,13 @@ static void uiAsk(UiAction a, const char *domanda) {
 static void drawButton(const Rect &r, const char *titolo, const char *sotto, uint16_t bordo) {
   // Angoli sfumati invece che a gradini: su uno schermo piccolo la differenza
   // fra un pulsante disegnato bene e uno disegnato male e' tutta qui.
-  tft.fillSmoothRoundRect(r.x, r.y, r.w, r.h, 10, COL_BTN, COL_BG);
-  tft.drawSmoothRoundRect(r.x, r.y, 10, 9, r.w, r.h, bordo, COL_BG);
+  // Prima la cornice come rettangolo pieno, poi il riempimento dentro, un
+  // po' piu' piccolo: cosi' ogni bordo sfuma verso il colore che ha davvero
+  // accanto. Prima la cornice era un filo da un pixel sfumato contro il
+  // fondo dello schermo, mentre dentro c'era il grigio del pulsante: restava
+  // un alone chiaro fra i due e il pulsante sembrava avere due bordi.
+  tft.fillSmoothRoundRect(r.x, r.y, r.w, r.h, 10, bordo, COL_BG);
+  tft.fillSmoothRoundRect(r.x + 2, r.y + 2, r.w - 4, r.h - 4, 8, COL_BTN, bordo);
   // il pulsante scelto col tasto ha una cornice chiara tutt'intorno
   if (&r == uiSelRect)
     tft.drawSmoothRoundRect(r.x - 3, r.y - 3, 13, 11, r.w + 6, r.h + 6, COL_FG, COL_BG);
@@ -882,7 +887,7 @@ static void drawMenu(const DisplayData &d) {
 #endif
 
   drawButton(MENU_BTN[0], "Naviga",
-             d.navActive ? "percorso attivo" : d.fixValid ? "velocita' e viaggio"
+             d.navActive ? "percorso attivo" : d.fixValid ? "velocità e viaggio"
                                                           : "in attesa del fix", COL_CYAN);
 
   if (d.navTotal && uiVert)  snprintf(sotto, sizeof(sotto), "%.1f km", d.routeKm);
@@ -938,12 +943,22 @@ static void drawSistemaPage(const DisplayData &d) {
 #if PIN_TFT_BL >= 0
 // Due pulsanti grandi e niente altro: si usa col guanto, di notte, fermi al
 // semaforo. Il livello si vede anche da come cambia lo schermo mentre premi.
+// Il meno e il piu' disegnati come forme, non come lettere: il trattino di
+// un carattere e' un filo di pochi pixel, e su un tasto da premere col
+// guanto serve un segno che si veda da un metro.
+static void drawSegno(const Rect &r, bool piu) {
+  const int16_t L = 36, S = 7;
+  const int16_t cx = r.x + r.w / 2, cy = r.y + r.h / 2 - 14;
+  tft.fillSmoothRoundRect(cx - L / 2, cy - S / 2, L, S, 3, COL_FG, COL_BTN);
+  if (piu) tft.fillSmoothRoundRect(cx - S / 2, cy - L / 2, S, L, 3, COL_FG, COL_BTN);
+}
+
 static void drawLucePage(const DisplayData &d) {
   char buf[16];
   drawPageHead("LUCE");
 
-  drawButton(LUCE_BTN[0], "-", "piu' scura", COL_LABEL);
-  drawButton(LUCE_BTN[1], "+", "piu' chiara", COL_LABEL);
+  drawButton(LUCE_BTN[0], "", "più scura", COL_LABEL);  drawSegno(LUCE_BTN[0], false);
+  drawButton(LUCE_BTN[1], "", "più chiara", COL_LABEL); drawSegno(LUCE_BTN[1], true);
 
   snprintf(buf, sizeof(buf), "%u%%", d.blPercento);
   displayField(buf, SW / 2, LUCE_PCT_Y, F_GRANDE, 200, COL_FG);
@@ -1005,7 +1020,7 @@ static void drawNewRoutePage(const DisplayData &d) {
 
     if (d.portal) {
       tft.setTextColor(COL_WARN, COL_BG);
-      tftStr("sulla rete del tracker non c'e' internet:", SW / 2, 150, 2);
+      tftStr("sulla rete del tracker non c'è internet:", SW / 2, 150, 2);
       tftStr("le strade e le svolte non si possono calcolare", SW / 2, 172, 2);
     } else {
       tft.setTextColor(COL_LABEL, COL_BG);
@@ -1049,7 +1064,7 @@ static void drawNetsPage(const DisplayData &d) {
 
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_LABEL, COL_BG);
-  tftStr("il collegamento puo' chiedere qualche secondo", SW / 2, 248, 2);
+  tftStr("il collegamento può chiedere qualche secondo", SW / 2, 248, 2);
 
   drawButton(PAGE_BTN[0], "Indietro", "", COL_LINE);
 }
@@ -1100,7 +1115,7 @@ static void drawTripPage(const DisplayData &d) {
   drawPageHead("VIAGGIO");
 
   snprintf(buf, sizeof(buf), "%.1f km", d.tripKm);      drawRiga("percorsi", buf, RIGA_Y[0]);
-  snprintf(buf, sizeof(buf), "%.0f km/h", d.maxKmh);    drawRiga("velocita' max", buf, RIGA_Y[1]);
+  snprintf(buf, sizeof(buf), "%.0f km/h", d.maxKmh);    drawRiga("velocità max", buf, RIGA_Y[1]);
   displayDuration(d.movingS, buf, sizeof(buf));         drawRiga("in movimento", buf, RIGA_Y[2]);
   snprintf(buf, sizeof(buf), "%lu", (unsigned long)d.trackPoints);
   drawRiga("punti registrati", buf, RIGA_Y[3]);
