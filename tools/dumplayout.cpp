@@ -42,6 +42,7 @@ int main(int argc, char **argv) {
   i("NAV_REST_VY", NAV_REST_VY); i("NAV_REST_W", NAV_REST_W);
   i("NAV_LINE_X", NAV_LINE_X); i("NAV_LINE_Y", NAV_LINE_Y); i("NAV_LINE_W", NAV_LINE_W);
   i("NAV_SPD_X", NAV_SPD_X); i("NAV_SPD_Y", NAV_SPD_Y); i("NAV_SPD_W", NAV_SPD_W);
+  i("NAV_LIM_X", NAV_LIM_X); i("NAV_LIM_Y", NAV_LIM_Y); i("NAV_LIM_R", NAV_LIM_R);
   i("NAV_MARK_X", NAV_MARK_X); i("NAV_HINT", NAV_HINT);
   for (int k = 0; k < 4; k++) { char n[12]; snprintf(n, sizeof(n), "MENU_BTN%d", k); r(n, MENU_BTN[k]); }
   r("MENU_LUCE", MENU_LUCE); r("MENU_SCHERMO", MENU_SCHERMO);

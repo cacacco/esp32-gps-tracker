@@ -97,6 +97,7 @@ struct DisplayData {
   const char *navStopName;   // nome della prossima tappa
   float       navStopM;      // quanto manca
   uint8_t     navStops;
+  uint8_t     navLimite;     // limite del tratto, km/h; 0 = non si sa
 };
 
 static TFT_eSPI tft;
@@ -573,6 +574,22 @@ static void drawNavChrome() {
   tftStr("RESTANO", NAV_REST_X, NAV_REST_LY, 2);
 }
 
+// Il cartello del limite: disco bianco, corona rossa, numero nero. E' un
+// cartello stradale, non un pezzo dell'interfaccia: bianco e nero sono voluti
+// e non seguono il tema, come non lo segue quello sul ciglio della strada.
+// Con 0 si cancella e basta.
+static void drawCartello(int16_t x, int16_t y, int16_t r, uint8_t lim) {
+  if (!lim) { tft.fillCircle(x, y, r + 1, COL_BG); return; }
+  tft.fillSmoothCircle(x, y, r, COL_BAD, COL_BG);
+  tft.fillSmoothCircle(x, y, r - 5, TFT_WHITE, COL_BAD);
+  char buf[4];
+  snprintf(buf, sizeof(buf), "%u", lim);
+  tft.setTextDatum(MC_DATUM);
+  tft.setTextColor(TFT_BLACK, TFT_WHITE);
+  // tre cifre non stanno nel disco col carattere medio: scendono al piccolo
+  tftStr(buf, x, y, lim >= 100 ? F_PICCOLO : F_MEDIO);
+}
+
 static void drawNav(const DisplayData &d, bool force) {
   static int32_t pAngle = -9999, pRemain = -1, pSpeed = -1, pTurnM = -1, pPoiM = -1;
   static int8_t  pState = -1, pMode = -1, pVicina = -1;
@@ -733,12 +750,19 @@ static void drawNav(const DisplayData &d, bool force) {
     displayField(buf, NAV_POI_DX, NAV_POI_DY, 2, NAV_POI_DW, COL_LABEL);
   }
 
-  // ---- velocita' ----------------------------------------------------------
+  // ---- limite e velocita' -------------------------------------------------
+  static uint8_t pLimite = 255;
+  static bool    pOltre  = false;
+  if (force || d.navLimite != pLimite) {
+    pLimite = d.navLimite;
+    drawCartello(NAV_LIM_X, NAV_LIM_Y, NAV_LIM_R, d.navLimite);
+  }
   const int32_t velocita = (int32_t)(d.speedKmh + 0.5f);
-  if (force || velocita != pSpeed) {
-    pSpeed = velocita;
+  const bool    oltre    = d.navLimite && velocita > (int32_t)d.navLimite + LIMITE_TOLLERANZA_KMH;
+  if (force || velocita != pSpeed || oltre != pOltre) {
+    pSpeed = velocita; pOltre = oltre;
     snprintf(buf, sizeof(buf), "%ld", (long)velocita);
-    displayField(buf, NAV_SPD_X, NAV_SPD_Y, F_GRANDE, NAV_SPD_W, COL_FG);
+    displayField(buf, NAV_SPD_X, NAV_SPD_Y, F_GRANDE, NAV_SPD_W, oltre ? COL_BAD : COL_FG);
   }
 
   pState  = stato;

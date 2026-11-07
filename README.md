@@ -938,6 +938,37 @@ di metri. La freccia punta sempre al prossimo punto, quindi in curva ruota segue
 | un **GPX** caricato | segue il tracciato del file: se il file e' stato registrato su strada, segue la strada (ma senza svolte: un GPX non le contiene) |
 | **nessun percorso** | non c'e' nessuna freccia: il display mostra la schermata di marcia, con velocita', direzione in gradi e distanza dalla base |
 
+### I limiti di velocità
+
+![cartello del limite accanto alla velocità](docs/schermate/v-nav-limiti.png)
+
+Quando il telefono calcola il percorso, chiede anche i **limiti di velocità** lungo la
+strada e li manda al tracker insieme ai punti: un byte per punto. In navigazione, accanto
+alla velocità compare il **cartello** del tratto in cui sei, e il numero diventa **rosso**
+quando superi il limite di più di `LIMITE_TOLLERANZA_KMH` (5 km/h di serie, in `config.h`).
+La dashboard mostra lo stesso dato accanto alla velocità.
+
+Da dove vengono, e quanto fidarsi:
+
+* i limiti arrivano da **OpenStreetMap**, interrogato dal telefono (Overpass) lungo il
+  percorso appena calcolato. Si usa il cartello (`maxspeed`) o il tipo di strada
+  italiano (`IT:urban` = 50, `IT:rural` = 90, `IT:trunk` = 110, `IT:motorway` = 130);
+* dove OSM **non ha il dato, non compare nessun cartello**. Il tracker non inventa: meglio
+  nessun numero che uno sbagliato. In Italia i tratti senza cartello su OSM ci sono, e
+  se ne trovi uno sulla tua strada puoi aggiungerlo tu su OpenStreetMap, ne beneficiano
+  tutti;
+* non si usa la velocità che OSRM restituisce per i tratti: per le strade senza cartello
+  mette la sua stima di marcia (90 in autostrada, 65 su una provinciale) e non si
+  distingue dal dato vero. Un cartello sbagliato è peggio di nessun cartello;
+* il **tratto di rientro** dopo un fuori percorso non ha limiti: lo calcola il tracker da
+  solo, senza il telefono;
+* vale **lungo il percorso**, non girando a vuoto: senza una mappa a bordo il tracker non
+  sa su che strada sei.
+
+Il cartello è un cartello: bianco con la corona rossa anche di notte, come quello sul
+ciglio della strada. E resta un aiuto, non un'autorità: il limite che vale è quello che
+vedi sulla strada.
+
 ### Se sbagli strada
 
 Oltre i 60 metri dal tracciato il tracker ti considera fuori percorso, e fa due cose.

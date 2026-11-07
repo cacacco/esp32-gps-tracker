@@ -124,6 +124,12 @@
 #define REROUTE_COOLDOWN_S        45   // minimo fra due tentativi
 #define REROUTE_AHEAD_M          250   // quanto piu' avanti rientrare sul percorso
 #define REROUTE_MAX_LEG          400   // punti del tratto di rientro, 8 byte l'uno
+
+// Limiti di velocita'. Arrivano dal telefono insieme al percorso, letti da
+// OpenStreetMap (il tag maxspeed delle strade): un byte per punto, 0 dove il
+// cartello su OSM non c'e'. Il tracker non inventa niente: senza dato, niente
+// cartello. Sopra il limite piu' questa tolleranza la velocita' si colora.
+#define LIMITE_TOLLERANZA_KMH      5
 #define REROUTE_MAX_TURNS         40   // manovre del tratto di rientro
 #define REROUTE_TIMEOUT_MS      9000   // oltre, si lascia perdere e si riprova dopo
 #define REROUTE_MIN_HEAP       55000   // con meno RAM libera non ci si prova nemmeno

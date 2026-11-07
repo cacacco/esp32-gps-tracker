@@ -55,6 +55,7 @@ static int16_t NAV_POI_LX, NAV_POI_LY, NAV_POI_DX, NAV_POI_DY, NAV_POI_DW;
 static int16_t NAV_REST_X, NAV_REST_LY, NAV_REST_VY, NAV_REST_W;
 static int16_t NAV_LINE_X, NAV_LINE_Y, NAV_LINE_W;
 static int16_t NAV_SPD_X, NAV_SPD_Y, NAV_SPD_W;
+static int16_t NAV_LIM_X, NAV_LIM_Y, NAV_LIM_R;   // il cartello del limite
 static int16_t NAV_MARK_X;                     // cunei del cambio di via
 static int16_t NAV_HINT;
 
@@ -107,7 +108,10 @@ static void layoutOrizzontale() {
   NAV_POI_LX = 386; NAV_POI_LY = 210; NAV_POI_DX = 414; NAV_POI_DY = 242; NAV_POI_DW = 100;
   NAV_REST_X = 144; NAV_REST_LY = 238; NAV_REST_VY = 268; NAV_REST_W = 270;
   NAV_LINE_X = 144; NAV_LINE_Y = 302; NAV_LINE_W = 280;
-  NAV_SPD_X = 386; NAV_SPD_Y = 290; NAV_SPD_W = 170;
+  // Cartello a sinistra, velocita' a destra. La cancellazione della velocita'
+  // (NAV_SPD_W) non deve arrivare sul cartello, altrimenti lo cancella.
+  NAV_LIM_X = 322; NAV_LIM_Y = 290; NAV_LIM_R = 26;
+  NAV_SPD_X = 409; NAV_SPD_Y = 290; NAV_SPD_W = 110;
   NAV_MARK_X = 302; NAV_HINT = BAR_HINT;
 
   const Rect mb[4] = {{14,50,221,100},{245,50,221,100},{14,156,221,100},{245,156,221,100}};
@@ -172,7 +176,8 @@ static void layoutVerticale() {
   NAV_POI_LX = 235; NAV_POI_LY = 362; NAV_POI_DX = 258; NAV_POI_DY = 392; NAV_POI_DW = 86;
   NAV_REST_X = 80; NAV_REST_LY = 362; NAV_REST_VY = 392; NAV_REST_W = 140;
   NAV_LINE_X = 160; NAV_LINE_Y = 172; NAV_LINE_W = 300;
-  NAV_SPD_X = 160; NAV_SPD_Y = 448; NAV_SPD_W = 300;
+  NAV_LIM_X = 56;  NAV_LIM_Y = 448; NAV_LIM_R = 26;
+  NAV_SPD_X = 180; NAV_SPD_Y = 448; NAV_SPD_W = 190;
   NAV_MARK_X = 20; NAV_HINT = BAR_HINT;
 
   // Riquadri piu' bassi e barre piu' alte: in piedi lo spazio in verticale

@@ -226,6 +226,70 @@ function rotta(a, b){
 const delta = (a, b) => (b - a + 540) % 360 - 180;
 
 // toglie i punti in mezzo ai rettilinei e tiene quelli nelle curve
+// ---- limiti di velocita' ---------------------------------------------------
+// Chiesti a Overpass, i dati grezzi di OpenStreetMap, lungo il percorso: solo
+// le strade che hanno il cartello (maxspeed) o il tipo di limite italiano.
+// Dove il dato non c'e' il punto resta senza limite e il tracker non mostra
+// niente: non si inventa. Non si usa la velocita' di OSRM, che per le strade
+// senza cartello mette la sua stima (90 in autostrada) e non si distingue
+// dal dato vero.
+const OVERPASS = 'https://overpass-api.de/api/interpreter';
+const LIMITI_IT = {'IT:urban':50, 'IT:rural':90, 'IT:trunk':110, 'IT:motorway':130};
+function leggiLimite(tags){
+  const v = tags.maxspeed || tags['maxspeed:type'] || '';
+  const n = parseInt(v, 10);
+  if (n > 0 && n < 255 && !/mph/.test(v)) return n;
+  return LIMITI_IT[v] || 0;
+}
+// distanza in metri fra un punto e un segmento, su una proiezione locale
+function distSeg(lat, lon, s){
+  const k = Math.cos(lat * Math.PI / 180);
+  const ax = (s[1]-lon)*k, ay = s[0]-lat, bx = (s[3]-lon)*k, by = s[2]-lat;
+  const dx = bx-ax, dy = by-ay, l2 = dx*dx + dy*dy;
+  let t = l2 ? -(ax*dx + ay*dy) / l2 : 0; t = Math.max(0, Math.min(1, t));
+  const px = ax + dx*t, py = ay + dy*t;
+  return Math.sqrt(px*px + py*py) * 111320;
+}
+async function limiti(pts){
+  if (!pts || pts.length < 2) return 0;
+  // la linea per Overpass: un punto ogni ~60 m basta, il raggio copre il resto
+  const linea = []; let ultimo = null;
+  for (const q of pts) if (!ultimo || metri(ultimo, q) > 60){ linea.push(q[0].toFixed(5) + ',' + q[1].toFixed(5)); ultimo = q; }
+  const fine = pts[pts.length-1];
+  if (ultimo !== fine) linea.push(fine[0].toFixed(5) + ',' + fine[1].toFixed(5));
+  const q = '[out:json][timeout:60];way(around:30,' + linea.join(',') + ')["highway"]->.s;'
+          + '(way.s["maxspeed"];way.s["maxspeed:type"];);out geom;';
+  const ctl = new AbortController(); const orologio = setTimeout(() => ctl.abort(), 45000);
+  const r = await fetch(OVERPASS, {method:'POST', body:'data=' + encodeURIComponent(q), signal:ctl.signal,
+                                   headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+  clearTimeout(orologio);
+  if (!r.ok) throw new Error('Overpass ' + r.status);
+  const j = await r.json();
+  // ogni strada col cartello diventa una lista di segmenti, con la sua
+  // scatola per scartare in fretta quelli lontani
+  const segmenti = [], M = 0.0004;
+  for (const w of (j.elements || [])){
+    const lim = leggiLimite(w.tags || {}); if (!lim || !w.geometry) continue;
+    for (let i = 1; i < w.geometry.length; i++){
+      const a = w.geometry[i-1], b = w.geometry[i];
+      segmenti.push([a.lat, a.lon, b.lat, b.lon, lim,
+                     Math.min(a.lat,b.lat)-M, Math.max(a.lat,b.lat)+M, Math.min(a.lon,b.lon)-M, Math.max(a.lon,b.lon)+M]);
+    }
+  }
+  // a ogni punto del percorso il limite del segmento piu' vicino entro 25 m
+  let trovati = 0;
+  for (const p of pts){
+    let meglio = 25, lim = 0;
+    for (const s of segmenti){
+      if (p[0] < s[5] || p[0] > s[6] || p[1] < s[7] || p[1] > s[8]) continue;
+      const d = distSeg(p[0], p[1], s);
+      if (d < meglio){ meglio = d; lim = s[4]; }
+    }
+    p[2] = lim; if (lim) trovati++;
+  }
+  return trovati;
+}
+
 function rarefai(pts){
   let passo = 25, out = pts;
   for (let g = 0; g < 7; g++){
@@ -504,6 +568,12 @@ async function aggiorna(centra){
     strada = rarefai(res.coords);
     svolte = res.passi;
     linea.setLatLngs(strada);
+    // i limiti vengono dopo e a parte: se Overpass non risponde il percorso
+    // resta buono lo stesso, solo senza cartelli
+    let notaLimiti = '';
+    $('nota').textContent = 'cerco i limiti di velocita\'...';
+    try { const n = await limiti(strada); notaLimiti = n ? ' - limiti su ' + n + ' punti' : ' - nessun limite trovato'; }
+    catch(e){ notaLimiti = ' - limiti non disponibili (' + e.message + ')'; }
     let km = 0;
     for (let i = 1; i < strada.length; i++) km += metri(strada[i-1], strada[i]);
     $('km').textContent = (km/1000).toFixed(1) + ' km';
@@ -511,7 +581,8 @@ async function aggiorna(centra){
       + (esclusioniIgnorate ? ' - senza quelle strade non si arriva, percorso normale'
          : esclusioni().length ? ' - ' + (esclusioni().includes('motorway') ? 'senza autostrade' : '')
            + (esclusioni().length === 2 ? ' e ' : '')
-           + (esclusioni().includes('toll') ? 'senza pedaggi' : '') : '');
+           + (esclusioni().includes('toll') ? 'senza pedaggi' : '') : '')
+      + notaLimiti;
     $('salva').disabled = bloccato;
     if (centra) mappa.fitBounds(linea.getBounds(), {padding:[60,60]});
   } catch(e){
@@ -530,7 +601,8 @@ $('salva').onclick = async () => {
   $('salva').disabled = true;
   $('nota').textContent = 'salvo sul tracker...';
   try {
-    const corpo = punti.map(q => q[0].toFixed(6) + ',' + q[1].toFixed(6)).join(';');
+    // cinque decimali (un metro): sei con il limite in coda sforavano i 40 KB
+    const corpo = punti.map(q => q[0].toFixed(5) + ',' + q[1].toFixed(5) + (q[2] ? ',' + q[2] : '')).join(';');
     const r1 = await fetch('/api/route/draw', {method:'POST', headers:{'Content-Type':'text/plain'}, body:corpo});
     if (!r1.ok) throw new Error('percorso rifiutato');
     const j = await r1.json();

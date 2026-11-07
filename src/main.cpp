@@ -500,6 +500,7 @@ static void handleStatus() {
   doc["lon"]        = fix.lon;
   doc["alt"]        = fix.altitude;
   doc["speed"]      = fix.speedKmh;
+  doc["limite"]     = routeLimiteCorrente();   // km/h, 0 = sconosciuto
   doc["course"]     = fix.course;
   doc["cardinal"]   = TinyGPSPlus::cardinal(fix.course);
   doc["sats"]       = gps.satellites.isValid() ? gps.satellites.value() : 0;
@@ -778,7 +779,8 @@ static void handleStopsClear() {
 static void handleRouteDraw() {
   const String body = server.arg("plain");
   if (!body.length())        { server.send(400, "application/json", "{\"error\":\"corpo vuoto\"}"); return; }
-  if (body.length() > 40000) { server.send(413, "application/json", "{\"error\":\"troppi punti\"}"); return; }
+  // 1800 punti con cinque decimali e il limite stanno in 40 KB; un po' d'aria
+  if (body.length() > 48000) { server.send(413, "application/json", "{\"error\":\"troppi punti\"}"); return; }
 
   routeBeginBuild();
   const char *p = body.c_str();
@@ -791,8 +793,17 @@ static void handleRouteDraw() {
     const double lon = strtod(p, &end);
     if (end == p) break;
     p = end;
+    // terzo numero, facoltativo: il limite in km/h del tratto che parte qui
+    long lim = 0;
+    while (*p == ' ') p++;
+    if (*p == ',') {
+      p++;
+      lim = strtol(p, &end, 10);
+      p = end;
+      if (lim < 0 || lim > 255) lim = 0;
+    }
     while (*p == ';' || *p == '\n' || *p == '\r' || *p == ' ') p++;
-    routeAddVertex(lat, lon);
+    routeAddVertex(lat, lon, (uint8_t)lim);
   }
   routeEndBuild();
 
@@ -1298,6 +1309,7 @@ void loop() {
     d.navToNextM   = (float)nav.toNextM;
     d.navRemainM   = (float)nav.remainingM;
     d.navTarget    = nav.target;
+    d.navLimite    = routeLimiteCorrente();
     d.navTotal     = nav.total;
     d.navTurnKind  = turnNextKind();
     d.navTurnExit  = turnNextExit();

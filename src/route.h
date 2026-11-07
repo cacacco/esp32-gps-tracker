@@ -50,13 +50,28 @@ enum RerouteState : uint8_t {
 };
 
 static const char ROUTE_PATH[] = "/route.bin";
+static const char ROUTE_LIM_PATH[] = "/route.lim";   // un byte per punto, a parte: route.bin resta com'era
 
 static RoutePoint routePts[ROUTE_MAX_POINTS];
 static float      routeCum[ROUTE_MAX_POINTS];   // metri da qui alla fine
+// Limite di velocita' del tratto che PARTE dal punto i, in km/h; 0 = non si
+// sa. Va tenuto allineato a routePts ovunque quello si diradi o si tagli: se
+// i due sfalsano, il cartello giusto compare sulla strada sbagliata, che e'
+// peggio di nessun cartello.
+static uint8_t    routeLimite[ROUTE_MAX_POINTS];
 static uint16_t   routeCount = 0;
 static uint16_t   navIndex   = 0;               // non torna mai indietro
 
 static NavState nav = { false, false, false, 0, 0, 0, 0, 0, 0, 0 };
+
+// Il limite del tratto in cui sei adesso: quello che parte dal punto prima
+// di quello verso cui stai andando.
+static uint8_t routeLimiteCorrente() {
+  if (!nav.active || !routeCount) return 0;
+  uint16_t i = nav.target ? (uint16_t)(nav.target - 1) : 0;
+  if (i >= routeCount) i = (uint16_t)(routeCount - 1);
+  return routeLimite[i];
+}
 
 // ---------------------------------------------------------------------------
 // Distanze cumulative: calcolate una volta al caricamento, cosi' il "quanto
@@ -77,11 +92,11 @@ static void routeComputeCum() {
 // tutto, solo meno fitto, invece di fermarsi a meta' strada.
 static void routeThinOut() {
   const uint16_t nuova = (uint16_t)((routeCount + 1) / 2);
-  for (uint16_t i = 1; i < nuova; i++) routePts[i] = routePts[i * 2];
+  for (uint16_t i = 1; i < nuova; i++) { routePts[i] = routePts[i * 2]; routeLimite[i] = routeLimite[i * 2]; }
   // Tenendo un punto su due, con un numero pari di punti l'ultimo resterebbe
   // fuori: su un percorso gia' completo sarebbe l'arrivo, e su uno in corso
   // di lettura sarebbe il punto da cui prosegue il tratto successivo.
-  if (nuova) routePts[nuova - 1] = routePts[routeCount - 1];
+  if (nuova) { routePts[nuova - 1] = routePts[routeCount - 1]; routeLimite[nuova - 1] = routeLimite[routeCount - 1]; }
   routeCount = nuova;
 }
 
@@ -167,6 +182,8 @@ static bool routeSave() {
   const size_t bytes = (size_t)routeCount * sizeof(RoutePoint);
   const bool ok = f.write((const uint8_t *)routePts, bytes) == bytes;
   f.close();
+  File l = LittleFS.open(ROUTE_LIM_PATH, "w");
+  if (l) { l.write(routeLimite, routeCount); l.close(); }
   return ok;
 }
 
@@ -177,6 +194,15 @@ static void routeLoad() {
   routeCount = (uint16_t)(n > ROUTE_MAX_POINTS ? ROUTE_MAX_POINTS : n);
   f.read((uint8_t *)routePts, (size_t)routeCount * sizeof(RoutePoint));
   f.close();
+
+  // i limiti valgono solo se sono tanti quanti i punti: altrimenti sono di
+  // un percorso diverso, e meglio nessun cartello che quello sbagliato
+  memset(routeLimite, 0, sizeof(routeLimite));
+  File l = LittleFS.open(ROUTE_LIM_PATH, "r");
+  if (l) {
+    if (l.size() == routeCount) l.read(routeLimite, routeCount);
+    l.close();
+  }
 
   routeComputeCum();
   navReset();
@@ -189,6 +215,7 @@ static void routeLoad() {
 static void routeClear() {
   routeCount = 0;
   LittleFS.remove(ROUTE_PATH);
+  LittleFS.remove(ROUTE_LIM_PATH);
   turnsClear();
   navReset();
   nav.active = false;
@@ -204,10 +231,13 @@ static double buildLastLat = 0, buildLastLon = 0;
 static bool   buildHasLast = false;
 static float  buildSpacing = ROUTE_DRAW_SPACING_M;
 
-static void routePush(double lat, double lon) {
+static uint8_t buildLimPrev = 0;   // limite del tratto che parte dall'ultimo vertice
+
+static void routePush(double lat, double lon, uint8_t lim) {
   if (routeCount >= ROUTE_MAX_POINTS) { routeThinOut(); buildSpacing *= 2; }
   routePts[routeCount].lat = (float)lat;
   routePts[routeCount].lon = (float)lon;
+  routeLimite[routeCount]  = lim;
   routeCount++;
 }
 
@@ -215,10 +245,14 @@ static void routeBeginBuild() {
   turnsClear();            // le svolte del percorso vecchio non valgono piu'
   routeCount   = 0;
   buildHasLast = false;
+  buildLimPrev = 0;
   buildSpacing = ROUTE_DRAW_SPACING_M;
 }
 
-static void routeAddVertex(double lat, double lon) {
+// lim: limite del tratto che parte da QUESTO vertice. I punti infittiti fra
+// il vertice precedente e questo stanno sul tratto precedente, e prendono il
+// limite di quello.
+static void routeAddVertex(double lat, double lon, uint8_t lim) {
   if (lat == 0 && lon == 0) return;
 
   if (buildHasLast) {
@@ -228,11 +262,12 @@ static void routeAddVertex(double lat, double lon) {
     for (uint16_t k = 1; k < passi; k++) {
       const double t = (double)k / passi;
       routePush(buildLastLat + (lat - buildLastLat) * t,
-                buildLastLon + (lon - buildLastLon) * t);
+                buildLastLon + (lon - buildLastLon) * t, buildLimPrev);
     }
   }
 
-  routePush(lat, lon);
+  routePush(lat, lon, lim);
+  buildLimPrev = lim;
   buildLastLat = lat;
   buildLastLon = lon;
   buildHasLast = true;
@@ -340,6 +375,7 @@ static void routeParseTag(const char *tag) {
 }
 
 static void routeBeginParse() {
+  memset(routeLimite, 0, sizeof(routeLimite));   // un GPX non porta limiti
   turnsClear();            // un GPX porta punti e tappe, non manovre
   routeCount = 0;
   gpxSpacing = ROUTE_MIN_SPACING_M;

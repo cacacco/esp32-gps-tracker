@@ -83,7 +83,7 @@ static const char INDEX_HTML[] PROGMEM = R"ESPGPS(<!doctype html>
   <div class="banner" id="banner"></div>
 
   <div class="grid">
-    <div class="card"><div class="label">Velocita'</div><div class="value"><span id="speed">--</span><span class="unit">km/h</span></div></div>
+    <div class="card"><div class="label">Velocita'</div><div class="value"><span id="speed">--</span><span class="unit">km/h</span><span id="limite" class="unit"></span></div></div>
     <div class="card"><div class="label">Satelliti</div><div class="value" id="sats">--</div>
       <div class="coords" id="cielo">in vista --</div></div>
     <div class="card"><div class="label">HDOP</div><div class="value" id="hdop">--</div></div>
@@ -264,6 +264,9 @@ async function refreshStatus(){
   } else banner.style.display = 'none';
 
   $('speed').textContent  = fmt(s.speed);
+  // il limite del tratto, se il percorso lo porta; rosso quando lo superi
+  $('limite').textContent = s.limite ? '  limite ' + s.limite : '';
+  $('speed').style.color  = (s.limite && s.speed > s.limite + 5) ? '#e04040' : '';
   $('sats').textContent   = s.sats || 0;
   // "sats" sono quelli usati per la posizione, "inview" quelli che si vedono:
   // senza fix il primo e' zero e non direbbe se l'antenna sta ricevendo

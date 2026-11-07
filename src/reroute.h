@@ -94,13 +94,20 @@ static bool rerouteSplice(uint16_t rejoin) {
   // intero meno fitto che mezzo giro preciso
   while ((uint32_t)rrPtsN + coda > ROUTE_MAX_POINTS && coda > 2) {
     const uint16_t nuova = (uint16_t)((coda + 1) / 2);
-    for (uint16_t i = 1; i < nuova; i++) routePts[rejoin + i] = routePts[rejoin + i * 2];
-    routePts[rejoin + nuova - 1] = routePts[rejoin + coda - 1];   // l'arrivo resta l'arrivo
+    for (uint16_t i = 1; i < nuova; i++) {
+      routePts[rejoin + i]    = routePts[rejoin + i * 2];
+      routeLimite[rejoin + i] = routeLimite[rejoin + i * 2];
+    }
+    routePts[rejoin + nuova - 1]    = routePts[rejoin + coda - 1];   // l'arrivo resta l'arrivo
+    routeLimite[rejoin + nuova - 1] = routeLimite[rejoin + coda - 1];
     coda = nuova;
   }
 
   memmove(&routePts[rrPtsN], &routePts[rejoin], (size_t)coda * sizeof(RoutePoint));
   memcpy(routePts, rrPts, (size_t)rrPtsN * sizeof(RoutePoint));
+  // i limiti seguono i punti; il tratto nuovo non ne ha (OSRM non li da')
+  memmove(&routeLimite[rrPtsN], &routeLimite[rejoin], coda);
+  memset(routeLimite, 0, rrPtsN);
   routeCount = (uint16_t)(rrPtsN + coda);
 
   // le svolte prima del rientro non valgono piu'; quelle dopo restano, e
