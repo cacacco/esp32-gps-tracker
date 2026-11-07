@@ -223,8 +223,11 @@ static void drawWait(const DisplayData &d, bool force) {
   // fix il secondo e' sempre zero e non distingue un guasto dal maltempo.
   if (force || (int32_t)d.satInVista != pSat) {
     pSat = (int32_t)d.satInVista;
-    if (d.satInVista) snprintf(buf, sizeof(buf), "%u satelliti in vista, segnale %u dB",
-                               d.satInVista, d.snr);
+    // In vista e usati sono due cose diverse, e la differenza e' tutta la
+    // diagnosi: tanti in vista con zero usati vuol dire che il modulo li
+    // sente ma non ha ancora i dati d'orbita per calcolare la posizione.
+    if (d.satInVista) snprintf(buf, sizeof(buf), "%u in vista, %lu usati, %u dB",
+                               d.satInVista, (unsigned long)d.satellites, d.snr);
     else              snprintf(buf, sizeof(buf), "nessun satellite in vista");
     displayField(buf, SW / 2, WAIT_Y[1], 2, WAIT_W, d.satInVista ? COL_LABEL : COL_WARN);
   }
