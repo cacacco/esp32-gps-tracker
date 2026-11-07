@@ -90,7 +90,20 @@ jobs:
           elif [ "$TIPO_REF" = tag ]; then
             V="$NOME_REF"; RILASCIA=si
           else
-            V=$(git describe --tags --always); RILASCIA=no
+            # Avvio a mano senza versione: si sta solo ripubblicando la
+            # pagina. La pagina deve installare il firmware RILASCIATO, non
+            # l'ultimo main, altrimenti chi legge la versione sul display
+            # trova un numero che non corrisponde a nessuna Release.
+            ULTIMO=$(git describe --tags --abbrev=0 2>/dev/null || true)
+            if [ -n "$ULTIMO" ]; then
+              git checkout --detach "$ULTIMO"
+              V="$ULTIMO"
+              echo "la pagina servira' il firmware di $ULTIMO"
+            else
+              V=$(git describe --tags --always)
+              echo "::warning title=Nessuna Release::Non c'e' nessun tag: la pagina servira' il firmware di main."
+            fi
+            RILASCIA=no
           fi
           echo "v=$V"               >> "$GITHUB_OUTPUT"
           echo "rilascia=$RILASCIA" >> "$GITHUB_OUTPUT"
