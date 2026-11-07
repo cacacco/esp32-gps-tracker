@@ -310,6 +310,35 @@ Se sbagli un filo, vuoi scoprirlo con il solo ESP32 attaccato, non con tutto col
 
 ## 3. Compilazione e caricamento
 
+### Dal browser, senza installare niente (la via piu' corta)
+
+**https://cacacco.github.io/esp32-gps-tracker/**
+
+Colleghi l'ESP32 al computer col cavo USB, apri quella pagina e premi
+**Connect**. Il firmware gia' compilato viene scritto sulla scheda dal browser,
+senza PlatformIO, senza Arduino, senza git. E' la strada giusta per provarlo la
+prima volta, o per far partire qualcun altro.
+
+Serve **Chrome, Edge o Opera da computer**: usano un'interfaccia chiamata Web
+Serial, che Firefox e Safari non hanno. **Su iPhone e iPad non funziona nessun
+browser**, nemmeno Chrome: Apple non permette l'accesso alla porta seriale.
+
+Gli stessi file sono allegati a ogni
+[Release](https://github.com/cacacco/esp32-gps-tracker/releases), se preferisci
+`esptool` da riga di comando:
+
+| File | Quando serve |
+|---|---|
+| `tracker-<versione>-tutto.bin` | prima installazione, da scrivere a `0x0`: contiene bootloader, partizioni e firmware |
+| `tracker-<versione>-solo-firmware.bin` | aggiornamento, da scrivere a `0x10000`, oppure via OTA |
+
+> La pagina scrive quattro pezzi separati e **non** tocca la zona `nvs`, dove
+> stanno reti WiFi, taratura del tocco e odometro: un reinstallo non te le fa
+> riscrivere. Solo se accetti *Erase device* parte tutto da zero.
+
+Le tre vie qui sotto servono se vuoi **modificare** il firmware, non solo
+usarlo.
+
 ### Windows, con un doppio clic
 
 In `tools/windows/` ci sono due script.

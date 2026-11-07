@@ -1,0 +1,223 @@
+# ---------------------------------------------------------------------------
+# Prepara un firmware pronto da installare, senza che chi lo usa debba
+# installare niente.
+#
+# Parte quando si pubblica un tag che comincia per v (per esempio v1.0.0) e fa
+# due cose:
+#
+#   1. crea la Release su GitHub con i file gia' compilati;
+#   2. pubblica su GitHub Pages una pagina che scrive il firmware sulla scheda
+#      direttamente dal browser, via Web Serial.
+#
+# Perche' quattro pezzi separati e non un file unico: cosi' la zona nvs, dove
+# stanno le reti WiFi, la taratura del tocco e l'odometro, NON viene toccata
+# da un reinstallo. Un file unico scritto da zero la sovrascriverebbe di
+# riflesso, perche' si trova in mezzo. Il file unico c'e' lo stesso, allegato
+# alla Release, per chi preferisce esptool da riga di comando.
+#
+# Perche' va abilitato a mano una volta sola: GitHub Pages pubblica da un
+# workflow solo se in Settings -> Pages la sorgente e' "GitHub Actions".
+# ---------------------------------------------------------------------------
+name: rilascio
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write        # per creare la Release
+  pages: write           # per pubblicare la pagina
+  id-token: write        # idem, lo chiede deploy-pages
+
+concurrency:
+  group: rilascio
+  cancel-in-progress: false
+
+jobs:
+  costruisci:
+    name: compila e impacchetta
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # senza i tag il firmware non sa come si chiama
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: pio-${{ runner.os }}-
+
+      # esptool serve a unire i pezzi in un file solo. Resta sulla serie 4
+      # apposta: nella 5 le opzioni hanno cambiato nome e il comando non
+      # sarebbe piu' lo stesso.
+      - name: installa PlatformIO ed esptool
+        run: pip install --upgrade platformio "esptool>=4.6,<5"
+
+      - name: come si chiama questa versione
+        id: ver
+        shell: bash
+        run: |
+          V=$(git describe --tags --always)
+          echo "v=$V" >> "$GITHUB_OUTPUT"
+          echo "rilascio: $V"
+
+      # pipefail o la compilazione fallita passerebbe per verde: il codice
+      # d'uscita della pipeline sarebbe quello di tee, che riesce sempre.
+      - name: compila
+        shell: bash
+        run: |
+          set -o pipefail
+          pio run -e esp32doit-devkit-v1 2>&1 | tee "$RUNNER_TEMP/compila.log"
+
+      - name: controlla che ci sia ancora spazio
+        shell: bash
+        run: |
+          riga=$(grep -o 'Flash:.*' "$RUNNER_TEMP/compila.log" | tail -1)
+          [ -n "$riga" ] || { echo "::error::non trovo la riga Flash: nel log"; exit 1; }
+          echo "$riga"
+          uso=$(printf '%s' "$riga" | grep -oE '[0-9]+(\.[0-9]+)?%' | head -1 | tr -d '%')
+          [ -n "$uso" ] || { echo "::error::non riesco a leggere la percentuale"; exit 1; }
+          if awk -v u="$uso" 'BEGIN { exit !(u >= 85) }'; then
+            echo "::error::il firmware occupa il $uso% della partizione"
+            exit 1
+          fi
+          echo "occupato il $uso%"
+
+      - name: raccogli i quattro pezzi
+        shell: bash
+        run: |
+          set -eu
+          B=.pio/build/esp32doit-devkit-v1
+          BOOT=$(find ~/.platformio/packages/framework-arduinoespressif32 \
+                      -name boot_app0.bin -print -quit)
+          [ -n "$BOOT" ] || { echo "::error::boot_app0.bin non trovato"; exit 1; }
+          mkdir -p sito/bin
+          cp "$B/bootloader.bin" "$B/partitions.bin" "$B/firmware.bin" sito/bin/
+          cp "$BOOT" sito/bin/boot_app0.bin
+          ls -l sito/bin
+
+      - name: unisci tutto in un file solo
+        shell: bash
+        env:
+          V: ${{ steps.ver.outputs.v }}
+        run: |
+          set -eu
+          # "keep" lascia modo e frequenza della flash come li ha messi la
+          # compilazione, invece di indovinarli una seconda volta qui.
+          python -m esptool --chip esp32 merge_bin -o "tracker-$V-tutto.bin" \
+            --flash_mode keep --flash_freq keep --flash_size 4MB \
+            0x1000  sito/bin/bootloader.bin \
+            0x8000  sito/bin/partitions.bin \
+            0xe000  sito/bin/boot_app0.bin \
+            0x10000 sito/bin/firmware.bin
+          cp sito/bin/firmware.bin "tracker-$V-solo-firmware.bin"
+          ls -l tracker-*.bin
+
+      - name: scrivi il manifest e la pagina
+        shell: bash
+        env:
+          V: ${{ steps.ver.outputs.v }}
+        run: |
+          set -eu
+          cat > sito/manifest.json <<MANIFEST
+          {
+            "name": "ESP32 GPS Tracker",
+            "version": "$V",
+            "new_install_prompt_erase": true,
+            "builds": [
+              {
+                "chipFamily": "ESP32",
+                "parts": [
+                  { "path": "bin/bootloader.bin", "offset": 4096 },
+                  { "path": "bin/partitions.bin", "offset": 32768 },
+                  { "path": "bin/boot_app0.bin",  "offset": 57344 },
+                  { "path": "bin/firmware.bin",   "offset": 65536 }
+                ]
+              }
+            ]
+          }
+          MANIFEST
+          python -c "import json; json.load(open('sito/manifest.json'))" \
+            || { echo "::error::manifest.json non e' JSON valido"; exit 1; }
+          sed "s/__VERSIONE__/$V/g" tools/pagina-installa.html > sito/index.html
+          if grep -q __VERSIONE__ sito/index.html; then
+            echo "::error::e' rimasto un segnaposto nella pagina"; exit 1
+          fi
+          touch sito/.nojekyll      # senza, Pages ignora i file che iniziano per _
+          echo "--- manifest ---"; cat sito/manifest.json
+
+      - name: crea la Release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ steps.ver.outputs.v }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          cat > note.md <<NOTE
+          ## Come si installa
+
+          **Dal browser, senza installare niente:**
+          https://cacacco.github.io/esp32-gps-tracker/
+
+          Serve Chrome, Edge o Opera **da computer** e un cavo USB dati. Su
+          iPhone e iPad non funziona: Apple non permette la porta seriale ai
+          browser.
+
+          **A mano, con esptool:**
+
+          \`\`\`
+          esptool.py --chip esp32 write_flash 0x0 tracker-$V-tutto.bin
+          \`\`\`
+
+          ## I file
+
+          | File | Quando serve |
+          |---|---|
+          | \`tracker-$V-tutto.bin\` | prima installazione: contiene bootloader, partizioni e firmware |
+          | \`tracker-$V-solo-firmware.bin\` | aggiornamento via OTA o a \`0x10000\` |
+
+          ## Attenzione, se arrivi da una versione precedente
+
+          La divisione della memoria e' cambiata (il firmware era arrivato al
+          93,9% del suo spazio). Il primo caricamento con questa versione va
+          fatto **col cavo** e **azzera la traccia salvata**: scaricati il GPX
+          dalla dashboard prima di cominciare. Reti WiFi, taratura del tocco e
+          odometro restano.
+          NOTE
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes-file note.md \
+            "tracker-$V-tutto.bin" \
+            "tracker-$V-solo-firmware.bin"
+
+      # Prova ad accendere Pages da sola. Se il permesso non basta il passo
+      # fallisce con un messaggio chiaro e la Release qui sopra e' gia' fatta:
+      # resta solo da mettere Settings -> Pages -> Source su "GitHub Actions".
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: sito
+
+  pubblica:
+    name: pubblica la pagina
+    needs: costruisci
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.pagine.outputs.page_url }}
+    steps:
+      - id: pagine
+        uses: actions/deploy-pages@v4

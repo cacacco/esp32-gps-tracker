@@ -1,0 +1,184 @@
+<!doctype html>
+<!--
+  Pagina di installazione del firmware dal browser.
+
+  Non e' un file da aprire a mano: la compilazione automatica la copia in
+  sito/, ci mette accanto manifest.json e i quattro .bin, e pubblica tutto su
+  GitHub Pages. __VERSIONE__ viene sostituito li'.
+
+  ESP Web Tools parla col chip via Web Serial, che esiste solo su Chrome,
+  Edge e Opera da computer. Su iPhone e su Firefox non c'e' e non ci sara':
+  per questo la pagina lo dice prima, invece di lasciare un pulsante che non
+  fa niente.
+-->
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Installa il GPS Tracker</title>
+<script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js?module"></script>
+<style>
+  :root {
+    --fondo: #ffffff; --testo: #16181d; --tenue: #5a5f6a;
+    --riga: #e2e5ea; --cassa: #f6f7f9; --acc: #0052c8; --ok: #007500;
+    --warn: #a04e00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fondo: #15171c; --testo: #e9ecf1; --tenue: #9aa1ad;
+      --riga: #2a2e37; --cassa: #1d2027; --acc: #6ea8ff; --ok: #5ec46b;
+      --warn: #e2a24a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --fondo: #15171c; --testo: #e9ecf1; --tenue: #9aa1ad;
+    --riga: #2a2e37; --cassa: #1d2027; --acc: #6ea8ff; --ok: #5ec46b;
+    --warn: #e2a24a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--fondo); color: var(--testo);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 0 16px 64px;
+  }
+  main { max-width: 680px; margin: 0 auto; }
+  header { padding: 48px 0 8px; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 6px; letter-spacing: -0.01em; }
+  h2 { font-size: 1.15rem; margin: 36px 0 10px; }
+  .sotto { color: var(--tenue); margin: 0; }
+  .ver {
+    display: inline-block; margin-top: 14px; padding: 3px 10px;
+    border: 1px solid var(--riga); border-radius: 999px;
+    font-size: .82rem; color: var(--tenue); font-family: ui-monospace, monospace;
+  }
+  .cassa {
+    background: var(--cassa); border: 1px solid var(--riga);
+    border-radius: 12px; padding: 20px; margin: 28px 0;
+  }
+  .via { text-align: center; }
+  esp-web-install-button { --esp-tools-button-color: var(--acc); }
+  .avviso {
+    border-left: 3px solid var(--warn); padding: 2px 0 2px 14px;
+    margin: 18px 0; color: var(--tenue);
+  }
+  .avviso strong { color: var(--testo); }
+  ol, ul { padding-left: 22px; }
+  li { margin: 7px 0; }
+  code {
+    background: var(--cassa); border: 1px solid var(--riga);
+    border-radius: 5px; padding: 1px 6px;
+    font: .88em ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  a { color: var(--acc); }
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--riga); }
+  th { font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--tenue); font-weight: 600; }
+  td:first-child { white-space: nowrap; }
+  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--riga); color: var(--tenue); font-size: .9rem; }
+  .niente { color: var(--tenue); }
+  .niente strong { color: var(--testo); }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <h1>Installa il GPS Tracker</h1>
+  <p class="sotto">Collega l'ESP32 al computer col cavo USB e premi il pulsante.
+     Non serve installare PlatformIO, né Arduino, né altro.</p>
+  <span class="ver">versione __VERSIONE__</span>
+</header>
+
+<div class="cassa via">
+  <esp-web-install-button manifest="manifest.json">
+    <span slot="unsupported" class="niente">
+      <strong>Questo browser non sa parlare col chip.</strong><br>
+      Serve <strong>Chrome</strong>, <strong>Edge</strong> o <strong>Opera</strong>, da computer.
+      Su iPhone e iPad non funziona nessun browser, nemmeno Chrome: Apple non
+      permette la porta seriale. Da telefono puoi solo leggere questa pagina.
+    </span>
+    <span slot="not-allowed" class="niente">
+      <strong>Questa pagina va aperta in <code>https</code>.</strong><br>
+      La porta seriale dal browser funziona solo su una connessione sicura.
+    </span>
+  </esp-web-install-button>
+</div>
+
+<h2>Prima di premere</h2>
+
+<ul>
+  <li>Un <strong>cavo USB dati</strong>: molti cavi da ricarica hanno solo i fili
+      della corrente e la scheda non viene vista.</li>
+  <li>Se nell'elenco delle porte non compare niente, mancano i driver del
+      convertitore USB della scheda: cerca <strong>CP210x</strong> oppure
+      <strong>CH340</strong>, secondo quale ha la tua.</li>
+  <li>Se la scrittura non parte, tieni premuto il tasto <strong>BOOT</strong>
+      della scheda mentre premi <strong>Connect</strong>, e rilascialo quando
+      comincia.</li>
+  <li>La finestra che si apre e' <strong>in inglese</strong>: non e' nostra, la
+      mette lo strumento che parla col chip. <em>Connect</em> collega,
+      <em>Install</em> scrive, <em>Erase device</em> cancella prima di
+      scrivere.</li>
+</ul>
+
+<div class="avviso">
+  <strong>La prima installazione cancella tutto.</strong>
+  Il browser ti chiede se vuoi cancellare la memoria: rispondendo di sì
+  partono da zero anche le reti WiFi, la taratura del tocco e l'odometro.
+  Rispondendo di no si riscrive solo il firmware, e quelle impostazioni
+  restano dove sono.
+</div>
+
+<div class="avviso">
+  <strong>La traccia registrata si perde comunque</strong> se stai arrivando da
+  una versione precedente alla nuova divisione della memoria: il filesystem si
+  sposta e viene riformattato. Scaricati il GPX dalla dashboard prima di
+  cominciare, se ci tieni.
+</div>
+
+<h2>Che cosa viene scritto</h2>
+
+<table>
+  <tr><th>Indirizzo</th><th>Pezzo</th><th>A cosa serve</th></tr>
+  <tr><td><code>0x1000</code></td><td>bootloader</td><td>il primo codice che gira all'accensione</td></tr>
+  <tr><td><code>0x8000</code></td><td>partizioni</td><td>la mappa della memoria</td></tr>
+  <tr><td><code>0xe000</code></td><td>boot_app0</td><td>dice da quale copia del firmware partire</td></tr>
+  <tr><td><code>0x10000</code></td><td>firmware</td><td>il programma vero e proprio</td></tr>
+</table>
+
+<p class="sotto">La zona delle impostazioni (<code>nvs</code>, a <code>0x9000</code>)
+non è in elenco apposta: così un aggiornamento non ti fa riscrivere la password
+del WiFi ogni volta.</p>
+
+<h2>Dopo</h2>
+
+<ol>
+  <li>La scheda si riavvia da sola e accende lo schermo.</li>
+  <li>Apre una rete WiFi tutta sua, <code>GPS-Tracker</code>, con password
+      <code>gpstracker</code>.</li>
+  <li>Collegati a quella rete e apri <code>http://192.168.4.1</code>: da lì
+      gli dici la tua rete di casa e il resto.</li>
+  <li>Gli aggiornamenti successivi puoi farli <strong>senza cavo</strong>, via
+      WiFi, dalla stessa dashboard.</li>
+</ol>
+
+<h2>Se preferisci farlo a mano</h2>
+
+<p>Tutti i file sono anche allegati alla
+   <a href="https://github.com/cacacco/esp32-gps-tracker/releases">Release su GitHub</a>.
+   Il file <code>…-tutto.bin</code> è l'immagine completa, da scrivere
+   all'indirizzo zero:</p>
+
+<p><code>esptool.py --chip esp32 write_flash 0x0 tracker-__VERSIONE__-tutto.bin</code></p>
+
+<footer>
+  <p><a href="https://github.com/cacacco/esp32-gps-tracker">Codice sorgente, schemi e istruzioni di montaggio</a>
+     — licenza MIT.</p>
+  <p>L'installazione avviene tutta dentro il tuo browser, in locale:
+     i file vengono scaricati da questa pagina e scritti sulla scheda.
+     Nessun dato parte dal tuo computer.</p>
+</footer>
+
+</main>
+</body>
+</html>
