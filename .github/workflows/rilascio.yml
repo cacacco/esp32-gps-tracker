@@ -43,6 +43,8 @@ jobs:
   costruisci:
     name: compila e impacchetta
     runs-on: ubuntu-latest
+    outputs:
+      pagine: ${{ steps.pagine.outcome }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -227,20 +229,34 @@ jobs:
             "tracker-$V-tutto.bin" \
             "tracker-$V-solo-firmware.bin"
 
-      # Prova ad accendere Pages da sola. Se il permesso non basta il passo
-      # fallisce con un messaggio chiaro e la Release qui sopra e' gia' fatta:
-      # resta solo da mettere Settings -> Pages -> Source su "GitHub Actions".
-      - uses: actions/configure-pages@v5
+      # Prova ad accendere Pages da sola. Il token di un workflow non puo'
+      # CREARE il sito la prima volta ("Resource not accessible by
+      # integration"): quel clic lo deve fare una persona, una volta sola, in
+      # Settings -> Pages -> Source: GitHub Actions.
+      #
+      # continue-on-error perche' la Release qui sopra e' gia' fatta e sarebbe
+      # sciocco segnare in rosso un rilascio riuscito per una pagina che manca.
+      - name: Pages e' acceso?
+        id: pagine
+        continue-on-error: true
+        uses: actions/configure-pages@v5
         with:
           enablement: true
 
+      - name: dillo chiaro se Pages non c'e'
+        if: steps.pagine.outcome != 'success'
+        run: |
+          echo "::warning title=Pages non e' acceso::La Release e' pronta, la pagina di installazione no. Vai in Settings -> Pages e metti Source su \"GitHub Actions\", poi rilancia questo workflow lasciando vuota la versione."
+
       - uses: actions/upload-pages-artifact@v3
+        if: steps.pagine.outcome == 'success'
         with:
           path: sito
 
   pubblica:
     name: pubblica la pagina
     needs: costruisci
+    if: needs.costruisci.outputs.pagine == 'success'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
