@@ -1,3 +1,8 @@
 .pio/
 .vscode/
 arduino/
+
+# Le impostazioni personali - nome della rete WiFi, password, chiavi - stanno
+# qui e NON devono finire nel progetto. Il file da copiare e' l'esempio
+# accanto: src/config_local.h.esempio
+src/config_local.h
