@@ -5,11 +5,10 @@ destinazione con le frecce e le svolte lette sul display, registra dove sei
 passato, e se sbagli strada ti riporta **sul giro che avevi scelto tu** invece
 di rifartene uno in tangenziale.
 
-![Il tracker acceso, con nove satelliti agganciati](docs/foto/display-in-marcia.jpg)
-
-<sub>La schermata di marcia, sul pannello vero. Sotto, com'e' fatta quella di navigazione:</sub>
-
-![La schermata di navigazione](docs/schermate/v-nav-oriz.png)
+| | |
+|:--:|:--:|
+| ![La schermata di marcia](docs/foto/display-in-marcia.jpg) | ![La schermata di navigazione](docs/schermate/v-nav-oriz.png) |
+| <sub>La schermata di marcia, sul pannello vero</sub> | <sub>Quella di navigazione, con la svolta in arrivo</sub> |
 
 | | |
 |---|---|
@@ -400,6 +399,14 @@ Le voci che probabilmente vorrai toccare:
 ---
 
 ## 5. Primo avvio
+
+![La schermata di ricerca dei satelliti](docs/foto/ricerca-satelliti.jpg)
+
+<sub>Finche' il fix non arriva il display racconta cosa sta succedendo: quanti
+satelliti vede, che segnale ricevono, quante frasi NMEA sono arrivate e da
+quanto sta cercando. Qui e' al chiuso - dieci satelliti in vista ma **0 dB di
+segnale**, cioe' l'antenna non riceve niente: e' esattamente il caso in cui
+serve portarla a vedere il cielo.</sub>
 
 Apri il monitor seriale a **115200 baud**:
 
